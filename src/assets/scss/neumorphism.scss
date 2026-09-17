@@ -1,0 +1,499 @@
+/* ==========================================================================
+   Neumorphism (Soft UI) Theme for DashboardKit CRM
+   ========================================================================== */
+
+$neu-bg: #eef2f7;
+$neu-dark-shadow: #cad3e0;
+$neu-light-shadow: #ffffff;
+$neu-primary: #3b82f6;
+$neu-primary-dark: #2563eb;
+$neu-text: #1e293b;
+$neu-text-muted: #64748b;
+
+// Main Canvas Background
+body,
+.pc-container {
+  background-color: $neu-bg !important;
+}
+
+.pc-container {
+  .page-header + .pcoded-content {
+    padding-top: calc(30px + 65px) !important;
+  }
+}
+
+// Fixed Page Header with Neumorphic Drop Shadow
+.page-header {
+  background: rgba(238, 242, 247, 0.95) !important;
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.7) !important;
+  box-shadow: 0 4px 14px rgba(202, 211, 224, 0.5) !important;
+
+  .page-header-title h5 {
+    color: $neu-text;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .breadcrumb .breadcrumb-item {
+    font-size: 0.825rem;
+    font-weight: 500;
+    color: $neu-text-muted;
+
+    a {
+      color: $neu-text-muted;
+      text-decoration: none;
+      transition: color 0.15s ease;
+
+      &:hover {
+        color: $neu-primary;
+      }
+    }
+
+    &.active {
+      color: $neu-text;
+      font-weight: 600;
+    }
+  }
+}
+
+// Neumorphic Cards (Raised Outer Shadow)
+.neu-card,
+.card {
+  background: $neu-bg !important;
+  border: 1px solid rgba(255, 255, 255, 0.8) !important;
+  border-radius: 18px !important;
+  box-shadow: 8px 8px 18px $neu-dark-shadow, -8px -8px 18px $neu-light-shadow !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &.neu-card-flat {
+    box-shadow: 4px 4px 10px $neu-dark-shadow, -4px -4px 10px $neu-light-shadow !important;
+  }
+}
+
+// Neumorphic Top Navigation Bar Header Components
+.pc-header {
+  background: rgba(238, 242, 247, 0.95) !important;
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.8) !important;
+  box-shadow: 0 3px 12px rgba(202, 211, 224, 0.4) !important;
+}
+
+.neu-icon-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: $neu-bg;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 3px 3px 7px $neu-dark-shadow, -3px -3px 7px $neu-light-shadow;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+
+  &:hover {
+    color: $neu-primary-dark;
+    box-shadow: 4px 4px 10px $neu-dark-shadow, -4px -4px 10px $neu-light-shadow;
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    box-shadow: inset 2px 2px 5px $neu-dark-shadow, inset -2px -2px 5px $neu-light-shadow;
+    transform: translateY(0);
+  }
+}
+
+.neu-header-search {
+  position: relative;
+  background: $neu-bg;
+  border-radius: 12px;
+  box-shadow: inset 3px 3px 6px $neu-dark-shadow, inset -3px -3px 6px $neu-light-shadow;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  padding: 5px 12px;
+  width: 270px;
+  transition: all 0.25s ease;
+
+  &:focus-within {
+    width: 320px;
+    box-shadow: inset 3px 3px 6px $neu-dark-shadow, inset -3px -3px 6px $neu-light-shadow, 0 0 0 2px rgba(59, 130, 246, 0.25);
+  }
+
+  .neu-header-search-input {
+    border: none;
+    background: transparent;
+    outline: none;
+    font-size: 0.84rem;
+    color: $neu-text;
+    width: 100%;
+
+    &::placeholder {
+      color: #94a3b8;
+    }
+  }
+
+  .neu-kbd-hint {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #94a3b8;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 4px;
+    padding: 1px 5px;
+    box-shadow: 1px 1px 2px $neu-dark-shadow;
+    white-space: nowrap;
+  }
+}
+
+.neu-nav-link {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #64748b;
+  padding: 6px 12px;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: all 0.15s ease;
+
+  &:hover {
+    color: $neu-primary-dark;
+    background: rgba(255, 255, 255, 0.7);
+    box-shadow: 2px 2px 5px $neu-dark-shadow, -2px -2px 5px $neu-light-shadow;
+  }
+}
+
+.neu-notification-dot {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #ef4444;
+  box-shadow: 0 0 0 2px $neu-bg;
+}
+
+
+// Neumorphic Live Status Badge
+.neu-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  background: $neu-bg;
+  box-shadow: inset 2px 2px 5px $neu-dark-shadow, inset -2px -2px 5px $neu-light-shadow;
+  color: #16a34a;
+  font-size: 0.775rem;
+  font-weight: 600;
+
+  .pulse-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #16a34a;
+    box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.25);
+  }
+}
+
+// Neumorphic Segmented Tab Navigation
+.neu-segmented-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  background: $neu-bg;
+  border-radius: 16px;
+  box-shadow: inset 4px 4px 8px $neu-dark-shadow, inset -4px -4px 8px $neu-light-shadow;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+
+  .neu-tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 18px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: $neu-text-muted;
+    border: none;
+    background: transparent;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+
+    &:hover {
+      color: $neu-text;
+    }
+
+    &.active {
+      background: $neu-bg;
+      color: $neu-primary-dark;
+      font-weight: 700;
+      box-shadow: 4px 4px 10px $neu-dark-shadow, -4px -4px 10px $neu-light-shadow;
+      border: 1px solid rgba(255, 255, 255, 0.9);
+    }
+  }
+}
+
+// Neumorphic Date Inputs & Text Fields
+.neu-input,
+.form-control,
+.form-select {
+  background: $neu-bg !important;
+  border: 1px solid rgba(255, 255, 255, 0.6) !important;
+  border-radius: 12px !important;
+  color: $neu-text !important;
+  font-size: 0.875rem;
+  box-shadow: inset 3px 3px 6px $neu-dark-shadow, inset -3px -3px 6px $neu-light-shadow !important;
+  transition: all 0.2s ease;
+
+  &:focus {
+    outline: none;
+    box-shadow: inset 3px 3px 6px $neu-dark-shadow, inset -3px -3px 6px $neu-light-shadow, 0 0 0 2px rgba(59, 130, 246, 0.25) !important;
+  }
+}
+
+// Neumorphic Input Group (Search box)
+.neu-input-group {
+  display: flex;
+  align-items: center;
+  background: $neu-bg;
+  border-radius: 12px;
+  box-shadow: inset 3px 3px 6px $neu-dark-shadow, inset -3px -3px 6px $neu-light-shadow;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  padding: 2px 8px;
+
+  .input-group-text {
+    background: transparent !important;
+    border: none !important;
+    color: $neu-text-muted;
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+
+  .form-control {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+}
+
+// Neumorphic Buttons
+.neu-btn-primary,
+.btn-primary {
+  background: linear-gradient(145deg, #3b82f6, #2563eb) !important;
+  border: none !important;
+  border-radius: 12px !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  box-shadow: 4px 4px 10px rgba(37, 99, 235, 0.35), -4px -4px 10px $neu-light-shadow !important;
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 6px 6px 14px rgba(37, 99, 235, 0.45), -6px -6px 14px $neu-light-shadow !important;
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: inset 3px 3px 6px rgba(0, 0, 0, 0.25), inset -3px -3px 6px rgba(255, 255, 255, 0.15) !important;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    box-shadow: none !important;
+  }
+}
+
+.neu-btn-secondary,
+.btn-outline-secondary {
+  background: $neu-bg !important;
+  border: 1px solid rgba(255, 255, 255, 0.8) !important;
+  border-radius: 12px !important;
+  color: $neu-text !important;
+  font-weight: 500;
+  box-shadow: 4px 4px 10px $neu-dark-shadow, -4px -4px 10px $neu-light-shadow !important;
+  transition: all 0.2s ease;
+
+  &:hover {
+    color: $neu-primary-dark !important;
+    box-shadow: 6px 6px 12px $neu-dark-shadow, -6px -6px 12px $neu-light-shadow !important;
+  }
+
+  &:active {
+    box-shadow: inset 3px 3px 6px $neu-dark-shadow, inset -3px -3px 6px $neu-light-shadow !important;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    box-shadow: none !important;
+  }
+}
+
+.neu-btn-action,
+.btn-outline-primary {
+  background: $neu-bg !important;
+  border: 1px solid rgba(255, 255, 255, 0.8) !important;
+  border-radius: 12px !important;
+  color: $neu-primary-dark !important;
+  font-weight: 600;
+  box-shadow: 4px 4px 10px $neu-dark-shadow, -4px -4px 10px $neu-light-shadow !important;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: $neu-primary-dark !important;
+    color: #ffffff !important;
+    box-shadow: 4px 4px 12px rgba(37, 99, 235, 0.35), -4px -4px 12px $neu-light-shadow !important;
+  }
+
+  &:active {
+    box-shadow: inset 3px 3px 6px rgba(0, 0, 0, 0.2), inset -3px -3px 6px $neu-light-shadow !important;
+  }
+}
+
+// Neumorphic Quick Preset Pills
+.neu-preset-btn {
+  padding: 5px 12px;
+  font-size: 0.775rem;
+  font-weight: 500;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  background: $neu-bg;
+  color: $neu-text-muted;
+  box-shadow: 3px 3px 7px $neu-dark-shadow, -3px -3px 7px $neu-light-shadow;
+  transition: all 0.18s ease;
+  cursor: pointer;
+
+  &:hover {
+    color: $neu-text;
+    box-shadow: 4px 4px 9px $neu-dark-shadow, -4px -4px 9px $neu-light-shadow;
+  }
+
+  &.active {
+    box-shadow: inset 2px 2px 4px $neu-dark-shadow, inset -2px -2px 4px $neu-light-shadow;
+    color: $neu-primary-dark;
+    font-weight: 700;
+  }
+}
+
+// Neumorphic Metric KPI Cards
+.neu-kpi-card {
+  background: $neu-bg !important;
+  border: 1px solid rgba(255, 255, 255, 0.8) !important;
+  border-radius: 20px !important;
+  box-shadow: 8px 8px 18px $neu-dark-shadow, -8px -8px 18px $neu-light-shadow !important;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 10px 10px 22px $neu-dark-shadow, -10px -10px 22px $neu-light-shadow !important;
+  }
+
+  .neu-kpi-icon-circle {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: $neu-bg;
+    box-shadow: inset 3px 3px 6px $neu-dark-shadow, inset -3px -3px 6px $neu-light-shadow;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+
+    &.tone-primary {
+      color: #2563eb;
+    }
+    &.tone-success {
+      color: #16a34a;
+    }
+    &.tone-warning {
+      color: #d97706;
+    }
+    &.tone-danger {
+      color: #dc2626;
+    }
+  }
+
+  .neu-kpi-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: $neu-text-muted;
+    margin-bottom: 3px;
+  }
+
+  .neu-kpi-value {
+    font-size: 1.7rem;
+    font-weight: 800;
+    line-height: 1.2;
+    color: $neu-text;
+    letter-spacing: -0.02em;
+  }
+
+  .neu-kpi-subtitle {
+    font-size: 0.775rem;
+    color: #94a3b8;
+    margin-top: 2px;
+  }
+}
+
+// Neumorphic Data Table
+.neu-table-wrapper {
+  border-radius: 16px;
+  background: $neu-bg;
+  box-shadow: inset 3px 3px 7px $neu-dark-shadow, inset -3px -3px 7px $neu-light-shadow;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  padding: 4px;
+  overflow: hidden;
+
+  table {
+    margin-bottom: 0;
+    background: transparent !important;
+
+    thead tr th {
+      background: rgba(238, 242, 247, 0.6) !important;
+      color: #475569;
+      font-size: 0.775rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      border-bottom: 1px solid rgba(202, 211, 224, 0.6) !important;
+      padding: 14px 16px;
+    }
+
+    tbody tr {
+      transition: background-color 0.15s ease;
+
+      td {
+        background: transparent !important;
+        padding: 13px 16px;
+        color: $neu-text;
+        font-size: 0.875rem;
+        border-bottom: 1px solid rgba(202, 211, 224, 0.3) !important;
+      }
+
+      &:hover td {
+        background: rgba(255, 255, 255, 0.4) !important;
+      }
+    }
+
+    tbody tr.neu-grand-total-row {
+      background: rgba(255, 255, 255, 0.7) !important;
+      box-shadow: 0 -2px 6px rgba(202, 211, 224, 0.4);
+
+      td {
+        background: rgba(255, 255, 255, 0.7) !important;
+        color: #0f172a !important;
+        font-weight: 800 !important;
+        font-size: 0.925rem !important;
+        padding-top: 15px;
+        padding-bottom: 15px;
+        border-top: 2px solid $neu-dark-shadow !important;
+      }
+    }
+  }
+}
