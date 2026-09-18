@@ -30,34 +30,36 @@ function ConfigProvider({ children }) {
           collapseHeaderMenu: !stateData.collapseHeaderMenu
         };
 
-      case actionType.COLLAPSE_TOGGLE:
-        if (action.menu.type === 'sub') {
-          open = stateData.isOpen;
-          trigger = stateData.isTrigger;
+      case actionType.COLLAPSE_OPEN: {
+        const id = action.menu?.id;
+        if (!id) return stateData;
+        const currentTriggers = Array.isArray(stateData.isTrigger) ? stateData.isTrigger : [];
+        const currentOpen = Array.isArray(stateData.isOpen) ? stateData.isOpen : [];
+        if (currentTriggers.includes(id)) return stateData;
+        return {
+          ...stateData,
+          isTrigger: [...currentTriggers, id],
+          isOpen: currentOpen.includes(id) ? currentOpen : [...currentOpen, id]
+        };
+      }
 
-          const triggerIndex = trigger.indexOf(action.menu.id);
-          if (triggerIndex > -1) {
-            open = open.filter((item) => item !== action.menu.id);
-            trigger = trigger.filter((item) => item !== action.menu.id);
-          }
-
-          if (triggerIndex === -1) {
-            open = [...open, action.menu.id];
-            trigger = [...trigger, action.menu.id];
-            trigger = [...trigger, action.menu.id];
-          }
-        } else {
-          open = stateData.isOpen;
-          const triggerIndex = stateData.isTrigger.indexOf(action.menu.id);
-          trigger = triggerIndex === -1 ? [action.menu.id] : [];
-          open = triggerIndex === -1 ? [action.menu.id] : [];
-        }
+      case actionType.COLLAPSE_TOGGLE: {
+        const id = action.menu?.id;
+        if (!id) return stateData;
+        const currentTriggers = Array.isArray(stateData.isTrigger) ? stateData.isTrigger : [];
+        const currentOpen = Array.isArray(stateData.isOpen) ? stateData.isOpen : [];
+        const isCurrentlyOpen = currentTriggers.includes(id);
 
         return {
           ...stateData,
-          isOpen: open,
-          isTrigger: trigger
+          isTrigger: isCurrentlyOpen
+            ? currentTriggers.filter((item) => item !== id)
+            : [...currentTriggers, id],
+          isOpen: isCurrentlyOpen
+            ? currentOpen.filter((item) => item !== id)
+            : [...currentOpen, id]
         };
+      }
       default:
         throw new Error();
     }

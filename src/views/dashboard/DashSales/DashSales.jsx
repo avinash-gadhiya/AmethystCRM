@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import Chart from 'react-apexcharts';
-import { Banknote, CircleDollarSign, Loader2, RefreshCw, TicketCheck, TrendingUp, Users } from 'lucide-react';
+import { Banknote, CircleDollarSign, ExternalLink, Loader2, MapPin, RefreshCw, TicketCheck, TrendingUp, Users } from 'lucide-react';
 
 import authService from 'services/authService';
 import dashboardService from 'services/dashboardService';
@@ -192,6 +193,29 @@ export default function DashSales() {
     };
   }, [dailyLocationRows, monthlyRows]);
 
+  const dailyLocationChart = useMemo(() => {
+    return {
+      options: {
+        chart: { toolbar: { show: false } },
+        dataLabels: { enabled: false },
+        stroke: { curve: 'smooth', width: 2.5 },
+        colors: ['#4f46e5'],
+        xaxis: {
+          categories: dailyLocationRows.map((item) => textFrom(item, ['date', 'day'], 'Date')),
+          tickAmount: Math.min(dailyLocationRows.length, 14)
+        },
+        yaxis: { labels: { formatter: (value) => compactNumber.format(value) } },
+        tooltip: { y: { formatter: (value) => currency.format(value) } }
+      },
+      series: [
+        {
+          name: 'Daily Total Sales',
+          data: dailyLocationRows.map((item) => numberFrom(item, ['totalSales', 'sales']))
+        }
+      ]
+    };
+  }, [dailyLocationRows]);
+
   const leadRows = useMemo(() => {
     const normalizedGroups = groupRows.map((item, index) => ({
       id: `group-${index}`,
@@ -334,6 +358,61 @@ export default function DashSales() {
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      {/* Daily Location Wise Sales Card */}
+      <div className="card">
+        <div className="card-header flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 inline-flex items-center">
+              <MapPin size={18} />
+            </span>
+            <div>
+              <h5 className="text-base font-semibold text-gray-800 mb-0.5">Daily Location Wise Sales</h5>
+              <p className="text-xs text-gray-400 mb-0">
+                Live endpoint: <code className="text-indigo-600 bg-indigo-50 px-1 py-0.5 rounded text-xs">/Dashboard/DailyLocationWiseSales</code>
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-600 border border-indigo-200">
+              {dailyLocationRows.length} Days Recorded
+            </span>
+            <Link
+              to="/Dashboard/DailyLocationWiseSales"
+              className="btn btn-outline-primary btn-sm flex items-center gap-1 text-xs"
+            >
+              Full Details <ExternalLink size={12} />
+            </Link>
+          </div>
+        </div>
+        <div className="card-body">
+          {dailyLocationRows.length > 0 ? (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="lg:col-span-2">
+                <Chart type="area" width="100%" height={280} {...dailyLocationChart} />
+              </div>
+              <div className="border-t lg:border-t-0 lg:border-l pl-0 lg:pl-4">
+                <h6 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Recent Daily Entries</h6>
+                <div className="overflow-y-auto max-h-64 space-y-2 pr-1">
+                  {dailyLocationRows.slice(0, 10).map((row, idx) => {
+                    const salesVal = numberFrom(row, ['totalSales', 'sales']);
+                    return (
+                      <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-gray-50 text-xs">
+                        <span className="font-medium text-gray-700">{row.date || `Day ${idx + 1}`}</span>
+                        <span className={`font-semibold ${salesVal > 0 ? 'text-indigo-600' : 'text-gray-400'}`}>
+                          {currency.format(salesVal)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <EmptyChart loading={loading} message="No daily location-wise sales data available." />
+          )}
         </div>
       </div>
 

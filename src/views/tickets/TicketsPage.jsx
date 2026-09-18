@@ -248,49 +248,60 @@ export default function TicketsPage() {
 
   return (
     <div>
-      <Card className="border-0 shadow-sm mb-4">
-        <Card.Header className="bg-transparent d-flex flex-wrap justify-content-between align-items-center gap-3 py-3">
-          <div>
-            <h5 className="mb-1 fw-semibold">Tickets</h5>
-            <span className="text-muted small">Create, update and review CRM service tickets</span>
+      <Card className="border-0 shadow-sm mb-2.5">
+        <Card.Body className="p-2.5">
+          <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2 pb-2 border-bottom">
+            <div className="d-flex align-items-center gap-2">
+              <h6 className="mb-0 fw-bold text-gray-800" style={{ fontSize: '0.875rem' }}>Tickets</h6>
+              <span className="badge bg-primary" style={{ fontSize: '0.7rem' }}>{totalCount} total</span>
+            </div>
+            <Button size="sm" onClick={openCreate} style={{ height: '30px', fontSize: '0.75rem' }}>
+              <Plus size={14} className="me-1" />New Ticket
+            </Button>
           </div>
-          <Button onClick={openCreate}><Plus size={16} className="me-2" />New Ticket</Button>
-        </Card.Header>
-        <Card.Body>
           <Form onSubmit={search}>
-            <Row className="g-3 align-items-end">
-              <Col md={3} xl={2}>
-                <Form.Label className="small text-muted">Search field</Form.Label>
-                <Form.Select value={searchField} onChange={(event) => setSearchField(event.target.value)}>
+            <Row className="g-2 align-items-center">
+              <Col xs={12} sm={6} md={3} xl={2}>
+                <Form.Select size="sm" value={searchField} onChange={(event) => setSearchField(event.target.value)} title="Filter Field">
                   {SEARCH_FIELDS.map((field) => <option key={field.label} value={field.value}>{field.label}</option>)}
                 </Form.Select>
               </Col>
-              <Col md={5} xl={4}>
-                <Form.Label className="small text-muted">Search</Form.Label>
-                <InputGroup><InputGroup.Text><Search size={16} /></InputGroup.Text><Form.Control value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Search tickets..." /></InputGroup>
+              <Col xs={12} sm={6} md={4} xl={4}>
+                <div className="relative flex items-center">
+                  <span className="absolute left-2.5 text-gray-400 pointer-events-none flex items-center justify-center z-10">
+                    <Search size={13} />
+                  </span>
+                  <Form.Control
+                    size="sm"
+                    style={{ paddingLeft: '1.85rem' }}
+                    value={searchText}
+                    onChange={(event) => setSearchText(event.target.value)}
+                    placeholder="Search tickets..."
+                  />
+                </div>
               </Col>
-              <Col md={2} xl={2}>
-                <Form.Label className="small text-muted">From date</Form.Label>
-                <Form.Control type="date" value={fromDate} onChange={(event) => { setFromDate(event.target.value); setPage(1); }} />
+              <Col xs={6} sm={6} md={2} xl={2}>
+                <Form.Control size="sm" type="date" value={fromDate} onChange={(event) => { setFromDate(event.target.value); setPage(1); }} title="From date" />
               </Col>
-              <Col md={2} xl={2}>
-                <Form.Label className="small text-muted">To date</Form.Label>
-                <Form.Control type="date" value={toDate} onChange={(event) => { setToDate(event.target.value); setPage(1); }} />
+              <Col xs={6} sm={6} md={2} xl={2}>
+                <Form.Control size="sm" type="date" value={toDate} onChange={(event) => { setToDate(event.target.value); setPage(1); }} title="To date" />
               </Col>
-              <Col xl={2} className="d-flex gap-2">
-                <Button type="submit" className="flex-grow-1">Search</Button>
-                <Button variant="outline-secondary" onClick={() => setRefreshKey((value) => value + 1)} disabled={loading}><RefreshCw size={16} /></Button>
+              <Col xs={12} md={1} xl={2} className="d-flex gap-1">
+                <Button size="sm" type="submit" className="flex-grow-1">Search</Button>
+                <Button size="sm" variant="outline-secondary" onClick={() => setRefreshKey((value) => value + 1)} disabled={loading} title="Refresh">
+                  <RefreshCw size={13} />
+                </Button>
               </Col>
             </Row>
           </Form>
         </Card.Body>
       </Card>
 
-      {error && <div className="alert alert-danger">{error}</div>}
+      {error && <div className="alert alert-danger py-2">{error}</div>}
 
       <Card className="border-0 shadow-sm">
-        <Card.Header className="bg-transparent d-flex justify-content-between align-items-center py-3">
-          <h5 className="mb-0">Ticket List</h5>
+        <Card.Header className="bg-transparent d-flex justify-content-between align-items-center py-2 px-3">
+          <h6 className="mb-0 fw-bold text-gray-800" style={{ fontSize: '0.85rem' }}>Ticket List</h6>
           <Badge bg="light" text="dark" className="border">{totalCount} tickets</Badge>
         </Card.Header>
         <div className="table-responsive">

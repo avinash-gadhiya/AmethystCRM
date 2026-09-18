@@ -17,7 +17,7 @@ export default function AdminLayout() {
   const windowSize = useWindowSize();
   const configContext = useContext(ConfigContext);
   const bodyElement = document.body;
-  const { collapseLayout } = configContext.state;
+  const { collapseLayout, collapseMenu } = configContext.state;
   const { dispatch } = configContext;
 
   useEffect(() => {
@@ -26,7 +26,7 @@ export default function AdminLayout() {
     }
   }, [dispatch, windowSize]);
 
-  if (windowSize.width > 992 && collapseLayout) {
+  if (windowSize.width > 992 && (collapseMenu || collapseLayout)) {
     bodyElement.classList.add('minimenu');
   } else {
     bodyElement.classList.remove('minimenu');

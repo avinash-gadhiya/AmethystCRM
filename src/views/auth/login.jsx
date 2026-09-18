@@ -15,8 +15,8 @@ export default function SignIn() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [userName, setUserName] = useState('');
-  const [password, setPassword] = useState('');
+  const [userName, setUserName] = useState('developer');
+  const [password, setPassword] = useState('Pass@2026@Dev');
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -24,8 +24,16 @@ export default function SignIn() {
 
   useEffect(() => {
     const savedUser = localStorage.getItem('saved_username');
-    if (savedUser) setUserName(savedUser);
+    if (savedUser) {
+      setUserName(savedUser);
+    }
   }, []);
+
+  const handleFillDefaultCredentials = () => {
+    setUserName('developer');
+    setPassword('Pass@2026@Dev');
+    setErrorMessage('');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -72,29 +80,40 @@ export default function SignIn() {
     <div className="auth-wrapper">
       <div className="auth-content">
         <div className="auth-card">
-          {/* Top accent bar */}
-          <div className="h-1.5 w-full bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-600" />
-
-          <div className="px-8 py-10">
+          <div className="px-8 py-9">
             {/* Logo */}
-            <div className="flex justify-center mb-6">
+            <div className="flex justify-center mb-5">
               <img src={logoDark} alt="DashboardKit" className="h-10 w-auto" />
             </div>
 
-            <h2 className="text-2xl font-bold text-gray-900 text-center mb-1">Welcome back</h2>
-            <p className="text-sm text-gray-400 text-center mb-8">
-              Sign in to your CRM dashboard
+            <h2 className="text-2xl font-extrabold text-gray-800 text-center mb-1 tracking-tight">Welcome back</h2>
+            <p className="text-xs text-gray-500 text-center mb-6 font-medium">
+              Neumorphic CRM Portal &bull; Enterprise Access
             </p>
+
+            {/* Quick Demo Credentials Pill */}
+            <div
+              className="neu-preset-btn flex items-center justify-between mb-5 px-3 py-2 text-xs cursor-pointer select-none"
+              onClick={handleFillDefaultCredentials}
+              title="Click to fill developer credentials"
+            >
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="font-semibold text-gray-700">Dev Login:</span>
+                <span className="text-indigo-600 font-mono">developer</span>
+              </div>
+              <span className="text-gray-400 text-[11px] bg-white/70 px-2 py-0.5 rounded shadow-sm">Auto-ready</span>
+            </div>
 
             {/* Error Alert */}
             {errorMessage && (
-              <div className="alert alert-danger mb-6 flex items-center" role="alert">
+              <div className="alert alert-danger mb-5 flex items-center gap-2" role="alert">
                 <AlertCircle size={16} className="flex-shrink-0" />
-                <span className="flex-1 text-sm">{errorMessage}</span>
+                <span className="flex-1 text-xs">{errorMessage}</span>
                 <button
                   type="button"
                   onClick={() => setErrorMessage('')}
-                  className="bg-transparent border-0 text-red-400 hover:text-red-600 p-0 cursor-pointer leading-none text-lg"
+                  className="bg-transparent border-0 text-red-500 hover:text-red-700 p-0 cursor-pointer leading-none text-base font-bold"
                   aria-label="Dismiss"
                 >
                   ×
@@ -105,7 +124,7 @@ export default function SignIn() {
             <form onSubmit={handleSubmit} noValidate>
               {/* Username */}
               <div className="mb-4">
-                <label htmlFor="username" className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
+                <label htmlFor="username" className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">
                   Username / Email
                 </label>
                 <div className="relative flex items-center">
@@ -115,7 +134,7 @@ export default function SignIn() {
                   <input
                     id="username"
                     type="text"
-                    className="form-control"
+                    className="form-control neu-input"
                     style={{ paddingLeft: '2.75rem', paddingRight: '1rem', height: '46px' }}
                     placeholder="Enter your username or email"
                     value={userName}
@@ -129,7 +148,7 @@ export default function SignIn() {
 
               {/* Password */}
               <div className="mb-5">
-                <label htmlFor="password" className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
+                <label htmlFor="password" className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">
                   Password
                 </label>
                 <div className="relative flex items-center">
@@ -139,7 +158,7 @@ export default function SignIn() {
                   <input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
-                    className="form-control"
+                    className="form-control neu-input"
                     style={{ paddingLeft: '2.75rem', paddingRight: '2.75rem', height: '46px' }}
                     placeholder="Enter your password"
                     value={password}
@@ -150,7 +169,7 @@ export default function SignIn() {
                   <button
                     type="button"
                     tabIndex={-1}
-                    className="absolute right-3.5 text-gray-400 hover:text-gray-600 bg-transparent border-0 cursor-pointer p-1 flex items-center justify-center z-10 transition-colors"
+                    className="absolute right-3 text-gray-400 hover:text-gray-600 bg-transparent border-0 cursor-pointer p-1.5 flex items-center justify-center z-10 transition-colors"
                     onClick={() => setShowPassword(!showPassword)}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
@@ -160,7 +179,7 @@ export default function SignIn() {
               </div>
 
               {/* Remember Me */}
-              <div className="flex items-center mb-6">
+              <div className="flex items-center justify-between mb-6">
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -170,21 +189,22 @@ export default function SignIn() {
                     disabled={loading}
                     className="w-4 h-4 rounded border-gray-300 text-indigo-600 cursor-pointer"
                   />
-                  <span className="text-sm font-medium text-gray-600">Remember me</span>
+                  <span className="text-xs font-medium text-gray-600">Remember credentials</span>
                 </label>
+                <span className="text-[11px] text-gray-400">Pass@2026@Dev</span>
               </div>
 
               {/* Submit Button */}
               <button
                 type="submit"
-                className="btn btn-primary w-full py-3 text-sm font-semibold rounded-xl flex items-center justify-center gap-2"
-                style={{ height: '46px' }}
+                className="btn btn-primary neu-btn-primary w-full py-3 text-sm font-bold flex items-center justify-center gap-2"
+                style={{ height: '48px' }}
                 disabled={loading}
               >
                 {loading ? (
                   <>
                     <Loader2 size={18} className="animate-spin" />
-                    <span>Signing in...</span>
+                    <span>Authenticating...</span>
                   </>
                 ) : (
                   'Sign In to Dashboard'

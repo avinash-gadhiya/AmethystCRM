@@ -44,28 +44,29 @@ export default function Breadcrumb() {
     document.title = title + BASE_TITLE;
 
     return (
-      <div className="page-header">
-        <div className="page-block">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div>
-              <h5 className="text-base font-semibold text-gray-800 mb-1">{title}</h5>
+      <div className="page-header mb-2">
+        <div className="page-block py-1.5 px-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2.5">
+              <h5 className="text-xs font-bold text-gray-800 mb-0 leading-none">{title}</h5>
+              <span className="text-gray-300 text-xs">/</span>
               <nav aria-label="breadcrumb">
-                <ol className="breadcrumb">
+                <ol className="breadcrumb mb-0">
                   <li className="breadcrumb-item">
-                    <Link to="/" className="flex items-center gap-1 text-gray-400 hover:text-indigo-500">
-                      <Home size={13} />
+                    <Link to="/" className="flex items-center gap-1 text-gray-400 hover:text-indigo-500 text-xs">
+                      <Home size={11} />
                       Home
                     </Link>
                   </li>
                   {main && main.type === 'collapse' && main.title && main.title !== title && (
-                    <li className="breadcrumb-item flex items-center gap-1">
-                      <ChevronRight size={12} className="text-gray-300" />
+                    <li className="breadcrumb-item flex items-center gap-1 text-xs">
+                      <ChevronRight size={10} className="text-gray-300" />
                       <Link to="#" className="text-gray-400 hover:text-indigo-500">{main.title}</Link>
                     </li>
                   )}
-                  <li className="breadcrumb-item flex items-center gap-1">
-                    <ChevronRight size={12} className="text-gray-300" />
-                    <span className="text-gray-700">{title}</span>
+                  <li className="breadcrumb-item flex items-center gap-1 text-xs">
+                    <ChevronRight size={10} className="text-gray-300" />
+                    <span className="text-gray-600 font-medium">{title}</span>
                   </li>
                 </ol>
               </nav>

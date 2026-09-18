@@ -1,19 +1,10 @@
-import { useContext, useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Menu, Search } from 'lucide-react';
-import { ConfigContext } from 'contexts/ConfigContext';
-import * as actionType from 'store/actions';
+import { Search } from 'lucide-react';
 
 export default function NavLeft() {
-  const configContext = useContext(ConfigContext);
-  const { dispatch } = configContext;
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
-
-  const handleToggleMenu = (e) => {
-    e.preventDefault();
-    dispatch({ type: actionType.COLLAPSE_MENU });
-  };
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -35,16 +26,6 @@ export default function NavLeft() {
 
   return (
     <div className="d-flex align-items-center h-100 py-2">
-      {/* Sidebar Collapse Toggle */}
-      <button
-        type="button"
-        className="neu-icon-btn me-3"
-        onClick={handleToggleMenu}
-        title="Toggle Sidebar Navigation"
-        aria-label="Toggle Sidebar Navigation"
-      >
-        <Menu size={18} />
-      </button>
 
       {/* Global Header Search Bar */}
       <form onSubmit={handleSearchSubmit} className="neu-header-search d-none d-sm-flex align-items-center">

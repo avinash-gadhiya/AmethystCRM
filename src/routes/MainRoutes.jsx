@@ -5,6 +5,7 @@ import GuestLayout from 'layouts/GuestLayout';
 import { ProtectedRoute, GuestRoute, RootRedirect } from 'components/AuthGuard';
 
 const DashboardSales = lazy(() => import('../views/dashboard/DashSales/index'));
+const DailyLocationWiseSales = lazy(() => import('../views/dashboard/DailyLocationWiseSales'));
 const CRMModuleView = lazy(() => import('../views/crm/CRMModuleView'));
 const AttendanceReport = lazy(() => import('../views/attendance/AttendanceReport'));
 const TicketsPage = lazy(() => import('../views/tickets/TicketsPage'));
@@ -49,6 +50,30 @@ const MainRoutes = {
             {
               path: '/Dashboards',
               element: <DashboardSales />
+            },
+            {
+              path: '/Dashboard/DailyLocationWiseSales',
+              element: <DailyLocationWiseSales />
+            },
+            {
+              path: '/dashboard/dailylocationwisesales',
+              element: <DailyLocationWiseSales />
+            },
+            {
+              path: '/DailyLocationWiseSales',
+              element: <DailyLocationWiseSales />
+            },
+            {
+              path: '/dailylocationwisesales',
+              element: <DailyLocationWiseSales />
+            },
+            {
+              path: '/Performance/DailySalesReport',
+              element: <DailyLocationWiseSales />
+            },
+            {
+              path: '/performance/dailysalesreport',
+              element: <DailyLocationWiseSales />
             },
             // Specific CRM Module Routes
             {

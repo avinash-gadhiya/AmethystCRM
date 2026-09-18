@@ -5,14 +5,21 @@
  */
 import { forwardRef } from 'react';
 
-// --- Row / Col ---
+// --- Row / Col (12-Column Responsive Grid) ---
 export const Row = ({ children, className = '', ...props }) => (
-  <div className={`grid gap-4 ${className}`} {...props}>{children}</div>
+  <div className={`row ${className}`} {...props}>{children}</div>
 );
 
-export const Col = ({ children, className = '', sm, md, lg, xl, ...props }) => {
-  const spanClass = sm === 12 ? 'col-span-full' : lg === 3 ? 'col-span-1' : '';
-  return <div className={`${spanClass} ${className}`} {...props}>{children}</div>;
+export const Col = ({ children, className = '', xs, sm, md, lg, xl, ...props }) => {
+  const classes = [];
+  if (xs) classes.push(xs === true ? 'col' : `col-${xs}`);
+  if (sm) classes.push(sm === true ? 'col-sm' : `col-sm-${sm}`);
+  if (md) classes.push(md === true ? 'col-md' : `col-md-${md}`);
+  if (lg) classes.push(lg === true ? 'col-lg' : `col-lg-${lg}`);
+  if (xl) classes.push(xl === true ? 'col-xl' : `col-xl-${xl}`);
+  if (classes.length === 0) classes.push('col');
+
+  return <div className={`${classes.join(' ')} ${className}`.trim()} {...props}>{children}</div>;
 };
 
 // --- Card ---
@@ -58,10 +65,10 @@ const VARIANT_MAP = {
   link: 'btn btn-link',
   'outline-primary': 'btn btn-outline-primary',
   'outline-secondary': 'btn btn-outline-secondary',
-  'outline-danger': 'btn border-red-300 text-red-600 hover:bg-red-50',
-  'outline-success': 'btn border-emerald-300 text-emerald-600 hover:bg-emerald-50',
-  'outline-warning': 'btn border-amber-300 text-amber-600 hover:bg-amber-50',
-  light: 'btn bg-gray-100 text-gray-700 hover:bg-gray-200',
+  'outline-danger': 'btn btn-secondary text-red-600 hover:text-red-700',
+  'outline-success': 'btn btn-secondary text-emerald-600 hover:text-emerald-700',
+  'outline-warning': 'btn btn-secondary text-amber-600 hover:text-amber-700',
+  light: 'btn btn-secondary',
 };
 
 const SIZE_MAP = { sm: 'btn-sm', lg: 'btn-lg' };
@@ -80,14 +87,14 @@ Button.displayName = 'Button';
 
 // --- Badge ---
 const BADGE_BG = {
-  primary: 'bg-indigo-100 text-indigo-700',
-  success: 'bg-emerald-100 text-emerald-700',
-  danger: 'bg-red-100 text-red-700',
-  warning: 'bg-amber-100 text-amber-700',
-  info: 'bg-sky-100 text-sky-700',
-  secondary: 'bg-gray-100 text-gray-600',
-  light: 'bg-gray-50 text-gray-500 border border-gray-200',
-  dark: 'bg-gray-800 text-white',
+  primary: 'bg-primary',
+  success: 'bg-success',
+  danger: 'bg-danger',
+  warning: 'bg-warning',
+  info: 'bg-info',
+  secondary: 'bg-secondary',
+  light: 'bg-light',
+  dark: 'bg-secondary text-gray-900',
 };
 
 export const Badge = ({ children, bg = 'primary', className = '', text, ...props }) => {
@@ -111,7 +118,7 @@ export const Spinner = ({ size: sz, className = '', ...props }) => (
 // --- Table ---
 export const Table = ({ children, className = '', hover, bordered, striped, responsive, ...props }) => {
   const tableEl = <table className={`table ${className}`} {...props}>{children}</table>;
-  if (responsive) return <div className="table-responsive">{tableEl}</div>;
+  if (responsive) return <div className="neu-table-wrapper table-responsive">{tableEl}</div>;
   return tableEl;
 };
 
@@ -120,25 +127,25 @@ export const Form = ({ children, ...props }) => <form {...props}>{children}</for
 
 Form.Group = ({ children, className = '', ...props }) => <div className={`mb-4 ${className}`} {...props}>{children}</div>;
 Form.Label = ({ children, className = '', ...props }) => (
-  <label className={`block text-xs font-medium text-gray-500 mb-1.5 ${className}`} {...props}>{children}</label>
+  <label className={`block text-xs font-semibold text-gray-600 mb-1.5 ${className}`} {...props}>{children}</label>
 );
 Form.Control = forwardRef(({ as: Tag = 'input', className = '', type = 'text', size: sz, ...props }, ref) => {
   const szClass = sz === 'sm' ? 'py-1.5 text-xs' : '';
   if (Tag === 'textarea') {
-    return <textarea ref={ref} className={`form-control ${szClass} ${className}`} {...props} />;
+    return <textarea ref={ref} className={`form-control neu-input ${szClass} ${className}`} {...props} />;
   }
-  return <input ref={ref} type={type} className={`form-control ${szClass} ${className}`} {...props} />;
+  return <input ref={ref} type={type} className={`form-control neu-input ${szClass} ${className}`} {...props} />;
 });
 Form.Control.displayName = 'Form.Control';
 
 Form.Select = forwardRef(({ children, className = '', size: sz, ...props }, ref) => (
-  <select ref={ref} className={`form-control ${className}`} {...props}>{children}</select>
+  <select ref={ref} className={`form-control form-select neu-input ${className}`} {...props}>{children}</select>
 ));
 Form.Select.displayName = 'Form.Select';
 
 Form.Check = ({ label, type = 'checkbox', className = '', id, ...props }) => (
-  <label className={`flex items-center gap-2 text-sm text-gray-600 cursor-pointer ${className}`} htmlFor={id}>
-    <input id={id} type={type} className="w-4 h-4 rounded border-gray-300 text-indigo-600 cursor-pointer" {...props} />
+  <label className={`flex items-center gap-2 text-sm text-gray-700 cursor-pointer ${className}`} htmlFor={id}>
+    <input id={id} type={type} className="form-check-input w-4 h-4 rounded cursor-pointer" {...props} />
     {label}
   </label>
 );
@@ -156,11 +163,11 @@ Form.FloatingLabel = ({ children, label, ...props }) => (
 
 // --- InputGroup ---
 export const InputGroup = ({ children, className = '', ...props }) => (
-  <div className={`relative flex ${className}`} {...props}>{children}</div>
+  <div className={`relative flex items-center ${className}`} {...props}>{children}</div>
 );
 
 InputGroup.Text = ({ children, className = '', ...props }) => (
-  <span className={`inline-flex items-center px-3 bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg text-gray-500 text-sm ${className}`} {...props}>
+  <span className={`inline-flex items-center px-3.5 py-2 bg-[#eef2f7] border border-r-0 border-white/80 rounded-l-xl text-gray-600 text-sm shadow-[inset_2px_2px_4px_#cad3e0,inset_-2px_-2px_4px_#ffffff] ${className}`} {...props}>
     {children}
   </span>
 );
@@ -184,13 +191,13 @@ export const Modal = ({ children, show, onHide, size, className = '', ...props }
 };
 
 Modal.Header = ({ children, closeButton, onHide, className = '', ...props }) => (
-  <div className={`flex items-center justify-between px-6 py-4 border-b border-gray-100 ${className}`} {...props}>
+  <div className={`flex items-center justify-between px-6 py-4 border-b border-gray-300/60 ${className}`} {...props}>
     <div className="flex-1">{children}</div>
     {closeButton && (
       <button
         type="button"
         onClick={onHide}
-        className="ml-4 p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 bg-transparent border-0 cursor-pointer"
+        className="neu-icon-btn ml-4"
         aria-label="Close"
       >
         ✕
@@ -200,15 +207,15 @@ Modal.Header = ({ children, closeButton, onHide, className = '', ...props }) => 
 );
 
 Modal.Title = ({ children, className = '', as: Tag = 'h5', ...props }) => (
-  <Tag className={`text-base font-semibold text-gray-800 mb-0 ${className}`} {...props}>{children}</Tag>
+  <Tag className={`text-base font-bold text-gray-800 mb-0 ${className}`} {...props}>{children}</Tag>
 );
 
 Modal.Body = ({ children, className = '', ...props }) => (
-  <div className={`px-6 py-4 ${className}`} {...props}>{children}</div>
+  <div className={`px-6 py-5 ${className}`} {...props}>{children}</div>
 );
 
 Modal.Footer = ({ children, className = '', ...props }) => (
-  <div className={`flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/50 ${className}`} {...props}>
+  <div className={`flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-300/60 bg-transparent ${className}`} {...props}>
     {children}
   </div>
 );

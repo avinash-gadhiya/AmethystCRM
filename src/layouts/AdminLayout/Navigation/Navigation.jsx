@@ -14,6 +14,7 @@ export default function Navigation() {
   const { collapseMenu } = configContext.state;
   const windowSize = useWindowSize();
   const { dispatch } = configContext;
+  const [isHovered, setIsHovered] = useState(false);
 
   const [navItems, setNavItems] = useState(() => permissionService.getNavigation()?.items || []);
 
@@ -44,6 +45,9 @@ export default function Navigation() {
     navClass.push('mob-sidebar-active');
   } else if (collapseMenu) {
     navClass.push('navbar-collapsed');
+    if (isHovered) {
+      navClass.push('sidebar-hover-expanded');
+    }
   }
 
   const mobileOverlay =
@@ -52,7 +56,15 @@ export default function Navigation() {
     ) : null;
 
   return (
-    <nav className={navClass.join(' ')}>
+    <nav
+      className={navClass.join(' ')}
+      onMouseEnter={() => {
+        if (collapseMenu && windowSize.width > 1024) setIsHovered(true);
+      }}
+      onMouseLeave={() => {
+        if (collapseMenu && windowSize.width > 1024) setIsHovered(false);
+      }}
+    >
       <div className="navbar-wrapper">
         <NavContent navigation={navItems} />
       </div>
