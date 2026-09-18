@@ -143,13 +143,8 @@ export default function DailyLocationWiseSales() {
         stroke: { curve: 'smooth', width: 2.5 },
         colors: ['#4f46e5'],
         fill: {
-          type: 'gradient',
-          gradient: {
-            shadeIntensity: 1,
-            opacityFrom: 0.45,
-            opacityTo: 0.05,
-            stops: [0, 95, 100]
-          }
+          type: 'solid',
+          opacity: 0.1
         },
         xaxis: {
           categories,

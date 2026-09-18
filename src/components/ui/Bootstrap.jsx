@@ -3,7 +3,7 @@
  * Provides drop-in replacements for react-bootstrap components using Tailwind CSS.
  * This file is used internally for migrating legacy view files.
  */
-import { forwardRef } from 'react';
+import { createContext, forwardRef, useContext } from 'react';
 
 // --- Row / Col (12-Column Responsive Grid) ---
 export const Row = ({ children, className = '', ...props }) => (
@@ -167,55 +167,68 @@ export const InputGroup = ({ children, className = '', ...props }) => (
 );
 
 InputGroup.Text = ({ children, className = '', ...props }) => (
-  <span className={`inline-flex items-center px-3.5 py-2 bg-[#eef2f7] border border-r-0 border-white/80 rounded-l-xl text-gray-600 text-sm shadow-[inset_2px_2px_4px_#cad3e0,inset_-2px_-2px_4px_#ffffff] ${className}`} {...props}>
+  <span className={`inline-flex items-center px-3.5 py-2 bg-gray-50 border border-r-0 border-gray-300 rounded-l-lg text-gray-600 text-sm ${className}`} {...props}>
     {children}
   </span>
 );
 
 // --- Modal ---
+const ModalContext = createContext({ onHide: () => {} });
+
 export const Modal = ({ children, show, onHide, size, className = '', ...props }) => {
   if (!show) return null;
   const widthClass = size === 'lg' ? 'max-w-3xl' : size === 'xl' ? 'max-w-5xl' : size === 'sm' ? 'max-w-sm' : 'max-w-lg';
   return (
-    <div
-      className="modal-backdrop"
-      onClick={(e) => { if (e.target === e.currentTarget) onHide?.(); }}
-      role="dialog"
-      aria-modal="true"
-    >
-      <div className={`modal-box ${widthClass} ${className}`} {...props}>
-        {children}
+    <ModalContext.Provider value={{ onHide }}>
+      <div
+        className="modal-backdrop"
+        onClick={(e) => { if (e.target === e.currentTarget) onHide?.(); }}
+        role="dialog"
+        aria-modal="true"
+      >
+        <div className={`modal-box ${widthClass} ${className}`} {...props}>
+          {children}
+        </div>
       </div>
-    </div>
+    </ModalContext.Provider>
   );
 };
 
-Modal.Header = ({ children, closeButton, onHide, className = '', ...props }) => (
-  <div className={`flex items-center justify-between px-6 py-4 border-b border-gray-300/60 ${className}`} {...props}>
-    <div className="flex-1">{children}</div>
-    {closeButton && (
-      <button
-        type="button"
-        onClick={onHide}
-        className="neu-icon-btn ml-4"
-        aria-label="Close"
-      >
-        ✕
-      </button>
-    )}
-  </div>
-);
+Modal.Header = ({ children, closeButton, onHide, className = '', ...props }) => {
+  const context = useContext(ModalContext);
+  const handleClose = onHide || context?.onHide;
+
+  return (
+    <div className={`flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white rounded-t-2xl ${className}`} {...props}>
+      <div className="flex-1">{children}</div>
+      {closeButton && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleClose?.();
+          }}
+          className="text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg p-2 transition-colors ml-4 border-0 bg-transparent cursor-pointer inline-flex items-center justify-center text-lg font-bold leading-none"
+          aria-label="Close"
+        >
+          ✕
+        </button>
+      )}
+    </div>
+  );
+};
 
 Modal.Title = ({ children, className = '', as: Tag = 'h5', ...props }) => (
   <Tag className={`text-base font-bold text-gray-800 mb-0 ${className}`} {...props}>{children}</Tag>
 );
 
 Modal.Body = ({ children, className = '', ...props }) => (
-  <div className={`px-6 py-5 ${className}`} {...props}>{children}</div>
+  <div className={`px-6 py-5 bg-white ${className}`} {...props}>{children}</div>
 );
 
 Modal.Footer = ({ children, className = '', ...props }) => (
-  <div className={`flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-300/60 bg-transparent ${className}`} {...props}>
+  <div className={`flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50/70 rounded-b-2xl ${className}`} {...props}>
     {children}
   </div>
 );

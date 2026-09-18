@@ -791,14 +791,14 @@ body:has(.navbar-collapsed) .pc-header {
 }
 
 /* =====================================================
-   CARD STYLES (MINIMAL NEUMORPHIC COMPACT)
+   CARD STYLES (CLEAN MODERN SHADOW - NO GLOW)
    ===================================================== */
 .card,
 .neu-card {
-  background: #eef2f7 !important;
-  border-radius: 14px !important;
-  border: 1px solid rgba(255, 255, 255, 0.85) !important;
-  box-shadow: 5px 5px 12px #cad3e0, -5px -5px 12px #ffffff !important;
+  background: #ffffff !important;
+  border-radius: 12px !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.06) !important;
   overflow: hidden;
   transition: all 0.2s ease;
   margin-bottom: 14px;
@@ -806,12 +806,12 @@ body:has(.navbar-collapsed) .pc-header {
 
 .card:hover,
 .neu-card:hover {
-  box-shadow: 6px 6px 14px #cad3e0, -6px -6px 14px #ffffff !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.08) !important;
 }
 
 .card-header {
   padding: 10px 16px;
-  border-bottom: 1px solid rgba(202, 211, 224, 0.45) !important;
+  border-bottom: 1px solid #f1f5f9 !important;
   background: transparent !important;
 }
 
@@ -821,12 +821,12 @@ body:has(.navbar-collapsed) .pc-header {
 
 .card-footer {
   padding: 10px 16px;
-  border-top: 1px solid rgba(202, 211, 224, 0.45) !important;
-  background: rgba(238, 242, 247, 0.4) !important;
+  border-top: 1px solid #f1f5f9 !important;
+  background: #f8fafc !important;
 }
 
 /* =====================================================
-   FORM CONTROLS (MINIMAL INSET COMPACT)
+   FORM CONTROLS (CLEAN NORMAL INPUTS - NO GLOW)
    ===================================================== */
 .form-control,
 .form-select,
@@ -844,10 +844,10 @@ textarea.form-control {
   padding: 6px 11px;
   font-size: 0.825rem;
   color: #1e293b !important;
-  background-color: #eef2f7 !important;
-  border: 1px solid rgba(255, 255, 255, 0.8) !important;
-  border-radius: 9px !important;
-  box-shadow: inset 2px 2px 4px #cad3e0, inset -2px -2px 4px #ffffff !important;
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
   outline: none;
   transition: all 0.18s ease;
 }
@@ -863,8 +863,8 @@ textarea.form-control {
 input:focus:not(.neu-header-search-input),
 select:focus,
 textarea:focus {
-  border-color: rgba(79, 70, 229, 0.4) !important;
-  box-shadow: inset 2px 2px 4px #cad3e0, inset -2px -2px 4px #ffffff, 0 0 0 2px rgba(79, 70, 229, 0.15) !important;
+  border-color: #4f46e5 !important;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15) !important;
   outline: none !important;
 }
 
@@ -1213,30 +1213,82 @@ input[type="checkbox"]:checked {
 }
 
 /* =====================================================
-   MODAL (COMPACT NEUMORPHIC FLOATING DIALOG)
+   MODAL (CLEAN MODERN DIALOG - NO GLOW)
    ===================================================== */
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
-  z-index: 40;
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 1050;
   display: flex;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(5px);
+  backdrop-filter: blur(4px);
   padding: 16px;
 }
 
 .modal-box,
 .modal-content {
-  background: #eef2f7 !important;
-  border: 1px solid rgba(255, 255, 255, 0.9) !important;
-  border-radius: 18px !important;
-  box-shadow: 10px 10px 26px #cad3e0, -10px -10px 26px #ffffff !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.08) !important;
   width: 100%;
   position: relative;
   max-height: 90vh;
   overflow-y: auto;
+}
+
+/* Modal Inputs & Controls (Clean, normal, zero glow) */
+.modal-box .form-control,
+.modal-box .form-select,
+.modal-box .neu-input,
+.modal-box input,
+.modal-box select,
+.modal-box textarea,
+.modal-content .form-control,
+.modal-content .form-select,
+.modal-content .neu-input,
+.modal-content input,
+.modal-content select,
+.modal-content textarea {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+  color: #1e293b !important;
+}
+
+.modal-box .form-control:focus,
+.modal-box .form-select:focus,
+.modal-box .neu-input:focus,
+.modal-box input:focus,
+.modal-box select:focus,
+.modal-box textarea:focus,
+.modal-content .form-control:focus,
+.modal-content .form-select:focus,
+.modal-content .neu-input:focus,
+.modal-content input:focus,
+.modal-content select:focus,
+.modal-content textarea:focus {
+  border-color: #4f46e5 !important;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15) !important;
+  outline: none !important;
+}
+
+.modal-box .neu-icon-btn,
+.modal-content .neu-icon-btn {
+  background: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: none !important;
+  color: #64748b !important;
+}
+
+.modal-box .neu-icon-btn:hover,
+.modal-content .neu-icon-btn:hover {
+  background: #e2e8f0 !important;
+  color: #1e293b !important;
+  box-shadow: none !important;
 }
 
 /* =====================================================
