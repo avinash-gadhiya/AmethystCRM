@@ -80,7 +80,7 @@ export default function SignIn() {
     <div className="auth-wrapper">
       <div className="auth-content">
         <div className="auth-card">
-          <div className="px-8 py-9">
+          <div className="px-5 py-7 sm:px-8 sm:py-9">
             {/* Logo */}
             <div className="flex justify-center mb-5">
               <img src={logoDark} alt="DashboardKit" className="h-10 w-auto" />
@@ -140,7 +140,7 @@ export default function SignIn() {
                     value={userName}
                     onChange={(e) => setUserName(e.target.value)}
                     disabled={loading}
-                    autoFocus
+                    autoComplete="username"
                     required
                   />
                 </div>
@@ -164,6 +164,7 @@ export default function SignIn() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={loading}
+                    autoComplete="current-password"
                     required
                   />
                   <button
@@ -189,9 +190,9 @@ export default function SignIn() {
                     disabled={loading}
                     className="w-4 h-4 rounded border-gray-300 text-indigo-600 cursor-pointer"
                   />
-                  <span className="text-xs font-medium text-gray-600">Remember credentials</span>
+                  <span className="text-xs font-medium text-gray-600">Remember username</span>
                 </label>
-                <span className="text-[11px] text-gray-400">Pass@2026@Dev</span>
+                <span className="text-[11px] text-gray-400">Secure sign-in</span>
               </div>
 
               {/* Submit Button */}
@@ -217,4 +218,3 @@ export default function SignIn() {
     </div>
   );
 }
-

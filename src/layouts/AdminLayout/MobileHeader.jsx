@@ -1,15 +1,13 @@
 import { useContext } from 'react';
-import { Link } from 'react-router-dom';
-
 // third party - Lucide icons
-import { MoreVertical } from 'lucide-react';
+import { Menu, MoreVertical } from 'lucide-react';
 
 // project imports
 import { ConfigContext } from 'contexts/ConfigContext';
 import * as actionType from 'store/actions';
 
 // assets
-import logo from 'assets/images/logo.svg';
+import logoDark from 'assets/images/logo-dark.svg';
 
 // -----------------------|| MOBILE HEADER ||-----------------------//
 
@@ -27,21 +25,17 @@ export default function MobileHeader() {
   };
 
   return (
-    <div className="pc-mob-header pc-header">
+    <div className="pc-mob-header">
       <div className="pcm-logo">
-        <img src={logo} alt="" className="logo logo-lg" />
+        <img src={logoDark} alt="DashboardKit" className="logo logo-lg" />
       </div>
       <div className="pcm-toolbar">
-        <Link to="#" className="pc-head-link" id="mobile-collapse" onClick={navToggleHandler}>
-          <div className="hamburger hamburger--arrowturn">
-            <div className="hamburger-box">
-              <div className="hamburger-inner" />
-            </div>
-          </div>
-        </Link>
-        <Link to="#" className="pc-head-link" id="header-collapse" onClick={headerToggleHandler}>
+        <button type="button" className="pc-head-link" id="mobile-collapse" onClick={navToggleHandler} aria-label="Open navigation">
+          <Menu size={20} />
+        </button>
+        <button type="button" className="pc-head-link" id="header-collapse" onClick={headerToggleHandler} aria-label="Toggle header actions">
           <MoreVertical size={18} title="more" />
-        </Link>
+        </button>
       </div>
     </div>
   );

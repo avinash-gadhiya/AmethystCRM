@@ -57,7 +57,7 @@ export default function NavItem({ item }) {
     );
   }
 
-  const handleMobileClick = windowSize.width < 992
+  const handleMobileClick = windowSize.width <= 1024
     ? () => dispatch({ type: actionType.COLLAPSE_MENU })
     : undefined;
 

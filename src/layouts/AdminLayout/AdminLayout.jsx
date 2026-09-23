@@ -8,7 +8,6 @@ import NavBar from './NavBar';
 import Breadcrumb from './Breadcrumb';
 import useWindowSize from 'hooks/useWindowSize';
 import { ConfigContext } from 'contexts/ConfigContext';
-import * as actionType from 'store/actions';
 import Loader from 'components/Loader/Loader';
 
 // -----------------------|| ADMIN LAYOUT ||-----------------------//
@@ -18,19 +17,13 @@ export default function AdminLayout() {
   const configContext = useContext(ConfigContext);
   const bodyElement = document.body;
   const { collapseLayout, collapseMenu } = configContext.state;
-  const { dispatch } = configContext;
 
   useEffect(() => {
-    if (windowSize.width > 992 && windowSize.width <= 1024) {
-      dispatch({ type: actionType.COLLAPSE_MENU });
-    }
-  }, [dispatch, windowSize]);
+    const shouldUseMiniMenu = windowSize.width > 1024 && (collapseMenu || collapseLayout);
+    bodyElement.classList.toggle('minimenu', Boolean(shouldUseMiniMenu));
 
-  if (windowSize.width > 992 && (collapseMenu || collapseLayout)) {
-    bodyElement.classList.add('minimenu');
-  } else {
-    bodyElement.classList.remove('minimenu');
-  }
+    return () => bodyElement.classList.remove('minimenu');
+  }, [bodyElement, collapseLayout, collapseMenu, windowSize.width]);
 
   const containerClass = ['pc-container'];
 

@@ -417,9 +417,9 @@ export default function ReportCenter() {
 
   return (
     <div className="crm-report-view">
-      <Card className="neu-card border-0 mb-4">
-        <Card.Header className="bg-transparent d-flex flex-wrap align-items-center justify-content-between gap-3 py-3 border-0">
-          <div>
+      <Card className="report-control-card border-0 mb-4">
+        <Card.Header className="report-control-header">
+          <div className="report-heading-copy">
             <div className="d-flex align-items-center gap-2 mb-1">
               <h5 className="mb-0 fw-bold">{config.label} Report</h5>
               <span className="neu-live-badge">
@@ -430,14 +430,13 @@ export default function ReportCenter() {
               {REPORT_METADATA[activeReport]?.subtitle || 'Live secured business reports'}
             </span>
           </div>
-          <div className="d-flex align-items-center gap-2">
-            <span className="badge bg-light text-secondary border px-2.5 py-1.5" style={{ fontSize: '0.75rem' }}>
-              GET /Report/{config.endpoint}
-            </span>
-          </div>
+          <span className="report-endpoint-badge">
+            <span className="report-endpoint-method">GET</span>
+            <span>/Report/{config.endpoint}</span>
+          </span>
         </Card.Header>
-        <Card.Body className="p-4 pt-1">
-          <div className="mb-4">
+        <Card.Body className="report-control-body">
+          <div className="report-tabs-wrap">
             <div className="neu-segmented-tabs">
               {Object.entries(REPORTS).map(([key, report]) => {
                 const MetaIcon = REPORT_METADATA[key]?.icon || BarChart3;
@@ -448,9 +447,10 @@ export default function ReportCenter() {
                     type="button"
                     className={`neu-tab-btn ${isActive ? 'active' : ''}`}
                     onClick={() => switchReport(key)}
+                    aria-pressed={isActive}
                   >
-                    <MetaIcon size={16} />
-                    <span>{report.label}</span>
+                    <span className="report-tab-icon"><MetaIcon size={17} /></span>
+                    <span className="report-tab-label">{report.label}</span>
                   </button>
                 );
               })}
@@ -458,8 +458,8 @@ export default function ReportCenter() {
           </div>
 
           <Form onSubmit={applyFilters}>
-            <Row className="g-3 align-items-end">
-              <Col sm={6} lg={3}>
+            <div className="report-filter-grid">
+              <div className="report-filter-field">
                 <Form.Label className="small text-muted d-flex align-items-center gap-1 mb-1">
                   <Calendar size={13} /> From date
                 </Form.Label>
@@ -469,8 +469,8 @@ export default function ReportCenter() {
                   value={draftFilters.fromDate}
                   onChange={(event) => setDraftFilters((current) => ({ ...current, fromDate: event.target.value }))}
                 />
-              </Col>
-              <Col sm={6} lg={3}>
+              </div>
+              <div className="report-filter-field">
                 <Form.Label className="small text-muted d-flex align-items-center gap-1 mb-1">
                   <Calendar size={13} /> To date
                 </Form.Label>
@@ -480,9 +480,9 @@ export default function ReportCenter() {
                   value={draftFilters.toDate}
                   onChange={(event) => setDraftFilters((current) => ({ ...current, toDate: event.target.value }))}
                 />
-              </Col>
+              </div>
               {activeReport === 'sales' && (
-                <Col sm={6} lg={2}>
+                <div className="report-filter-field">
                   <Form.Label className="small text-muted mb-1">Group ID</Form.Label>
                   <Form.Control
                     type="number"
@@ -492,11 +492,11 @@ export default function ReportCenter() {
                     value={draftFilters.groupId}
                     onChange={(event) => setDraftFilters((current) => ({ ...current, groupId: event.target.value }))}
                   />
-                </Col>
+                </div>
               )}
               {activeReport === 'performance' &&
                 ['brandId', 'gatewayId', 'userId'].map((field) => (
-                  <Col sm={4} lg={2} key={field}>
+                  <div className="report-filter-field" key={field}>
                     <Form.Label className="small text-muted mb-1">{field.replace('Id', ' ID').replace(/^./, (letter) => letter.toUpperCase())}</Form.Label>
                     <Form.Control
                       type="number"
@@ -506,22 +506,22 @@ export default function ReportCenter() {
                       value={draftFilters[field]}
                       onChange={(event) => setDraftFilters((current) => ({ ...current, [field]: event.target.value }))}
                     />
-                  </Col>
+                  </div>
                 ))}
-              <Col sm={6} lg={activeReport === 'sales' || activeReport === 'performance' ? 2 : 3} className="d-flex gap-2">
-                <Button type="submit" variant="primary" className="neu-btn-primary flex-grow-1 d-inline-flex align-items-center justify-content-center gap-2" disabled={loading}>
+              <div className="report-filter-actions">
+                <Button type="submit" variant="primary" className="neu-btn-primary report-apply-btn" disabled={loading}>
                   {loading ? <Spinner size="sm" /> : <Filter size={15} />}
                   <span>Apply</span>
                 </Button>
-                <Button variant="outline-secondary" className="neu-btn-secondary" onClick={() => setRefreshKey((value) => value + 1)} disabled={loading} title="Reload report data">
+                <Button variant="outline-secondary" className="neu-btn-secondary report-refresh-btn" onClick={() => setRefreshKey((value) => value + 1)} disabled={loading} title="Reload report data" aria-label="Reload report data">
                   <RefreshCw size={15} className={loading ? 'spin' : ''} />
                 </Button>
-              </Col>
-            </Row>
+              </div>
+            </div>
 
             {/* Quick date presets loop */}
-            <div className="d-flex flex-wrap align-items-center gap-2 mt-3 pt-3 border-top" style={{ borderColor: 'rgba(202, 211, 224, 0.4)' }}>
-              <span className="small text-muted me-1 fw-medium">Quick Range:</span>
+            <div className="report-quick-ranges">
+              <span className="report-quick-label"><Calendar size={14} /> Quick range</span>
               {DATE_PRESETS.map((preset) => (
                 <button
                   key={preset.id}

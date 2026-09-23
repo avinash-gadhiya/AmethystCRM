@@ -56,19 +56,22 @@ export default function Navigation() {
     ) : null;
 
   return (
-    <nav
-      className={navClass.join(' ')}
-      onMouseEnter={() => {
-        if (collapseMenu && windowSize.width > 1024) setIsHovered(true);
-      }}
-      onMouseLeave={() => {
-        if (collapseMenu && windowSize.width > 1024) setIsHovered(false);
-      }}
-    >
-      <div className="navbar-wrapper">
-        <NavContent navigation={navItems} />
-      </div>
+    <>
+      <nav
+        className={navClass.join(' ')}
+        aria-label="Primary navigation"
+        onMouseEnter={() => {
+          if (collapseMenu && windowSize.width > 1024) setIsHovered(true);
+        }}
+        onMouseLeave={() => {
+          if (collapseMenu && windowSize.width > 1024) setIsHovered(false);
+        }}
+      >
+        <div className="navbar-wrapper">
+          <NavContent navigation={navItems} />
+        </div>
+      </nav>
       {mobileOverlay}
-    </nav>
+    </>
   );
 }
