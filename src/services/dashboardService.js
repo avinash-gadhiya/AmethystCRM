@@ -80,8 +80,18 @@ export const dashboardService = {
     return requestDashboard('SalesPersonWiseLeads', createDateParams(fromDate, toDate, userId), signal);
   },
 
-  getServiceManagerDashboard(fromDate, toDate, userId, signal) {
-    return requestDashboard('ServiceManagerDashboard', { ...createDateParams(fromDate, toDate, userId), pageNo: 1, PageSize: 10 }, signal);
+  getServiceManagerDashboard(fromDate, toDate, userId, signal, options = {}) {
+    return requestDashboard(
+      'ServiceManagerDashBoard',
+      {
+        ...createDateParams(fromDate, toDate, userId),
+        pageNo: options.pageNo || 1,
+        PageNumber: options.pageNo || 1,
+        PageSize: options.pageSize || 100,
+        Text: options.text || undefined
+      },
+      signal
+    );
   },
 
   async loadDashboard({ fromDate, toDate, userId, signal }) {

@@ -49,6 +49,17 @@ const unwrapList = (payload) => {
   return { data: source, totalCount: Number(payload?.totalCount) || source.length };
 };
 
+const normalizeGatewayOption = (option) => {
+  const gatewayId = option?.gatewayId ?? option?.id ?? option?.value;
+  const gatewayName = option?.gatewayName ?? option?.name ?? option?.label ?? option?.text;
+
+  return {
+    ...option,
+    gatewayId,
+    gatewayName: gatewayName || (gatewayId !== undefined && gatewayId !== null ? `Gateway ${gatewayId}` : '')
+  };
+};
+
 const pageParams = (params = {}, defaultSort) => ({
   Text: params.Text || '',
   PageNumber: params.PageNumber || 1,
@@ -65,12 +76,18 @@ export const gatewayService = {
   },
 
   async getGatewayDropdown(params = {}, signal) {
-    return unwrapList(
+    const result = unwrapList(
       await request('/Gateway/GatewayDropdown', {
         params: { ...pageParams({ ...params, PageSize: params.PageSize || 500 }, 'gatewayId'), IsDescending: false },
         signal
       })
     );
+
+    const data = result.data
+      .map(normalizeGatewayOption)
+      .filter((option) => option.gatewayId !== undefined && option.gatewayId !== null && option.gatewayName);
+
+    return { data, totalCount: data.length };
   },
 
   async createGateway(gateway) {

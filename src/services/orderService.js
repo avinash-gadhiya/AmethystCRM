@@ -51,7 +51,14 @@ const normalizeList = (payload) => {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.data)) return payload.data;
   if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.data?.items)) return payload.data.items;
+  if (Array.isArray(payload?.result)) return payload.result;
   return [];
+};
+
+const normalizeSummary = (payload) => {
+  if (!payload || typeof payload !== 'object') return {};
+  return payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data) ? payload.data : payload;
 };
 
 export const orderService = {
@@ -121,7 +128,7 @@ export const orderService = {
       params: { fromDate, toDate },
       signal
     });
-    return payload?.data ?? payload;
+    return normalizeSummary(payload);
   },
 
   // GET /api/Order/{id}

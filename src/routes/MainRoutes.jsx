@@ -6,6 +6,8 @@ import { ProtectedRoute, GuestRoute, RootRedirect } from 'components/AuthGuard';
 
 const DashboardSales = lazy(() => import('../views/dashboard/DashSales/index'));
 const DailyLocationWiseSales = lazy(() => import('../views/dashboard/DailyLocationWiseSales'));
+const LeadsDashboard = lazy(() => import('../views/dashboard/leads'));
+const ServiceDashboard = lazy(() => import('../views/dashboard/service'));
 const CRMModuleView = lazy(() => import('../views/crm/CRMModuleView'));
 const AttendanceReport = lazy(() => import('../views/attendance/AttendanceReport'));
 const TicketsPage = lazy(() => import('../views/tickets/TicketsPage'));
@@ -56,6 +58,26 @@ const MainRoutes = {
               element: <DailyLocationWiseSales />
             },
             {
+              path: '/Dashboard/Leads',
+              element: <LeadsDashboard />
+            },
+            {
+              path: '/Dashboard/LeadsDashboard',
+              element: <LeadsDashboard />
+            },
+            {
+              path: '/Dashboard/Service-Dashboard',
+              element: <ServiceDashboard />
+            },
+            {
+              path: '/Dashboard/ServiceDashboard',
+              element: <ServiceDashboard />
+            },
+            {
+              path: '/Dashboard/ServiceManagerDashboard',
+              element: <ServiceDashboard />
+            },
+            {
               path: '/dashboard/dailylocationwisesales',
               element: <DailyLocationWiseSales />
             },
@@ -76,6 +98,10 @@ const MainRoutes = {
               element: <DailyLocationWiseSales />
             },
             // Specific CRM Module Routes
+            {
+              path: '/ApiExplorer',
+              element: <CRMModuleView moduleName="AttendanceReport" />
+            },
             {
               path: '/NewLeads',
               element: <CRMModuleView moduleName="New Leads" />

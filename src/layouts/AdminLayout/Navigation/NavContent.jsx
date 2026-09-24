@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import { useContext } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 // project imports
 import NavGroup from './NavGroup';
@@ -8,13 +8,12 @@ import { ConfigContext } from 'contexts/ConfigContext';
 import * as actionType from 'store/actions';
 
 // third party
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogOut, UserCircle } from 'lucide-react';
 import SimpleBar from 'simplebar-react';
 import 'simplebar-react/dist/simplebar.min.css';
 
 // assets
-import logo from 'assets/images/logo.svg';
-import logoThumb from 'assets/images/favicon.svg';
+import authService from 'services/authService';
 
 // -----------------------|| NAV CONTENT ||-----------------------//
 
@@ -22,6 +21,7 @@ export default function NavContent({ navigation }) {
   const configContext = useContext(ConfigContext);
   const { collapseLayout, collapseMenu } = configContext.state;
   const { dispatch } = configContext;
+  const navigate = useNavigate();
 
   const firstNavigationPath = navigation
     .flatMap((group) => group.children || [])
@@ -37,39 +37,50 @@ export default function NavContent({ navigation }) {
     }
   });
 
-  const navListNode = (
-    <ul className="pc-navbar">
-      {navItems}
-    </ul>
-  );
+  const navListNode = <ul className="pc-navbar">{navItems}</ul>;
 
-  const navContentNode = collapseLayout ? (
-    navListNode
-  ) : (
-    <SimpleBar style={{ height: 'calc(100vh - 62px)' }}>
-      {navListNode}
-    </SimpleBar>
-  );
+  const navContentNode = collapseLayout ? navListNode : <SimpleBar style={{ height: '100%' }}>{navListNode}</SimpleBar>;
 
   return (
     <>
       <div className="m-header">
         <Link to={firstNavigationPath || '/Dashboards'} className="b-brand">
-          <img src={logo} alt="DashboardKit" className="logo logo-lg" />
-          <img src={logoThumb} alt="DashboardKit" className="logo logo-sm" />
+          <span className="sidebar-brand-mark" aria-hidden="true">
+            {'{S}'}
+          </span>
+          <span className="sidebar-brand-name">CRM</span>
         </Link>
         <button
           type="button"
           className="sidebar-collapse-btn"
           onClick={() => dispatch({ type: actionType.COLLAPSE_MENU })}
-          title={collapseMenu ? "Expand sidebar" : "Collapse sidebar"}
+          title={collapseMenu ? 'Expand sidebar' : 'Collapse sidebar'}
           aria-label="Toggle sidebar"
         >
           {collapseMenu ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
         </button>
       </div>
-      <div className="navbar-content next-scroll">
-        {navContentNode}
+      <div className="navbar-content next-scroll">{navContentNode}</div>
+      <div className="sidebar-account-actions">
+        <Link to="/MyProfile" className="pc-link sidebar-account-link">
+          <span className="pc-micon">
+            <UserCircle size={22} />
+          </span>
+          <span className="pc-mtext">Profile</span>
+        </Link>
+        <button
+          type="button"
+          className="pc-link sidebar-account-link sidebar-logout-link"
+          onClick={() => {
+            authService.logout();
+            navigate('/login', { replace: true });
+          }}
+        >
+          <span className="pc-micon">
+            <LogOut size={22} />
+          </span>
+          <span className="pc-mtext">Logout</span>
+        </button>
       </div>
     </>
   );

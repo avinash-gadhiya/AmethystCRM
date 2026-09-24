@@ -445,7 +445,7 @@ export default function GatewayPage() {
                 <Col sm={4} xl={2}>
                   <Form.Select value={gatewayId} onChange={(event) => { setGatewayId(event.target.value); setPage(1); }}>
                     <option value="">All gateways</option>
-                    {gatewayOptions.map((gateway) => <option key={gateway.gatewayId} value={gateway.gatewayId}>{gateway.gatewayName || `Gateway ${gateway.gatewayId}`}</option>)}
+                    {gatewayOptions.map((gateway, index) => <option key={`${gateway.gatewayId}-${index}`} value={gateway.gatewayId}>{gateway.gatewayName}</option>)}
                   </Form.Select>
                 </Col>
               </>
@@ -553,7 +553,7 @@ export default function GatewayPage() {
           <Modal.Header closeButton><Modal.Title>{mappingForm.gatewayPaymentTypeId ? 'Edit Payment Mapping' : 'Add Payment Mapping'}</Modal.Title></Modal.Header>
           <Modal.Body>
             <Row className="g-3">
-              <Col xs={12}><Form.Label>Gateway</Form.Label><Form.Select required value={mappingForm.gatewayId} onChange={(event) => setMappingForm((current) => ({ ...current, gatewayId: event.target.value }))}><option value="">Select gateway</option>{gatewayOptions.map((gateway) => <option key={gateway.gatewayId} value={gateway.gatewayId}>{gateway.gatewayName || `Gateway ${gateway.gatewayId}`}</option>)}</Form.Select></Col>
+              <Col xs={12}><Form.Label>Gateway</Form.Label><Form.Select required value={mappingForm.gatewayId} onChange={(event) => setMappingForm((current) => ({ ...current, gatewayId: event.target.value }))}><option value="">Select gateway</option>{gatewayOptions.map((gateway, index) => <option key={`${gateway.gatewayId}-${index}`} value={gateway.gatewayId}>{gateway.gatewayName}</option>)}</Form.Select></Col>
               <Col xs={12}><Form.Label>Payment Type IDs</Form.Label><Form.Control required placeholder="Example: 1, 2, 3" value={mappingForm.paymentTypeIds} onChange={(event) => setMappingForm((current) => ({ ...current, paymentTypeIds: event.target.value }))} /><Form.Text>Enter one or more IDs separated by commas.</Form.Text></Col>
               <Col xs={12}><Form.Label>Payment type name</Form.Label><Form.Control value={mappingForm.paymentTypeName || ''} onChange={(event) => setMappingForm((current) => ({ ...current, paymentTypeName: event.target.value }))} /></Col>
               <Col xs={12}><Form.Check label="Active" checked={mappingForm.isActive} onChange={(event) => setMappingForm((current) => ({ ...current, isActive: event.target.checked }))} /></Col>

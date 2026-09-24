@@ -80,6 +80,31 @@ const LUCIDE_ICON_MAP = {
   layers: Layers
 };
 
+const ICON_COLOR_MAP = {
+  dashboard: '#38bdf8',
+  'layout-dashboard': '#38bdf8',
+  tickets: '#fb7185',
+  ticket: '#fb7185',
+  customers: '#34d399',
+  users: '#34d399',
+  reports: '#818cf8',
+  'bar-chart-2': '#818cf8',
+  orders: '#34d399',
+  'shopping-cart': '#34d399',
+  payments: '#84cc16',
+  'credit-card': '#84cc16',
+  products: '#f59e0b',
+  package: '#f59e0b',
+  leads: '#fbbf24',
+  target: '#fbbf24',
+  'bk-leads': '#fbbf24',
+  'phone-call': '#fbbf24',
+  'lead-access': '#fbbf24',
+  key: '#fbbf24',
+  'my-profile': '#60a5fa',
+  user: '#60a5fa'
+};
+
 export default function NavIcon({ items }) {
   if (!items) {
     return null;
@@ -89,14 +114,11 @@ export default function NavIcon({ items }) {
   const IconComponent = LUCIDE_ICON_MAP[iconKey] || LUCIDE_ICON_MAP[items.iconname] || null;
 
   return (
-    <span className="pc-micon d-inline-flex align-items-center justify-content-center me-2">
-      {IconComponent ? (
-        <IconComponent size={18} />
-      ) : items.iconname ? (
-        <Folder size={18} />
-      ) : (
-        <Circle size={6} />
-      )}
+    <span
+      className="pc-micon d-inline-flex align-items-center justify-content-center me-2"
+      style={{ color: ICON_COLOR_MAP[iconKey] || '#94a3b8' }}
+    >
+      {IconComponent ? <IconComponent size={18} /> : items.iconname ? <Folder size={18} /> : <Circle size={6} />}
     </span>
   );
 }

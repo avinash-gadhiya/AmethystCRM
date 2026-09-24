@@ -5,6 +5,7 @@ import { User, Lock, Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react';
 // project imports
 import authService from 'services/authService';
 import permissionService from 'services/permissionService';
+import LoginWelcomeOverlay from 'components/auth/LoginWelcomeOverlay';
 
 // assets
 import logoDark from 'assets/images/logo-dark.svg';
@@ -21,6 +22,7 @@ export default function SignIn() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [welcomeUser, setWelcomeUser] = useState('');
 
   useEffect(() => {
     const savedUser = localStorage.getItem('saved_username');
@@ -65,6 +67,10 @@ export default function SignIn() {
           (requestedPath && permissionService.hasPath(requestedPath, navResult) && requestedPath) ||
           permissionService.getFirstAvailablePath(navResult) ||
           '/Dashboards';
+
+        const authenticatedUser = authService.getUser();
+        setWelcomeUser(authenticatedUser?.displayName || authenticatedUser?.userName || userName.trim());
+        await new Promise((resolve) => setTimeout(resolve, 8300));
         navigate(redirectPath, { replace: true });
       } else {
         setErrorMessage(result.message || 'Invalid Email and/or Password');
@@ -78,6 +84,7 @@ export default function SignIn() {
 
   return (
     <div className="auth-wrapper">
+      {welcomeUser && <LoginWelcomeOverlay userName={welcomeUser} />}
       <div className="auth-content">
         <div className="auth-card">
           <div className="px-5 py-7 sm:px-8 sm:py-9">
@@ -87,9 +94,7 @@ export default function SignIn() {
             </div>
 
             <h2 className="text-2xl font-extrabold text-gray-800 text-center mb-1 tracking-tight">Welcome back</h2>
-            <p className="text-xs text-gray-500 text-center mb-6 font-medium">
-              Neumorphic CRM Portal &bull; Enterprise Access
-            </p>
+            <p className="text-xs text-gray-500 text-center mb-6 font-medium">Neumorphic CRM Portal &bull; Enterprise Access</p>
 
             {/* Quick Demo Credentials Pill */}
             <div

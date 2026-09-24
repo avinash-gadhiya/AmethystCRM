@@ -40,7 +40,7 @@ export default function Navigation() {
     dispatch({ type: actionType.COLLAPSE_MENU });
   };
 
-  const navClass = ['dark-sidebar', 'pc-sidebar'];
+  const navClass = ['light-sidebar', 'pc-sidebar', 'crm-sidebar'];
   if (windowSize.width <= 1024 && collapseMenu) {
     navClass.push('mob-sidebar-active');
   } else if (collapseMenu) {
@@ -51,9 +51,7 @@ export default function Navigation() {
   }
 
   const mobileOverlay =
-    windowSize.width <= 1024 && collapseMenu ? (
-      <div className="pc-menu-overlay" onClick={navToggleHandler} aria-hidden="true" />
-    ) : null;
+    windowSize.width <= 1024 && collapseMenu ? <div className="pc-menu-overlay" onClick={navToggleHandler} aria-hidden="true" /> : null;
 
   return (
     <>

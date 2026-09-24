@@ -19,6 +19,7 @@ import {
 
 import orderService from 'services/orderService';
 import authService from 'services/authService';
+import OrderMetricCard from 'components/orders/OrderMetricCard';
 
 const PAGE_SIZES = [10, 25, 50, 100];
 const SEARCH_FIELDS = [
@@ -57,7 +58,19 @@ const EMPTY_ORDER_FORM = {
   isFulfilled: false,
   notes: '',
   shareTypeId: null,
-  orderItems: []
+  orderItems: [],
+  payment: {
+    paymentType: 'Card',
+    cardType: '',
+    cardNumber: '',
+    transactionId: '',
+    authCode: '',
+    gatewayId: null,
+    brandId: null,
+    amount: 0,
+    saleType: 'Sale',
+    paymentDate: new Date().toISOString()
+  }
 };
 
 const formatCurrency = (amount) => {
@@ -287,7 +300,12 @@ export default function OrdersPage() {
           isFulfilled: Boolean(data.isFulfilled),
           notes: data.notes || '',
           shareTypeId: data.shareTypeId || null,
-          orderItems: Array.isArray(data.orderItems) && data.orderItems.length > 0 ? data.orderItems : []
+          orderItems: Array.isArray(data.orderItems) && data.orderItems.length > 0 ? data.orderItems : [],
+          payment: {
+            ...EMPTY_ORDER_FORM.payment,
+            ...(data.payment || {}),
+            amount: Number(data.payment?.amount ?? data.totalAmount) || 0
+          }
         });
       } catch {
         setEditorForm({
@@ -389,6 +407,27 @@ export default function OrdersPage() {
           isFulfilled: Boolean(editorForm.isFulfilled),
           notes: editorForm.notes || '',
           shareTypeId: editorForm.shareTypeId || null,
+          payment: {
+            paymentId: 0,
+            orderId: 0,
+            paymentType: editorForm.payment?.paymentType || 'Card',
+            cardType: editorForm.payment?.cardType || null,
+            cardNumber: editorForm.payment?.cardNumber || null,
+            transactionId: editorForm.payment?.transactionId || null,
+            authCode: editorForm.payment?.authCode || null,
+            gatewayId: Number(editorForm.payment?.gatewayId) || null,
+            brandId: Number(editorForm.payment?.brandId) || null,
+            amount: Number(editorForm.totalAmount) || 0,
+            saleType: editorForm.payment?.saleType || 'Sale',
+            paymentDate: new Date(editorForm.saleDate).toISOString(),
+            createdBy: currentUser?.userId || null,
+            isDeleted: false,
+            isVoid: false,
+            isChargeBack: false,
+            isRetrieval: false,
+            isAlert: false,
+            isChequeCleared: false
+          },
           orderItems: editorForm.orderItems.map((item) => ({
             orderItemId: Number(item.orderItemId) || 0,
             orderId: Number(editorForm.orderId),
@@ -485,63 +524,12 @@ export default function OrdersPage() {
   return (
     <div className="orders-page-container">
       {/* Top Banner / Metrics Cards */}
-      <Row className="g-3 mb-4">
-        <Col xs={12} sm={6} xl={3}>
-          <Card className="border-0 shadow-sm h-100">
-            <Card.Body className="d-flex align-items-center justify-content-between p-3">
-              <div>
-                <span className="text-muted small fw-semibold text-uppercase">Total Orders</span>
-                <h4 className="fw-bold mb-0 mt-1">{calculatedMetrics.count.toLocaleString()}</h4>
-              </div>
-              <div className="rounded-circle p-3 bg-primary bg-opacity-10 text-primary">
-                <ShoppingCart size={22} />
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col xs={12} sm={6} xl={3}>
-          <Card className="border-0 shadow-sm h-100">
-            <Card.Body className="d-flex align-items-center justify-content-between p-3">
-              <div>
-                <span className="text-muted small fw-semibold text-uppercase">Total Volume</span>
-                <h4 className="fw-bold mb-0 mt-1 text-dark">{formatCurrency(calculatedMetrics.revenue)}</h4>
-              </div>
-              <div className="rounded-circle p-3 bg-indigo-50 text-indigo-600">
-                <DollarSign size={22} />
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col xs={12} sm={6} xl={3}>
-          <Card className="border-0 shadow-sm h-100">
-            <Card.Body className="d-flex align-items-center justify-content-between p-3">
-              <div>
-                <span className="text-muted small fw-semibold text-uppercase">Paid / Collected</span>
-                <h4 className="fw-bold mb-0 mt-1 text-success">{formatCurrency(calculatedMetrics.paid)}</h4>
-              </div>
-              <div className="rounded-circle p-3 bg-success bg-opacity-10 text-success">
-                <TrendingUp size={22} />
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col xs={12} sm={6} xl={3}>
-          <Card className="border-0 shadow-sm h-100">
-            <Card.Body className="d-flex align-items-center justify-content-between p-3">
-              <div>
-                <span className="text-muted small fw-semibold text-uppercase">Refunds / Void</span>
-                <h4 className="fw-bold mb-0 mt-1 text-danger">{formatCurrency(calculatedMetrics.refund)}</h4>
-              </div>
-              <div className="rounded-circle p-3 bg-danger bg-opacity-10 text-danger">
-                <CreditCard size={22} />
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+      <div className="order-metrics-grid mb-4">
+        <OrderMetricCard label="Total Orders" value={calculatedMetrics.count.toLocaleString()} icon={ShoppingCart} />
+        <OrderMetricCard label="Sales Amount" value={formatCurrency(calculatedMetrics.revenue)} icon={DollarSign} tone="success" />
+        <OrderMetricCard label="Refund Amount" value={formatCurrency(calculatedMetrics.refund)} icon={CreditCard} tone="danger" />
+        <OrderMetricCard label="Order Fulfilled" value={orders.filter((order) => order.isFulfilled).length.toLocaleString()} icon={Package} tone="warning" />
+      </div>
 
       {/* Alerts */}
       {error && (
@@ -770,7 +758,7 @@ export default function OrdersPage() {
                         <Button
                           size="sm"
                           variant="outline-info"
-                          className="me-1.5 p-1"
+                          className="order-icon-action me-1.5 p-1"
                           onClick={() => handleViewOrder(order)}
                           title="View Order Details"
                         >
@@ -779,7 +767,7 @@ export default function OrdersPage() {
                         <Button
                           size="sm"
                           variant="outline-primary"
-                          className="me-1.5 p-1"
+                          className="order-icon-action me-1.5 p-1"
                           onClick={() => handleOpenEditor(order)}
                           title="Edit Order"
                         >
@@ -788,7 +776,7 @@ export default function OrdersPage() {
                         <Button
                           size="sm"
                           variant="outline-danger"
-                          className="p-1"
+                          className="order-icon-action p-1"
                           onClick={() => handleDeleteOrder(order)}
                           title="Delete Order"
                         >
@@ -1050,6 +1038,25 @@ export default function OrdersPage() {
                   <option value="Refunded">Refunded</option>
                 </Form.Select>
               </Col>
+
+              {!editorForm.orderId && (
+                <Col md={6}>
+                  <Form.Label className="small fw-semibold">Payment Type</Form.Label>
+                  <Form.Select
+                    value={editorForm.payment?.paymentType || 'Card'}
+                    onChange={(e) => setEditorForm((prev) => ({
+                      ...prev,
+                      payment: { ...prev.payment, paymentType: e.target.value }
+                    }))}
+                  >
+                    <option value="Card">Card</option>
+                    <option value="Bank">Bank</option>
+                    <option value="Cheque">Cheque</option>
+                    <option value="Zelle">Zelle</option>
+                    <option value="PayPal">PayPal</option>
+                  </Form.Select>
+                </Col>
+              )}
             </Row>
 
             {/* Line Items Section */}

@@ -3,7 +3,7 @@ import { useContext, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 // third party - Lucide icons
-import { ChevronRight } from 'lucide-react';
+import { Minus, Plus } from 'lucide-react';
 
 // project imports
 import NavItem from './NavItem';
@@ -23,10 +23,11 @@ export default function NavCollapse({ collapse, type }) {
 
   const currentPath = (location.pathname || window.location.pathname).toLowerCase();
   const collapseIdLower = (collapse.id || '').toLowerCase();
-  const segments = currentPath.split('/').filter(Boolean).map((s) => s.toLowerCase());
-  const isChildActive =
-    Array.isArray(collapse.children) &&
-    collapse.children.some((c) => c.url && currentPath === c.url.toLowerCase());
+  const segments = currentPath
+    .split('/')
+    .filter(Boolean)
+    .map((s) => s.toLowerCase());
+  const isChildActive = Array.isArray(collapse.children) && collapse.children.some((c) => c.url && currentPath === c.url.toLowerCase());
 
   // Auto-expand this collapse menu when the active route belongs to it
   useEffect(() => {
@@ -54,14 +55,7 @@ export default function NavCollapse({ collapse, type }) {
   const isExpanded = Array.isArray(isTrigger) && isTrigger.includes(collapse.id);
   const isActive = isChildActive || segments.includes(collapseIdLower) || (Array.isArray(isOpen) && isOpen.includes(collapse.id));
 
-  const navItemClass = [
-    'pc-item',
-    'pc-hasmenu',
-    isActive ? 'active' : '',
-    isExpanded ? 'pc-trigger' : ''
-  ]
-    .filter(Boolean)
-    .join(' ');
+  const navItemClass = ['pc-item', 'pc-hasmenu', isActive ? 'active' : '', isExpanded ? 'pc-trigger' : ''].filter(Boolean).join(' ');
 
   const navLinkClass = ['pc-link', isActive ? 'active' : ''].filter(Boolean).join(' ');
 
@@ -76,13 +70,9 @@ export default function NavCollapse({ collapse, type }) {
       <Link to="#" className={navLinkClass} onClick={handleToggle} aria-expanded={isExpanded}>
         <NavIcon items={collapse} />
         <span className="pc-mtext">{collapse.title}</span>
-        <span className="pc-arrow">
-          <ChevronRight size={14} />
-        </span>
+        <span className="pc-arrow">{isExpanded ? <Minus size={16} /> : <Plus size={16} />}</span>
       </Link>
-      <ul className="pc-submenu">
-        {navItems}
-      </ul>
+      <ul className="pc-submenu">{navItems}</ul>
     </li>
   );
 }
