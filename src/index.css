@@ -1280,6 +1280,209 @@ input[type="checkbox"]:checked {
   width: 100%;
 }
 
+.report-toolbar-card {
+  overflow: visible;
+  border: 1px solid #dbe5f5 !important;
+  border-radius: 22px !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  box-shadow: 0 10px 28px rgba(68, 84, 132, 0.09) !important;
+}
+
+.report-toolbar-body {
+  padding: 10px 14px 12px !important;
+}
+
+.report-toolbar-top {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 0 0 9px;
+}
+
+.report-result-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 36px;
+  padding: 7px 13px;
+  border: 1px solid #d9e3f5;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #8290ad;
+  font-size: 0.8rem;
+  box-shadow: 0 2px 5px rgba(59, 76, 126, 0.08);
+}
+
+.report-result-chip strong {
+  color: #263556;
+}
+
+.report-result-dot {
+  width: 7px;
+  height: 7px;
+  margin-right: 3px;
+  border-radius: 50%;
+  background: #6366f1;
+}
+
+.report-toolbar-actions,
+.report-toolbar-controls,
+.report-custom-dates {
+  display: flex;
+  align-items: center;
+}
+
+.report-toolbar-actions {
+  gap: 9px;
+}
+
+.report-compact-form {
+  padding-top: 9px;
+  border-top: 1px solid #eef2f8;
+}
+
+.report-toolbar-controls {
+  gap: 10px;
+}
+
+.report-toolbar-controls > .form-select {
+  width: 150px;
+  height: 43px;
+  flex: 0 0 150px;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+.report-toolbar-search {
+  min-width: 210px;
+  height: 43px;
+  flex: 1 1 260px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 13px;
+  border: 1px solid #d8e1ef;
+  border-radius: 12px;
+  color: #53627e;
+  background: #ffffff;
+}
+
+.report-toolbar-search .form-control {
+  height: 39px;
+  min-width: 0;
+  padding: 0;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.report-toolbar-controls > .report-period-select {
+  width: 160px;
+  flex-basis: 160px;
+}
+
+.report-square-btn,
+.report-round-btn,
+.report-date-range-btn {
+  height: 43px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d8e1ef;
+  color: #34425e;
+  background: #ffffff;
+  cursor: pointer;
+  transition: color 0.16s ease, border-color 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.report-square-btn,
+.report-round-btn {
+  width: 43px;
+  flex: 0 0 43px;
+}
+
+.report-square-btn {
+  border-radius: 9px;
+}
+
+.report-round-btn {
+  border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(31, 45, 80, 0.12);
+}
+
+.report-date-range-btn {
+  min-width: 188px;
+  gap: 9px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-weight: 650;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(31, 45, 80, 0.12);
+}
+
+.report-square-btn:hover:not(:disabled),
+.report-round-btn:hover:not(:disabled),
+.report-date-range-btn:hover:not(:disabled) {
+  color: #4f46e5;
+  border-color: #c7d2fe;
+  transform: translateY(-1px);
+}
+
+.report-square-btn:disabled,
+.report-round-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.report-custom-dates {
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #eef2f8;
+  color: #94a3b8;
+}
+
+.report-custom-dates .form-control {
+  width: 175px;
+}
+
+@media (max-width: 1199.98px) {
+  .report-toolbar-controls {
+    flex-wrap: wrap;
+  }
+
+  .report-toolbar-search {
+    order: -1;
+    flex-basis: calc(100% - 170px);
+  }
+}
+
+@media (max-width: 575.98px) {
+  .report-toolbar-body {
+    padding: 10px !important;
+  }
+
+  .report-toolbar-controls > .form-select,
+  .report-toolbar-controls > .report-period-select,
+  .report-toolbar-search,
+  .report-date-range-btn {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .report-custom-dates {
+    flex-wrap: wrap;
+    justify-content: stretch;
+  }
+
+  .report-custom-dates .form-control {
+    width: 100%;
+  }
+}
+
 .report-control-card {
   overflow: visible;
   border: 1px solid #e2e8f0 !important;
@@ -1359,7 +1562,7 @@ input[type="checkbox"]:checked {
 
 .neu-segmented-tabs {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   width: 100%;
   gap: 8px;
   padding: 6px;
@@ -1816,6 +2019,11 @@ input[type="checkbox"]:checked {
 /* =====================================================
    CRM SIDEBAR — LIGHT, API-MENU-SAFE PRESENTATION
    ===================================================== */
+:root {
+  --crm-sidebar-width: 280px;
+  --crm-sidebar-mini-width: 76px;
+}
+
 .pc-sidebar.crm-sidebar {
   background: #ffffff !important;
   border-right: 1px solid #e5eaf2 !important;
@@ -1826,11 +2034,14 @@ input[type="checkbox"]:checked {
 .crm-sidebar .navbar-wrapper {
   background: #ffffff;
   overflow: visible;
+  height: 100%;
+  display: grid;
+  grid-template-rows: 72px minmax(0, 1fr) auto;
 }
 
 .crm-sidebar .m-header {
-  height: 76px;
-  padding: 0 20px;
+  height: 72px;
+  padding: 0 18px;
   border-bottom: 1px solid #e8edf4;
   background: #ffffff;
 }
@@ -1847,13 +2058,16 @@ input[type="checkbox"]:checked {
   width: 42px;
   height: 42px;
   flex: 0 0 42px;
-  border-radius: 4px;
+  border-radius: 12px;
   color: #ffffff;
   background: linear-gradient(145deg, #2563eb, #1d4ed8);
   box-shadow: 0 5px 12px rgba(37, 99, 235, 0.2);
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -2px;
+}
+
+.sidebar-brand-mark svg {
+  width: 23px;
+  height: 23px;
+  stroke: currentColor;
 }
 
 .sidebar-brand-name {
@@ -1886,7 +2100,7 @@ input[type="checkbox"]:checked {
 
 .crm-sidebar .navbar-content {
   min-height: 0;
-  padding: 14px 10px;
+  padding: 12px 10px;
   overflow: hidden;
 }
 
@@ -1901,10 +2115,10 @@ input[type="checkbox"]:checked {
 }
 
 .crm-sidebar .pc-link {
-  min-height: 44px;
-  margin: 2px 0;
-  padding: 9px 12px;
-  border-radius: 9px;
+  min-height: 46px;
+  margin: 3px 0;
+  padding: 7px 10px;
+  border-radius: 12px;
   color: #4b5568;
   background: transparent;
   font-size: 0.94rem;
@@ -1926,16 +2140,39 @@ input[type="checkbox"]:checked {
 }
 
 .crm-sidebar .pc-micon {
-  width: 32px;
-  height: 32px;
-  margin-right: 10px !important;
-  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  margin-right: 11px !important;
+  border-radius: 10px;
+  color: var(--nav-icon-color, #64748b);
+  background: color-mix(in srgb, var(--nav-icon-color, #64748b) 10%, transparent);
+  transition: color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
 }
 
 .crm-sidebar .pc-micon svg {
-  width: 21px;
-  height: 21px;
+  width: 20px;
+  height: 20px;
+  color: inherit;
+  stroke: currentColor;
   stroke-width: 1.8;
+  fill: none;
+}
+
+.crm-sidebar .pc-link:hover .pc-micon {
+  background: color-mix(in srgb, var(--nav-icon-color, #64748b) 16%, transparent);
+  transform: translateY(-1px);
+}
+
+.crm-sidebar .pc-item.active > .pc-link .pc-micon,
+.crm-sidebar .pc-item.active .pc-link.active .pc-micon {
+  background: color-mix(in srgb, var(--nav-icon-color, #2563eb) 18%, #ffffff);
+}
+
+.crm-sidebar .pc-submenu-dot {
+  width: 7px !important;
+  height: 7px !important;
+  color: #94a3b8 !important;
+  fill: currentColor !important;
 }
 
 .crm-sidebar .pc-arrow {
@@ -1974,6 +2211,8 @@ input[type="checkbox"]:checked {
   padding: 10px;
   border-top: 1px solid #e8edf4;
   background: #ffffff;
+  display: grid;
+  gap: 2px;
 }
 
 .sidebar-account-actions .sidebar-account-link {
@@ -1983,16 +2222,22 @@ input[type="checkbox"]:checked {
 }
 
 .sidebar-account-actions .sidebar-account-link .pc-micon {
+  --nav-icon-color: #60a5fa;
   color: #60a5fa;
 }
 
 .sidebar-account-actions .sidebar-logout-link .pc-micon,
 .sidebar-account-actions .sidebar-logout-link {
+  --nav-icon-color: #fb7185;
   color: #fb7185;
 }
 
 .pc-sidebar.crm-sidebar.navbar-collapsed:not(:hover):not(.sidebar-hover-expanded) .m-header {
   padding: 0;
+  justify-content: center;
+}
+
+.pc-sidebar.crm-sidebar.navbar-collapsed:not(:hover):not(.sidebar-hover-expanded) .b-brand {
   justify-content: center;
 }
 
@@ -2008,7 +2253,12 @@ input[type="checkbox"]:checked {
 }
 
 .pc-sidebar.crm-sidebar.navbar-collapsed:not(:hover):not(.sidebar-hover-expanded) .sidebar-collapse-btn {
+  top: 19px;
+  right: -14px;
   display: inline-flex !important;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
 }
 
 .pc-sidebar.crm-sidebar.navbar-collapsed:not(:hover):not(.sidebar-hover-expanded) .navbar-content,
@@ -2018,10 +2268,10 @@ input[type="checkbox"]:checked {
 }
 
 .pc-sidebar.crm-sidebar.navbar-collapsed:not(:hover):not(.sidebar-hover-expanded) .pc-link {
-  width: 52px;
+  width: 56px;
   min-height: 48px;
-  margin: 3px 0;
-  padding: 6px;
+  margin: 2px auto;
+  padding: 7px;
   justify-content: center;
   box-shadow: none;
 }
@@ -2038,33 +2288,33 @@ input[type="checkbox"]:checked {
 
 @media (min-width: 1025px) {
   .pc-sidebar.crm-sidebar {
-    width: 342px;
+    width: var(--crm-sidebar-width);
   }
 
   body:has(.pc-sidebar.crm-sidebar:not(.navbar-collapsed)) .pc-header {
-    left: 342px;
+    left: var(--crm-sidebar-width);
   }
 
   .pc-sidebar.crm-sidebar:not(.navbar-collapsed) ~ .pc-container {
-    margin-left: 342px;
+    margin-left: var(--crm-sidebar-width);
   }
 
   .pc-sidebar.crm-sidebar.navbar-collapsed {
-    width: 94px;
+    width: var(--crm-sidebar-mini-width);
   }
 
   body:has(.pc-sidebar.crm-sidebar.navbar-collapsed) .pc-header {
-    left: 94px;
+    left: var(--crm-sidebar-mini-width);
   }
 
   .pc-sidebar.crm-sidebar.navbar-collapsed ~ .pc-container,
   .minimenu .pc-container {
-    margin-left: 94px;
+    margin-left: var(--crm-sidebar-mini-width);
   }
 
   .pc-sidebar.crm-sidebar.navbar-collapsed:hover,
   .pc-sidebar.crm-sidebar.navbar-collapsed.sidebar-hover-expanded {
-    width: 342px !important;
+    width: var(--crm-sidebar-width) !important;
     background: #ffffff !important;
     box-shadow: 10px 0 30px rgba(30, 41, 59, 0.12) !important;
   }
@@ -2107,7 +2357,7 @@ input[type="checkbox"]:checked {
   }
 
   .pc-sidebar.crm-sidebar.navbar-collapsed:not(:hover):not(.sidebar-hover-expanded) .pc-link {
-    width: 78px;
+    width: 56px;
   }
 
   .pc-sidebar.crm-sidebar.navbar-collapsed:hover .pc-micon,

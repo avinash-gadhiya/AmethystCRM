@@ -425,7 +425,7 @@ const MainRoutes = {
             },
             {
               path: '/LeadsReports/*',
-              element: <CRMModuleView />
+              element: <ReportCenter />
             },
             {
               path: '/Orders/*',

@@ -11,12 +11,12 @@ const buildQuery = (params = {}) => {
   return query.toString();
 };
 
-const requestReport = async (endpoint, params = {}, signal) => {
+const requestReport = async (endpoint, params = {}, signal, resource = 'Report') => {
   const token = authService.getToken();
   if (!token) throw new Error('Your session has expired. Please sign in again.');
 
   const query = buildQuery(params);
-  const response = await fetch(`${API_BASE_URL}/Report/${endpoint}${query ? `?${query}` : ''}`, {
+  const response = await fetch(`${API_BASE_URL}/${resource}/${endpoint}${query ? `?${query}` : ''}`, {
     headers: {
       Accept: 'application/json',
       Authorization: `Bearer ${token}`
@@ -33,7 +33,10 @@ const requestReport = async (endpoint, params = {}, signal) => {
 
   if (!response.ok || payload?.success === false) {
     const validationMessage = payload?.errors ? Object.values(payload.errors).flat().join(', ') : '';
-    throw new Error(payload?.message || validationMessage || `${endpoint} failed (${response.status}).`);
+    const error = new Error(payload?.message || validationMessage || `${endpoint} failed (${response.status}).`);
+    error.statusCode = Number(payload?.statusCode) || response.status;
+    error.endpoint = endpoint;
+    throw error;
   }
 
   return {
@@ -42,12 +45,33 @@ const requestReport = async (endpoint, params = {}, signal) => {
   };
 };
 
-const dateParams = ({ fromDate = '', toDate = '' } = {}) => ({ fromDate, toDate });
+const dateTime = (value, endOfDay = false) => {
+  if (!value) return '';
+  return value.includes('T') ? value : `${value}T${endOfDay ? '23:59:59' : '00:00:00'}`;
+};
+
+const dateParams = ({ fromDate = '', toDate = '' } = {}) => ({
+  fromDate: dateTime(fromDate),
+  toDate: dateTime(toDate, true)
+});
+
+const pagedParams = (filters = {}) => ({
+  ...dateParams(filters),
+  PageNumber: filters.page || 1,
+  PageSize: filters.pageSize || 10,
+  SortProperty: filters.sortProperty || '',
+  IsDescending: filters.isDescending ?? true,
+  Text: filters.search || ''
+});
+
+const leadDateParams = (filters = {}) => ({
+  fromdate: dateTime(filters.fromDate),
+  todate: dateTime(filters.toDate, true)
+});
 
 export const reportService = {
   getSalesReport(filters, signal) {
-    const groupId = filters?.groupId || '';
-    return requestReport('SalesReport', { ...dateParams(filters), groupId, GroupId: groupId }, signal);
+    return requestReport('SalesReport', pagedParams(filters), signal);
   },
 
   getTicketStatusReport(filters, signal) {
@@ -55,30 +79,49 @@ export const reportService = {
   },
 
   getServiceReport(filters, signal) {
-    return requestReport('ServiceReport', dateParams(filters), signal);
+    return requestReport('ServiceReport', pagedParams(filters), signal);
   },
 
   getUserPerformanceReport(filters, signal) {
-    const brandId = filters?.brandId || '';
-    const gatewayId = filters?.gatewayId || '';
-    const userId = filters?.userId || '';
-    return requestReport(
-      'GetUserPerformanceReport',
-      {
-        ...dateParams(filters),
-        brandId,
-        BrandId: brandId,
-        gatewayId,
-        GatewayId: gatewayId,
-        userId,
-        UserId: userId
-      },
-      signal
-    );
+    return requestReport('GetUserPerformanceReport', dateParams(filters), signal);
   },
 
   getRenewalReport(filters, signal) {
-    return requestReport('RenewalReport', dateParams(filters), signal);
+    return requestReport('RenewalReport', pagedParams(filters), signal);
+  },
+
+  getLeadsByDisposition(filters, signal) {
+    return requestReport(
+      'LeadsByDisposition',
+      {
+        ...leadDateParams(filters),
+        userId: filters?.userId || '',
+        vendorId: filters?.vendorId || ''
+      },
+      signal,
+      'LeadReport'
+    );
+  },
+
+  getLeadPickByUsers(filters, signal) {
+    return requestReport(
+      'LeadPickByUsers',
+      {
+        ...leadDateParams(filters),
+        groupId: filters?.groupId || ''
+      },
+      signal,
+      'LeadReport'
+    );
+  },
+
+  getGroupDropdown(signal) {
+    return requestReport(
+      'GroupDropdown',
+      { PageNumber: 1, PageSize: 250, SortProperty: 'groupName', IsDescending: false },
+      signal,
+      'Group'
+    );
   }
 };
 

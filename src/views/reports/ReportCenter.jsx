@@ -1,53 +1,53 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Badge, Button, Card, Col, Form, InputGroup, Row, Spinner, Table } from 'components/ui/Bootstrap';
+import { Alert, Badge, Button, Card, Col, Form, Row, Spinner, Table } from 'components/ui/Bootstrap';
 import {
   BarChart3,
   Calendar,
-  CheckCircle2,
-  CircleDollarSign,
+  ChevronLeft,
+  ChevronRight,
   Download,
-  Filter,
+  MousePointerClick,
   RefreshCw,
   Search,
-  Ticket,
-  TrendingUp,
   UsersRound,
-  WalletCards,
-  Wrench,
-  X
+  WalletCards
 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
 import reportService from 'services/reportService';
-
-const REPORT_METADATA = {
-  sales: {
-    icon: CircleDollarSign,
-    subtitle: 'Sales volume, gateway breakdown, transactions and customer purchases'
-  },
-  tickets: {
-    icon: Ticket,
-    subtitle: 'Technician ticket counts, resolution progress and live status'
-  },
-  service: {
-    icon: Wrench,
-    subtitle: 'Service tickets lifecycle, assigned technicians, status and brands'
-  },
-  performance: {
-    icon: TrendingUp,
-    subtitle: 'Agent conversion rates, sales volumes and revenue per lead'
-  },
-  renewal: {
-    icon: RefreshCw,
-    subtitle: 'Customer renewals, subscriptions and retention metrics'
-  }
-};
+import userService from 'services/userService';
 
 const PAGE_SIZES = [10, 25, 50];
+const SERVER_PAGED_REPORTS = new Set(['sales', 'service', 'renewal']);
 
 const REPORTS = {
+  disposition: {
+    label: 'Leads by Disposition',
+    path: '/LeadsReports/LeadsByDisposition',
+    resource: 'LeadReport',
+    endpoint: 'LeadsByDisposition',
+    loader: 'getLeadsByDisposition',
+    columns: [
+      ['disposition', 'Disposition'],
+      ['total', 'Total Leads', 'number'],
+      ['percentage', 'Percentage', 'percent']
+    ]
+  },
+  userLeads: {
+    label: 'User Wise Leads',
+    path: '/LeadsReports/UserWiseLeadPick',
+    resource: 'LeadReport',
+    endpoint: 'LeadPickByUsers',
+    loader: 'getLeadPickByUsers',
+    columns: [
+      ['userName', 'User'],
+      ['leadsPicked', 'Leads Picked', 'number']
+    ]
+  },
   sales: {
     label: 'Sales',
+    path: '/Reports/Sales-reports',
+    resource: 'Report',
     endpoint: 'SalesReport',
     loader: 'getSalesReport',
     columns: [
@@ -67,6 +67,8 @@ const REPORTS = {
   },
   tickets: {
     label: 'Ticket Status',
+    path: '/Reports/Ticket-Refund',
+    resource: 'Report',
     endpoint: 'TicketStatusReport',
     loader: 'getTicketStatusReport',
     columns: [
@@ -79,6 +81,8 @@ const REPORTS = {
   },
   service: {
     label: 'Service',
+    path: '/Reports/Services',
+    resource: 'Report',
     endpoint: 'ServiceReport',
     loader: 'getServiceReport',
     columns: [
@@ -95,6 +99,8 @@ const REPORTS = {
   },
   performance: {
     label: 'User Performance',
+    path: '/Performance/UserPerformanceReport',
+    resource: 'Report',
     endpoint: 'GetUserPerformanceReport',
     loader: 'getUserPerformanceReport',
     columns: [
@@ -109,6 +115,8 @@ const REPORTS = {
   },
   renewal: {
     label: 'Renewal',
+    path: '/Reports/Renewal',
+    resource: 'Report',
     endpoint: 'RenewalReport',
     loader: 'getRenewalReport',
     columns: [
@@ -134,21 +142,50 @@ const initialFilters = () => {
   const today = new Date();
   return {
     fromDate: toInputDate(new Date(today.getFullYear(), today.getMonth(), 1)),
-    toDate: toInputDate(today),
-    groupId: '',
-    brandId: '',
-    gatewayId: '',
-    userId: ''
+    toDate: toInputDate(new Date(today.getFullYear(), today.getMonth() + 1, 0)),
+    userId: '',
+    vendorId: '',
+    groupId: ''
   };
+};
+
+const formatRangeDate = (value) => {
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleDateString(undefined, { month: 'short', day: '2-digit' });
 };
 
 const reportFromPath = (pathname) => {
   const path = pathname.toLowerCase();
+  if (path.includes('leadsbydisposition')) return 'disposition';
+  if (path.includes('userwiseleadpick')) return 'userLeads';
   if (path.includes('service')) return 'service';
   if (path.includes('renewal')) return 'renewal';
   if (path.includes('ticket') || path.includes('refund')) return 'tickets';
   if (path.includes('performance')) return 'performance';
   return 'sales';
+};
+
+const normalizeUserLeads = (payload) => {
+  const users = Array.isArray(payload?.users) ? payload.users : [];
+  return users
+    .map((item, index) => ({
+      ...item,
+      userName:
+        getValue(item, 'userName') ||
+        getValue(item, 'name') ||
+        `${getValue(item, 'firstName') || ''} ${getValue(item, 'lastName') || ''}`.trim() ||
+        `User ${getValue(item, 'userId') || index + 1}`,
+      leadsPicked: safeNumber(
+        getValue(item, 'leadsPicked') ??
+          getValue(item, 'leadCount') ??
+          getValue(item, 'totalLeads') ??
+          getValue(item, 'total') ??
+          getValue(item, 'count')
+      )
+    }))
+    .sort((left, right) => right.leadsPicked - left.leadsPicked);
 };
 
 const safeNumber = (value) => {
@@ -245,42 +282,86 @@ export default function ReportCenter() {
   const [filters, setFilters] = useState(initialFilters);
   const [rows, setRows] = useState([]);
   const [searchText, setSearchText] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [restricted, setRestricted] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [datePreset, setDatePreset] = useState('this-month');
+  const [showCustomDates, setShowCustomDates] = useState(false);
+  const [userOptions, setUserOptions] = useState([]);
+  const [groupOptions, setGroupOptions] = useState([]);
 
   const config = REPORTS[activeReport];
 
   useEffect(() => {
     setActiveReport(reportFromPath(location.pathname));
+    setRows([]);
+    setSearchText('');
+    setAppliedSearch('');
+    setTotalCount(0);
+    setRestricted(false);
+    setPage(1);
   }, [location.pathname]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    Promise.allSettled([
+      userService.getUserDropDown({ PageSize: 250 }, controller.signal),
+      reportService.getGroupDropdown(controller.signal)
+    ]).then(([usersResult, groupsResult]) => {
+      if (controller.signal.aborted) return;
+      setUserOptions(usersResult.status === 'fulfilled' ? usersResult.value : []);
+      setGroupOptions(groupsResult.status === 'fulfilled' ? groupsResult.value.data || [] : []);
+    });
+    return () => controller.abort();
+  }, []);
 
   const loadReport = useCallback(
     async (signal) => {
       setLoading(true);
       setError('');
+      setRestricted(false);
       try {
-        const response = await reportService[config.loader](filters, signal);
+        const response = await reportService[config.loader](
+          {
+            ...filters,
+            page,
+            pageSize,
+            search: SERVER_PAGED_REPORTS.has(activeReport) ? appliedSearch : ''
+          },
+          signal
+        );
         const reportRows =
           activeReport === 'performance'
             ? normalizePerformance(response.data || {})
+            : activeReport === 'userLeads'
+              ? normalizeUserLeads(response.data || {})
             : Array.isArray(response.data)
               ? response.data
               : Array.isArray(response.data?.items)
                 ? response.data.items
                 : [];
         setRows(reportRows);
+        setTotalCount(Number(response.totalCount) || reportRows.length);
       } catch (requestError) {
         if (requestError.name === 'AbortError') return;
         setRows([]);
-        setError(requestError.message || `Unable to load ${config.label.toLowerCase()} report.`);
+        setTotalCount(0);
+        if (requestError.statusCode === 403 || /permission|access/i.test(requestError.message || '')) {
+          setRestricted(true);
+          setError('');
+        } else {
+          setError(requestError.message || `Unable to load ${config.label.toLowerCase()} report.`);
+        }
       } finally {
         if (!signal.aborted) setLoading(false);
       }
     },
-    [activeReport, config, filters]
+    [activeReport, appliedSearch, config, filters, page, pageSize]
   );
 
   useEffect(() => {
@@ -290,13 +371,17 @@ export default function ReportCenter() {
   }, [loadReport, refreshKey]);
 
   const filteredRows = useMemo(() => {
-    const search = searchText.trim().toLowerCase();
+    if (SERVER_PAGED_REPORTS.has(activeReport)) return rows;
+    const search = appliedSearch.trim().toLowerCase();
     if (!search) return rows;
     return rows.filter((row) => config.columns.some(([key]) => String(getValue(row, key) ?? '').toLowerCase().includes(search)));
-  }, [config.columns, rows, searchText]);
+  }, [activeReport, appliedSearch, config.columns, rows]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
-  const visibleRows = filteredRows.slice((page - 1) * pageSize, page * pageSize);
+  const effectiveTotal = SERVER_PAGED_REPORTS.has(activeReport) ? totalCount : filteredRows.length;
+  const totalPages = Math.max(1, Math.ceil(effectiveTotal / pageSize));
+  const visibleRows = SERVER_PAGED_REPORTS.has(activeReport)
+    ? filteredRows
+    : filteredRows.slice((page - 1) * pageSize, page * pageSize);
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
@@ -305,6 +390,27 @@ export default function ReportCenter() {
   const summary = useMemo(() => {
     const amountKey = activeReport === 'performance' ? 'salesAmount' : 'amount';
     const amount = filteredRows.reduce((sum, row) => sum + safeNumber(getValue(row, amountKey)), 0);
+    if (activeReport === 'disposition') {
+      const totalLeads = filteredRows.reduce((sum, row) => sum + safeNumber(getValue(row, 'total')), 0);
+      const topDisposition = [...filteredRows].sort(
+        (left, right) => safeNumber(getValue(right, 'total')) - safeNumber(getValue(left, 'total'))
+      )[0];
+      return {
+        primaryLabel: 'Total leads',
+        primary: totalLeads.toLocaleString(),
+        secondaryLabel: 'Top disposition',
+        secondary: getValue(topDisposition, 'disposition') || '-'
+      };
+    }
+    if (activeReport === 'userLeads') {
+      const totalPicked = filteredRows.reduce((sum, row) => sum + safeNumber(getValue(row, 'leadsPicked')), 0);
+      return {
+        primaryLabel: 'Leads picked',
+        primary: totalPicked.toLocaleString(),
+        secondaryLabel: 'Active users',
+        secondary: filteredRows.filter((row) => safeNumber(getValue(row, 'leadsPicked')) > 0).length
+      };
+    }
     if (activeReport === 'tickets') {
       return {
         primaryLabel: 'Closed tickets',
@@ -340,13 +446,6 @@ export default function ReportCenter() {
     };
   }, [activeReport, filteredRows]);
 
-  const switchReport = (report) => {
-    setActiveReport(report);
-    setRows([]);
-    setSearchText('');
-    setPage(1);
-  };
-
   const applyFilters = (event) => {
     if (event && event.preventDefault) event.preventDefault();
     if (draftFilters.fromDate && draftFilters.toDate && draftFilters.fromDate > draftFilters.toDate) {
@@ -355,6 +454,7 @@ export default function ReportCenter() {
     }
     setError('');
     setPage(1);
+    setAppliedSearch(searchText.trim());
     setFilters({ ...draftFilters });
   };
 
@@ -371,7 +471,7 @@ export default function ReportCenter() {
       toDate = today;
     } else if (preset === 'this-month') {
       fromDate = new Date(today.getFullYear(), today.getMonth(), 1);
-      toDate = today;
+      toDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     } else if (preset === 'last-30') {
       fromDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
       toDate = today;
@@ -382,6 +482,43 @@ export default function ReportCenter() {
       fromDate: toInputDate(fromDate),
       toDate: toInputDate(toDate)
     };
+    setDraftFilters(nextFilters);
+    setFilters(nextFilters);
+    setDatePreset(preset);
+    setShowCustomDates(false);
+    setPage(1);
+  };
+
+  const shiftDateRange = (direction) => {
+    const currentFrom = new Date(`${draftFilters.fromDate}T00:00:00`);
+    const currentTo = new Date(`${draftFilters.toDate}T00:00:00`);
+    if (Number.isNaN(currentFrom.getTime()) || Number.isNaN(currentTo.getTime())) return;
+
+    let nextFrom;
+    let nextTo;
+    if (datePreset === 'this-month') {
+      nextFrom = new Date(currentFrom.getFullYear(), currentFrom.getMonth() + direction, 1);
+      nextTo = new Date(nextFrom.getFullYear(), nextFrom.getMonth() + 1, 0);
+    } else {
+      const span = Math.max(1, Math.round((currentTo - currentFrom) / 86400000) + 1);
+      nextFrom = new Date(currentFrom);
+      nextTo = new Date(currentTo);
+      nextFrom.setDate(nextFrom.getDate() + direction * span);
+      nextTo.setDate(nextTo.getDate() + direction * span);
+    }
+
+    const nextFilters = {
+      ...draftFilters,
+      fromDate: toInputDate(nextFrom),
+      toDate: toInputDate(nextTo)
+    };
+    setDraftFilters(nextFilters);
+    setFilters(nextFilters);
+    setPage(1);
+  };
+
+  const updateAndApplyFilter = (field, value) => {
+    const nextFilters = { ...draftFilters, [field]: value };
     setDraftFilters(nextFilters);
     setFilters(nextFilters);
     setPage(1);
@@ -417,145 +554,128 @@ export default function ReportCenter() {
 
   return (
     <div className="crm-report-view">
-      <Card className="report-control-card border-0 mb-4">
-        <Card.Header className="report-control-header">
-          <div className="report-heading-copy">
-            <div className="d-flex align-items-center gap-2 mb-1">
-              <h5 className="mb-0 fw-bold">{config.label} Report</h5>
-              <span className="neu-live-badge">
-                <span className="pulse-dot" /> Live Data
-              </span>
-            </div>
-            <span className="small text-muted">
-              {REPORT_METADATA[activeReport]?.subtitle || 'Live secured business reports'}
+      <Card className="report-toolbar-card border-0 mb-4">
+        <Card.Body className="report-toolbar-body">
+          <div className="report-toolbar-top">
+            <span className="report-result-chip">
+              <span className="report-result-dot" />
+              <strong>{effectiveTotal.toLocaleString()}</strong> of {effectiveTotal.toLocaleString()} results
             </span>
-          </div>
-          <span className="report-endpoint-badge">
-            <span className="report-endpoint-method">GET</span>
-            <span>/Report/{config.endpoint}</span>
-          </span>
-        </Card.Header>
-        <Card.Body className="report-control-body">
-          <div className="report-tabs-wrap">
-            <div className="neu-segmented-tabs">
-              {Object.entries(REPORTS).map(([key, report]) => {
-                const MetaIcon = REPORT_METADATA[key]?.icon || BarChart3;
-                const isActive = activeReport === key;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    className={`neu-tab-btn ${isActive ? 'active' : ''}`}
-                    onClick={() => switchReport(key)}
-                    aria-pressed={isActive}
-                  >
-                    <span className="report-tab-icon"><MetaIcon size={17} /></span>
-                    <span className="report-tab-label">{report.label}</span>
-                  </button>
-                );
-              })}
+            <div className="report-toolbar-actions">
+              <button type="button" className="report-square-btn" onClick={exportCsv} disabled={!filteredRows.length} title="Download CSV">
+                <Download size={18} />
+              </button>
+              <button type="button" className="report-round-btn" onClick={() => setRefreshKey((value) => value + 1)} disabled={loading} title="Refresh report">
+                <RefreshCw size={18} className={loading ? 'spin' : ''} />
+              </button>
             </div>
           </div>
 
-          <Form onSubmit={applyFilters}>
-            <div className="report-filter-grid">
-              <div className="report-filter-field">
-                <Form.Label className="small text-muted d-flex align-items-center gap-1 mb-1">
-                  <Calendar size={13} /> From date
-                </Form.Label>
-                <Form.Control
-                  type="date"
-                  className="neu-input"
-                  value={draftFilters.fromDate}
-                  onChange={(event) => setDraftFilters((current) => ({ ...current, fromDate: event.target.value }))}
-                />
-              </div>
-              <div className="report-filter-field">
-                <Form.Label className="small text-muted d-flex align-items-center gap-1 mb-1">
-                  <Calendar size={13} /> To date
-                </Form.Label>
-                <Form.Control
-                  type="date"
-                  className="neu-input"
-                  value={draftFilters.toDate}
-                  onChange={(event) => setDraftFilters((current) => ({ ...current, toDate: event.target.value }))}
-                />
-              </div>
-              {activeReport === 'sales' && (
-                <div className="report-filter-field">
-                  <Form.Label className="small text-muted mb-1">Group ID</Form.Label>
-                  <Form.Control
-                    type="number"
-                    min="1"
-                    className="neu-input"
-                    placeholder="All groups"
-                    value={draftFilters.groupId}
-                    onChange={(event) => setDraftFilters((current) => ({ ...current, groupId: event.target.value }))}
-                  />
-                </div>
+          <Form onSubmit={applyFilters} className="report-compact-form">
+            <div className="report-toolbar-controls">
+              {activeReport === 'disposition' && (
+                <>
+                  <Form.Select value={draftFilters.userId} onChange={(event) => updateAndApplyFilter('userId', event.target.value)} aria-label="Filter by user">
+                    <option value="">All Users</option>
+                    {userOptions.map((user, index) => {
+                      const id = getValue(user, 'userId') ?? getValue(user, 'id') ?? index;
+                      const name =
+                        getValue(user, 'displayName') ||
+                        getValue(user, 'userName') ||
+                        `${getValue(user, 'firstName') || ''} ${getValue(user, 'lastName') || ''}`.trim() ||
+                        `User ${id}`;
+                      return <option key={id} value={id}>{name}</option>;
+                    })}
+                  </Form.Select>
+                  <Form.Select value={draftFilters.vendorId} onChange={(event) => updateAndApplyFilter('vendorId', event.target.value)} aria-label="Filter by vendor">
+                    <option value="">All Vendors</option>
+                  </Form.Select>
+                </>
               )}
-              {activeReport === 'performance' &&
-                ['brandId', 'gatewayId', 'userId'].map((field) => (
-                  <div className="report-filter-field" key={field}>
-                    <Form.Label className="small text-muted mb-1">{field.replace('Id', ' ID').replace(/^./, (letter) => letter.toUpperCase())}</Form.Label>
-                    <Form.Control
-                      type="number"
-                      min="1"
-                      className="neu-input"
-                      placeholder="All"
-                      value={draftFilters[field]}
-                      onChange={(event) => setDraftFilters((current) => ({ ...current, [field]: event.target.value }))}
-                    />
-                  </div>
-                ))}
-              <div className="report-filter-actions">
-                <Button type="submit" variant="primary" className="neu-btn-primary report-apply-btn" disabled={loading}>
-                  {loading ? <Spinner size="sm" /> : <Filter size={15} />}
-                  <span>Apply</span>
-                </Button>
-                <Button variant="outline-secondary" className="neu-btn-secondary report-refresh-btn" onClick={() => setRefreshKey((value) => value + 1)} disabled={loading} title="Reload report data" aria-label="Reload report data">
-                  <RefreshCw size={15} className={loading ? 'spin' : ''} />
-                </Button>
+              {activeReport === 'userLeads' && (
+                <Form.Select value={draftFilters.groupId} onChange={(event) => updateAndApplyFilter('groupId', event.target.value)} aria-label="Filter by group">
+                  <option value="">All Groups</option>
+                  {groupOptions.map((group, index) => {
+                    const id = getValue(group, 'groupId') ?? getValue(group, 'id') ?? index;
+                    const name = getValue(group, 'groupName') || getValue(group, 'name') || `Group ${id}`;
+                    return <option key={id} value={id}>{name}</option>;
+                  })}
+                </Form.Select>
+              )}
+
+              <div className="report-toolbar-search">
+                <Search size={18} />
+                <Form.Control
+                  value={searchText}
+                  onChange={(event) => setSearchText(event.target.value)}
+                  placeholder={activeReport === 'disposition' ? 'Search disposition...' : `Search ${config.label.toLowerCase()}...`}
+                  aria-label={`Search ${config.label}`}
+                />
               </div>
+
+              <Form.Select className="report-period-select" value={datePreset} onChange={(event) => applyPreset(event.target.value)} aria-label="Date period">
+                {DATE_PRESETS.map((preset) => <option key={preset.id} value={preset.id}>{preset.label}</option>)}
+              </Form.Select>
+
+              <button type="button" className="report-round-btn" onClick={() => setShowCustomDates((value) => !value)} title="Choose custom dates">
+                <Calendar size={18} />
+              </button>
+              <button type="button" className="report-round-btn" onClick={() => shiftDateRange(-1)} title="Previous period">
+                <ChevronLeft size={19} />
+              </button>
+              <button type="button" className="report-date-range-btn" onClick={() => setShowCustomDates((value) => !value)}>
+                <Calendar size={17} />
+                <span>{formatRangeDate(draftFilters.fromDate)} - {formatRangeDate(draftFilters.toDate)}</span>
+              </button>
+              <button type="button" className="report-round-btn" onClick={() => shiftDateRange(1)} title="Next period">
+                <ChevronRight size={19} />
+              </button>
             </div>
 
-            {/* Quick date presets loop */}
-            <div className="report-quick-ranges">
-              <span className="report-quick-label"><Calendar size={14} /> Quick range</span>
-              {DATE_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  className="neu-preset-btn"
-                  onClick={() => applyPreset(preset.id)}
-                >
-                  {preset.label}
-                </button>
-              ))}
-            </div>
+            {showCustomDates && (
+              <div className="report-custom-dates">
+                <Form.Control type="date" value={draftFilters.fromDate} onChange={(event) => setDraftFilters((current) => ({ ...current, fromDate: event.target.value }))} />
+                <span>to</span>
+                <Form.Control type="date" value={draftFilters.toDate} onChange={(event) => setDraftFilters((current) => ({ ...current, toDate: event.target.value }))} />
+                <Button type="submit" size="sm" disabled={loading}>{loading ? <Spinner size="sm" /> : 'Apply dates'}</Button>
+              </div>
+            )}
           </Form>
         </Card.Body>
       </Card>
 
       {error && <Alert variant="danger">{error}</Alert>}
 
+      {restricted && (
+        <Alert variant="warning" className="report-access-alert">
+          <strong>{config.label} report is restricted.</strong>{' '}
+          Your current role does not have API permission to view this report. The other reports remain available.
+        </Alert>
+      )}
+
       <Row className="g-3 mb-4">
         <Col sm={4}>
           <SummaryCard
             icon={BarChart3}
             label="Total Records"
-            value={filteredRows.length.toLocaleString()}
+            value={effectiveTotal.toLocaleString()}
             tone="primary"
             subtitle="Rows returned for current period"
           />
         </Col>
         <Col sm={4}>
           <SummaryCard
-            icon={WalletCards}
+            icon={activeReport === 'disposition' || activeReport === 'userLeads' ? MousePointerClick : WalletCards}
             label={summary.primaryLabel}
             value={summary.primary}
             tone="success"
-            subtitle={activeReport === 'tickets' ? 'Resolved service tickets' : 'Financial total'}
+            subtitle={
+              activeReport === 'tickets'
+                ? 'Resolved service tickets'
+                : activeReport === 'disposition' || activeReport === 'userLeads'
+                  ? 'Live lead activity'
+                  : 'Financial total'
+            }
           />
         </Col>
         <Col sm={4}>
@@ -564,43 +684,18 @@ export default function ReportCenter() {
             label={summary.secondaryLabel}
             value={summary.secondary}
             tone="warning"
-            subtitle={activeReport === 'tickets' ? 'In progress & new tickets' : 'Active tracking items'}
+            subtitle={
+              activeReport === 'tickets'
+                ? 'In progress & new tickets'
+                : activeReport === 'disposition' || activeReport === 'userLeads'
+                  ? 'Current report period'
+                  : 'Active tracking items'
+            }
           />
         </Col>
       </Row>
 
       <Card className="neu-card border-0">
-        <Card.Header className="bg-transparent d-flex flex-wrap align-items-center justify-content-between gap-3 py-3 border-0">
-          <div className="d-flex align-items-center gap-2">
-            <div className="neu-input-group" style={{ maxWidth: 360, width: '100%' }}>
-              <span className="input-group-text">
-                <Search size={15} />
-              </span>
-              <Form.Control
-                placeholder={`Search ${config.label.toLowerCase()} rows...`}
-                value={searchText}
-                onChange={(event) => {
-                  setSearchText(event.target.value);
-                  setPage(1);
-                }}
-              />
-              {searchText && (
-                <Button variant="link" className="p-0 text-muted me-2" onClick={() => setSearchText('')} title="Clear search">
-                  <X size={14} />
-                </Button>
-              )}
-            </div>
-            {filteredRows.length > 0 && (
-              <span className="small text-muted d-none d-md-inline">
-                {filteredRows.length} matching {filteredRows.length === 1 ? 'record' : 'records'}
-              </span>
-            )}
-          </div>
-          <Button variant="outline-primary" size="sm" onClick={exportCsv} disabled={!filteredRows.length} className="neu-btn-action d-inline-flex align-items-center gap-2">
-            <Download size={15} />
-            <span>Export CSV</span>
-          </Button>
-        </Card.Header>
         <Card.Body className="p-3">
           <div className="neu-table-wrapper">
             <div className="table-responsive">
@@ -666,8 +761,8 @@ export default function ReportCenter() {
         </Card.Body>
         <Card.Footer className="bg-transparent d-flex flex-wrap align-items-center justify-content-between gap-3 py-3 border-0">
           <div className="small text-muted">
-            Showing {filteredRows.length ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, filteredRows.length)} of{' '}
-            {filteredRows.length} records
+            Showing {effectiveTotal ? (page - 1) * pageSize + 1 : 0}&ndash;{Math.min(page * pageSize, effectiveTotal)} of{' '}
+            {effectiveTotal} records
           </div>
           <div className="d-flex align-items-center gap-2">
             <span className="small text-muted">Per page:</span>

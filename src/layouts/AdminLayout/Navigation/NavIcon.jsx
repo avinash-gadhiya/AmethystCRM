@@ -27,7 +27,14 @@ import {
   List,
   HelpCircle,
   Layers,
-  Circle
+  Circle,
+  Contact,
+  ClipboardCheck,
+  Boxes,
+  BookOpenCheck,
+  Database,
+  SlidersHorizontal,
+  Waypoints
 } from 'lucide-react';
 
 // -----------------------|| NAV ICON ||-----------------------//
@@ -53,7 +60,7 @@ const LUCIDE_ICON_MAP = {
   'bar-chart-2': BarChart2,
   'lead-scheduler': Calendar,
   calendar: Calendar,
-  attendance: Clock,
+  attendance: ClipboardCheck,
   clock: Clock,
   'bk-leads': PhoneCall,
   'phone-call': PhoneCall,
@@ -77,7 +84,13 @@ const LUCIDE_ICON_MAP = {
   list_alt: List,
   help_outline: HelpCircle,
   sample: FileText,
-  layers: Layers
+  layers: Layers,
+  contact: Contact,
+  inventory: Boxes,
+  permissions: BookOpenCheck,
+  database: Database,
+  gateway: Waypoints,
+  configuration: SlidersHorizontal
 };
 
 const ICON_COLOR_MAP = {
@@ -101,6 +114,15 @@ const ICON_COLOR_MAP = {
   'phone-call': '#fbbf24',
   'lead-access': '#fbbf24',
   key: '#fbbf24',
+  attendance: '#8b5cf6',
+  clock: '#8b5cf6',
+  settings: '#64748b',
+  configuration: '#64748b',
+  'system-logs': '#06b6d4',
+  activity: '#06b6d4',
+  inventory: '#f59e0b',
+  gateway: '#0ea5e9',
+  database: '#0ea5e9',
   'my-profile': '#60a5fa',
   user: '#60a5fa'
 };
@@ -111,14 +133,16 @@ export default function NavIcon({ items }) {
   }
 
   const iconKey = (items.iconname || items.icon || '').toLowerCase();
-  const IconComponent = LUCIDE_ICON_MAP[iconKey] || LUCIDE_ICON_MAP[items.iconname] || null;
+  const IconComponent = LUCIDE_ICON_MAP[iconKey] || Folder;
+  const iconColor = ICON_COLOR_MAP[iconKey] || '#64748b';
 
   return (
     <span
-      className="pc-micon d-inline-flex align-items-center justify-content-center me-2"
-      style={{ color: ICON_COLOR_MAP[iconKey] || '#94a3b8' }}
+      className="pc-micon"
+      style={{ '--nav-icon-color': iconColor }}
+      aria-hidden="true"
     >
-      {IconComponent ? <IconComponent size={18} /> : items.iconname ? <Folder size={18} /> : <Circle size={6} />}
+      {items.iconname || items.icon ? <IconComponent /> : <Circle className="pc-submenu-dot" />}
     </span>
   );
 }

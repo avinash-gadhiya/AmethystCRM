@@ -8,7 +8,7 @@ import { ConfigContext } from 'contexts/ConfigContext';
 import * as actionType from 'store/actions';
 
 // third party
-import { ChevronLeft, ChevronRight, LogOut, UserCircle } from 'lucide-react';
+import { Blocks, ChevronLeft, ChevronRight, LogOut, UserCircle } from 'lucide-react';
 import SimpleBar from 'simplebar-react';
 import 'simplebar-react/dist/simplebar.min.css';
 
@@ -46,9 +46,9 @@ export default function NavContent({ navigation }) {
       <div className="m-header">
         <Link to={firstNavigationPath || '/Dashboards'} className="b-brand">
           <span className="sidebar-brand-mark" aria-hidden="true">
-            {'{S}'}
+            <Blocks size={23} strokeWidth={2.2} />
           </span>
-          <span className="sidebar-brand-name">CRM</span>
+          <span className="sidebar-brand-name">CRM Workspace</span>
         </Link>
         <button
           type="button"
@@ -60,8 +60,10 @@ export default function NavContent({ navigation }) {
           {collapseMenu ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
         </button>
       </div>
-      <div className="navbar-content next-scroll">{navContentNode}</div>
-      <div className="sidebar-account-actions">
+      <div className="navbar-content next-scroll" aria-label="Workspace navigation">
+        {navContentNode}
+      </div>
+      <div className="sidebar-account-actions" aria-label="Account actions">
         <Link to="/MyProfile" className="pc-link sidebar-account-link">
           <span className="pc-micon">
             <UserCircle size={22} />

@@ -33,7 +33,7 @@ export default function NavItem({ item }) {
   let subContent;
   if (item.external) {
     subContent = (
-      <Link to={item.url} target="_blank" rel="noopener noreferrer" className="pc-link">
+      <Link to={item.url} target="_blank" rel="noopener noreferrer" className="pc-link" title={item.title}>
         <NavIcon items={item} />
         <span className="pc-mtext">{item.title}</span>
         {item.type === 'collapse' && (
@@ -45,7 +45,7 @@ export default function NavItem({ item }) {
     );
   } else {
     subContent = (
-      <NavLink to={item.url} className="pc-link">
+      <NavLink to={item.url} className="pc-link" title={item.title}>
         <NavIcon items={item} />
         <span className="pc-mtext">{item.title}</span>
         {item.type === 'collapse' && (

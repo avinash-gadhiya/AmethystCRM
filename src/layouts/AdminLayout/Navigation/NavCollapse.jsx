@@ -67,7 +67,13 @@ export default function NavCollapse({ collapse, type }) {
 
   return (
     <li className={navItemClass}>
-      <Link to="#" className={navLinkClass} onClick={handleToggle} aria-expanded={isExpanded}>
+      <Link
+        to="#"
+        className={navLinkClass}
+        onClick={handleToggle}
+        aria-expanded={isExpanded}
+        title={collapse.title}
+      >
         <NavIcon items={collapse} />
         <span className="pc-mtext">{collapse.title}</span>
         <span className="pc-arrow">{isExpanded ? <Minus size={16} /> : <Plus size={16} />}</span>
