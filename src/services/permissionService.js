@@ -190,8 +190,7 @@ const moveGatewayPageToSettings = (menus = []) => {
     ...menu,
     menuPermissionPageDTOs: Array.isArray(menu?.menuPermissionPageDTOs) ? [...menu.menuPermissionPageDTOs] : []
   }));
-  let gatewayPage = null;
-
+  // Remove any Settings Gateway pages from navigation menus
   clonedMenus.forEach((menu) => {
     menu.menuPermissionPageDTOs = menu.menuPermissionPageDTOs.filter((page) => {
       const url = normalizeRoute(page?.pageUrl).toLowerCase();
@@ -199,7 +198,6 @@ const moveGatewayPageToSettings = (menus = []) => {
         .trim()
         .toLowerCase();
       const isSettingsGateway = url === '/settings/gateway' || (name === 'gateway' && !url.includes('dashboard'));
-      if (isSettingsGateway && !gatewayPage) gatewayPage = page;
       return !isSettingsGateway;
     });
   });
@@ -223,9 +221,14 @@ const moveGatewayPageToSettings = (menus = []) => {
     clonedMenus.push(settingsMenu);
   }
 
-  if (gatewayPage) {
-    settingsMenu.menuPermissionPageDTOs.push(gatewayPage);
-  }
+  // Ensure Gateway option is completely removed from Settings
+  settingsMenu.menuPermissionPageDTOs = settingsMenu.menuPermissionPageDTOs.filter((page) => {
+    const url = normalizeRoute(page?.pageUrl).toLowerCase();
+    const name = String(page?.pageName || page?.pageDisplayName || '')
+      .trim()
+      .toLowerCase();
+    return !url.includes('gateway') && name !== 'gateway' && name !== 'gateways';
+  });
 
   // Preserve a backend-provided Settings Location URL; add the conventional URL only as a fallback.
   let locationPage = null;
