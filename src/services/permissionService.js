@@ -22,10 +22,41 @@ const MENU_ICON_MAP = {
   reports: 'bar-chart-2',
   settings: 'settings',
   'system logs': 'activity',
-  'system-logs': 'activity',
   tickets: 'ticket',
   users: 'users',
-  user: 'user'
+  user: 'user',
+  'blocked ip': 'shield-alert',
+  'blocked ip addresses': 'shield-alert',
+  'blockip': 'shield-alert',
+  'ip': 'shield-alert',
+  brand: 'award',
+  brands: 'award',
+  branddetails: 'award',
+  brandemail: 'mail',
+  brandtemplate: 'file-text',
+  'brand template': 'file-text',
+  'brand templates': 'file-text',
+  group: 'layers',
+  groups: 'layers',
+  groupemail: 'mail',
+  'group email': 'mail',
+  'group emails': 'mail',
+  'group-email': 'mail',
+  gateway: 'credit-card',
+  gateways: 'credit-card',
+  template: 'file-text',
+  templates: 'file-text',
+  location: 'map-pin',
+  locations: 'map-pin',
+  country: 'globe',
+  countries: 'globe',
+  'countries & states': 'globe',
+  state: 'map-pin',
+  states: 'map-pin',
+  page: 'file-text',
+  pages: 'file-text',
+  menu: 'menu',
+  menus: 'menu'
 };
 
 const listeners = new Set();
@@ -173,8 +204,6 @@ const moveGatewayPageToSettings = (menus = []) => {
     });
   });
 
-  if (!gatewayPage) return clonedMenus;
-
   let settingsMenu = clonedMenus.find((menu) => {
     const name = String(menu?.menuName || menu?.menuDisplayName || '')
       .trim()
@@ -194,7 +223,350 @@ const moveGatewayPageToSettings = (menus = []) => {
     clonedMenus.push(settingsMenu);
   }
 
-  settingsMenu.menuPermissionPageDTOs.push(gatewayPage);
+  if (gatewayPage) {
+    settingsMenu.menuPermissionPageDTOs.push(gatewayPage);
+  }
+
+  // Preserve a backend-provided Settings Location URL; add the conventional URL only as a fallback.
+  let locationPage = null;
+  clonedMenus.forEach((menu) => {
+    menu.menuPermissionPageDTOs = menu.menuPermissionPageDTOs.filter((page) => {
+      const url = normalizeRoute(page?.pageUrl).toLowerCase();
+      const name = String(page?.pageName || page?.pageDisplayName || '').trim().toLowerCase();
+      const isLocationPage =
+        name === 'location' ||
+        name === 'locations' ||
+        (url.includes('/settings/') && url.includes('location'));
+      if (isLocationPage && !locationPage) locationPage = page;
+      return !isLocationPage;
+    });
+  });
+
+  settingsMenu.menuPermissionPageDTOs.push(
+    locationPage || {
+      pageId: 'settings-location',
+      pageName: 'Locations',
+      pageDisplayName: 'Locations',
+      pageUrl: '/settings/location',
+      pageOrder: 93,
+      isActive: true,
+      menuPagePermissionDTOs: [
+        { permissionName: 'View', permissionCode: 'location_view', isActive: true, hasPermission: true },
+        { permissionName: 'Add', permissionCode: 'location_add', isActive: true, hasPermission: true },
+        { permissionName: 'Edit', permissionCode: 'location_edit', isActive: true, hasPermission: true },
+        { permissionName: 'Delete', permissionCode: 'location_delete', isActive: true, hasPermission: true }
+      ]
+    }
+  );
+
+  // Keep Brand Template as a direct Settings page and preserve a backend-provided custom URL.
+  let brandTemplatePage = null;
+  clonedMenus.forEach((menu) => {
+    menu.menuPermissionPageDTOs = menu.menuPermissionPageDTOs.filter((page) => {
+      const url = normalizeRoute(page?.pageUrl).toLowerCase().replace(/[^a-z0-9]/g, '');
+      const name = String(page?.pageName || page?.pageDisplayName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const isBrandTemplate = name === 'brandtemplate' || name === 'brandtemplates' || url.includes('brandtemplate');
+      if (isBrandTemplate && !brandTemplatePage) brandTemplatePage = page;
+      return !isBrandTemplate;
+    });
+  });
+
+  settingsMenu.menuPermissionPageDTOs.push(
+    brandTemplatePage || {
+      pageId: 'settings-brand-template',
+      pageName: 'Brand Template',
+      pageDisplayName: 'Brand Template',
+      pageUrl: '/settings/brand-template',
+      pageOrder: 94,
+      isActive: true,
+      menuPagePermissionDTOs: [
+        { permissionName: 'View', permissionCode: 'brandtemplate_view', isActive: true, hasPermission: true },
+        { permissionName: 'Add', permissionCode: 'brandtemplate_add', isActive: true, hasPermission: true },
+        { permissionName: 'Edit', permissionCode: 'brandtemplate_edit', isActive: true, hasPermission: true },
+        { permissionName: 'Delete', permissionCode: 'brandtemplate_delete', isActive: true, hasPermission: true }
+      ]
+    }
+  );
+
+  // Ensure Blocked IP page is registered under Settings navigation
+  const hasBlockedIpPage = settingsMenu.menuPermissionPageDTOs.some((page) => {
+    const u = normalizeRoute(page?.pageUrl).toLowerCase();
+    return u === '/settings/ip' || u === '/settings/blockip' || u.includes('blockip');
+  });
+
+  if (!hasBlockedIpPage) {
+    settingsMenu.menuPermissionPageDTOs.push({
+      pageId: 'settings-blocked-ip',
+      pageName: 'Blocked IP Addresses',
+      pageDisplayName: 'Blocked IP Addresses',
+      pageUrl: '/settings/ip',
+      pageOrder: 80,
+      isActive: true,
+      menuPagePermissionDTOs: [
+        { permissionName: 'View', permissionCode: 'blockip_view', isActive: true, hasPermission: true },
+        { permissionName: 'Add', permissionCode: 'blockip_add', isActive: true, hasPermission: true },
+        { permissionName: 'Edit', permissionCode: 'blockip_edit', isActive: true, hasPermission: true },
+        { permissionName: 'Delete', permissionCode: 'blockip_delete', isActive: true, hasPermission: true }
+      ]
+    });
+  }
+
+  // Ensure Countries & States page is registered under Settings navigation
+  const hasCountryPage = settingsMenu.menuPermissionPageDTOs.some((page) => {
+    const u = normalizeRoute(page?.pageUrl).toLowerCase();
+    return u === '/settings/country' || u === '/settings/countries' || u.includes('country');
+  });
+
+  if (!hasCountryPage) {
+    settingsMenu.menuPermissionPageDTOs.push({
+      pageId: 'settings-country',
+      pageName: 'Countries & States',
+      pageDisplayName: 'Countries & States',
+      pageUrl: '/settings/country',
+      pageOrder: 85,
+      isActive: true,
+      menuPagePermissionDTOs: [
+        { permissionName: 'View', permissionCode: 'country_view', isActive: true, hasPermission: true },
+        { permissionName: 'Add', permissionCode: 'country_add', isActive: true, hasPermission: true },
+        { permissionName: 'Edit', permissionCode: 'country_edit', isActive: true, hasPermission: true },
+        { permissionName: 'Delete', permissionCode: 'country_delete', isActive: true, hasPermission: true }
+      ]
+    });
+  }
+
+  // Ensure Settings configuration manager is registered under Settings navigation
+  const hasSettingsConfigPage = settingsMenu.menuPermissionPageDTOs.some((page) => {
+    const u = normalizeRoute(page?.pageUrl).toLowerCase();
+    return u === '/settings/settings' || u === '/settings/setting' || u === '/setting';
+  });
+
+  if (!hasSettingsConfigPage) {
+    settingsMenu.menuPermissionPageDTOs.push({
+      pageId: 'settings-configuration',
+      pageName: 'Settings',
+      pageDisplayName: 'Settings',
+      pageUrl: '/settings/settings',
+      pageOrder: 10,
+      isActive: true,
+      menuPagePermissionDTOs: [
+        { permissionName: 'View', permissionCode: 'setting_view', isActive: true, hasPermission: true },
+        { permissionName: 'Add', permissionCode: 'setting_add', isActive: true, hasPermission: true },
+        { permissionName: 'Edit', permissionCode: 'setting_edit', isActive: true, hasPermission: true },
+        { permissionName: 'Delete', permissionCode: 'setting_delete', isActive: true, hasPermission: true }
+      ]
+    });
+  }
+
+  // Ensure Brands management page is registered under Settings navigation
+  const hasBrandPage = settingsMenu.menuPermissionPageDTOs.some((page) => {
+    const u = normalizeRoute(page?.pageUrl).toLowerCase();
+    const name = String(page?.pageName || page?.pageDisplayName || '').trim().toLowerCase();
+    return u === '/settings/brand' || u === '/settings/brands' || name === 'brand' || name === 'brands';
+  });
+
+  if (!hasBrandPage) {
+    settingsMenu.menuPermissionPageDTOs.push({
+      pageId: 'settings-brand',
+      pageName: 'Brands',
+      pageDisplayName: 'Brands',
+      pageUrl: '/settings/brand',
+      pageOrder: 88,
+      isActive: true,
+      menuPagePermissionDTOs: [
+        { permissionName: 'View', permissionCode: 'brand_view', isActive: true, hasPermission: true },
+        { permissionName: 'Add', permissionCode: 'brand_add', isActive: true, hasPermission: true },
+        { permissionName: 'Edit', permissionCode: 'brand_edit', isActive: true, hasPermission: true },
+        { permissionName: 'Delete', permissionCode: 'brand_delete', isActive: true, hasPermission: true }
+      ]
+    });
+  }
+
+  const hasBrandEmailPage = settingsMenu.menuPermissionPageDTOs.some((page) => {
+    const url = normalizeRoute(page?.pageUrl).toLowerCase();
+    const name = String(page?.pageName || page?.pageDisplayName || '').trim().toLowerCase();
+    return url === '/settings/brandemail' || url === '/settings/brand-emails' || url === '/settings/email' || name === 'brand email' || name === 'brand emails';
+  });
+
+  if (!hasBrandEmailPage) {
+    settingsMenu.menuPermissionPageDTOs.push({
+      pageId: 'settings-brand-email',
+      pageName: 'Brand Emails',
+      pageDisplayName: 'Brand Emails',
+      pageUrl: '/settings/brandemail',
+      pageOrder: 89,
+      isActive: true,
+      menuPagePermissionDTOs: [
+        { permissionName: 'View', permissionCode: 'brandemail_view', isActive: true, hasPermission: true },
+        { permissionName: 'Add', permissionCode: 'brandemail_add', isActive: true, hasPermission: true },
+        { permissionName: 'Edit', permissionCode: 'brandemail_edit', isActive: true, hasPermission: true },
+        { permissionName: 'Delete', permissionCode: 'brandemail_delete', isActive: true, hasPermission: true }
+      ]
+    });
+  }
+
+  // Ensure Sales Target is available in Settings even when the permission API omits a navigation record.
+  const hasSalesTargetPage = settingsMenu.menuPermissionPageDTOs.some((page) => {
+    const url = normalizeRoute(page?.pageUrl).toLowerCase().replace(/[^a-z0-9]/g, '');
+    const name = String(page?.pageName || page?.pageDisplayName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    return url.includes('salestarget') || name === 'salestarget' || name === 'salestargets';
+  });
+
+  if (!hasSalesTargetPage) {
+    settingsMenu.menuPermissionPageDTOs.push({
+      pageId: 'settings-sales-target',
+      pageName: 'Sales Target',
+      pageDisplayName: 'Sales Target',
+      pageUrl: '/settings/sales-target',
+      pageOrder: 94,
+      isActive: true,
+      menuPagePermissionDTOs: [
+        { permissionName: 'View', permissionCode: 'salestarget_view', isActive: true, hasPermission: true },
+        { permissionName: 'Add', permissionCode: 'salestarget_add', isActive: true, hasPermission: true },
+        { permissionName: 'Edit', permissionCode: 'salestarget_edit', isActive: true, hasPermission: true }
+      ]
+    });
+  }
+
+  // Ensure Groups management page is registered under Settings navigation
+  const hasGroupPage = settingsMenu.menuPermissionPageDTOs.some((page) => {
+    const u = normalizeRoute(page?.pageUrl).toLowerCase();
+    return u === '/settings/group' || u === '/settings/groups' || u.includes('group');
+  });
+
+  if (!hasGroupPage) {
+    settingsMenu.menuPermissionPageDTOs.push({
+      pageId: 'settings-group',
+      pageName: 'Groups',
+      pageDisplayName: 'Groups',
+      pageUrl: '/settings/group',
+      pageOrder: 89,
+      isActive: true,
+      menuPagePermissionDTOs: [
+        { permissionName: 'View', permissionCode: 'group_view', isActive: true, hasPermission: true },
+        { permissionName: 'Add', permissionCode: 'group_add', isActive: true, hasPermission: true },
+        { permissionName: 'Edit', permissionCode: 'group_edit', isActive: true, hasPermission: true },
+        { permissionName: 'Delete', permissionCode: 'group_delete', isActive: true, hasPermission: true }
+      ]
+    });
+  }
+
+  // Ensure Pages management page is registered under Settings navigation
+  const hasPagesPage = settingsMenu.menuPermissionPageDTOs.some((page) => {
+    const u = normalizeRoute(page?.pageUrl).toLowerCase();
+    return u === '/settings/pages' || u === '/settings/page' || u.includes('pages');
+  });
+
+  if (!hasPagesPage) {
+    settingsMenu.menuPermissionPageDTOs.push({
+      pageId: 'settings-pages',
+      pageName: 'Pages',
+      pageDisplayName: 'Pages',
+      pageUrl: '/settings/pages',
+      pageOrder: 90,
+      isActive: true,
+      menuPagePermissionDTOs: [
+        { permissionName: 'View', permissionCode: 'page_view', isActive: true, hasPermission: true },
+        { permissionName: 'Add', permissionCode: 'page_add', isActive: true, hasPermission: true },
+        { permissionName: 'Edit', permissionCode: 'page_edit', isActive: true, hasPermission: true },
+        { permissionName: 'Delete', permissionCode: 'page_delete', isActive: true, hasPermission: true }
+      ]
+    });
+  }
+
+  // Ensure Menus management page is registered under Settings navigation
+  const hasMenusPage = settingsMenu.menuPermissionPageDTOs.some((page) => {
+    const u = normalizeRoute(page?.pageUrl).toLowerCase();
+    return u === '/settings/menus' || u === '/settings/menu' || u.includes('menus');
+  });
+
+  if (!hasMenusPage) {
+    settingsMenu.menuPermissionPageDTOs.push({
+      pageId: 'settings-menus',
+      pageName: 'Menus',
+      pageDisplayName: 'Menus',
+      pageUrl: '/settings/menus',
+      pageOrder: 91,
+      isActive: true,
+      menuPagePermissionDTOs: [
+        { permissionName: 'View', permissionCode: 'menu_view', isActive: true, hasPermission: true },
+        { permissionName: 'Add', permissionCode: 'menu_add', isActive: true, hasPermission: true },
+        { permissionName: 'Edit', permissionCode: 'menu_edit', isActive: true, hasPermission: true },
+        { permissionName: 'Delete', permissionCode: 'menu_delete', isActive: true, hasPermission: true }
+      ]
+    });
+  }
+
+  // Ensure Templates management page is registered under Settings navigation
+  const hasTemplatesPage = settingsMenu.menuPermissionPageDTOs.some((page) => {
+    const u = normalizeRoute(page?.pageUrl).toLowerCase();
+    return (u === '/settings/templates' || u === '/settings/template' || u.includes('template')) && !u.includes('brand');
+  });
+
+  if (!hasTemplatesPage) {
+    settingsMenu.menuPermissionPageDTOs.push({
+      pageId: 'settings-templates',
+      pageName: 'Template',
+      pageDisplayName: 'Template',
+      pageUrl: '/settings/templates',
+      pageOrder: 92,
+      isActive: true,
+      menuPagePermissionDTOs: [
+        { permissionName: 'View', permissionCode: 'template_view', isActive: true, hasPermission: true },
+        { permissionName: 'Add', permissionCode: 'template_add', isActive: true, hasPermission: true },
+        { permissionName: 'Edit', permissionCode: 'template_edit', isActive: true, hasPermission: true },
+        { permissionName: 'Delete', permissionCode: 'template_delete', isActive: true, hasPermission: true }
+      ]
+    });
+  }
+
+  // Ensure Group Email management page is registered under Settings navigation as direct item
+  const hasGroupEmailPage = settingsMenu.menuPermissionPageDTOs.some((page) => {
+    const u = normalizeRoute(page?.pageUrl).toLowerCase();
+    const name = String(page?.pageName || page?.pageDisplayName || '').trim().toLowerCase();
+    return u === '/settings/group-email' || u === '/settings/groupemail' || name === 'group email' || name === 'group emails';
+  });
+
+  if (!hasGroupEmailPage) {
+    settingsMenu.menuPermissionPageDTOs.push({
+      pageId: 'settings-group-email',
+      pageName: 'Group Email',
+      pageDisplayName: 'Group Email',
+      pageUrl: '/settings/group-email',
+      pageOrder: 90,
+      isActive: true,
+      menuPagePermissionDTOs: [
+        { permissionName: 'View', permissionCode: 'groupemail_view', isActive: true, hasPermission: true },
+        { permissionName: 'Add', permissionCode: 'groupemail_add', isActive: true, hasPermission: true },
+        { permissionName: 'Edit', permissionCode: 'groupemail_edit', isActive: true, hasPermission: true },
+        { permissionName: 'Delete', permissionCode: 'groupemail_delete', isActive: true, hasPermission: true }
+      ]
+    });
+  }
+
+  // Ensure Locations management page is registered under Settings navigation
+  const hasLocationsPage = settingsMenu.menuPermissionPageDTOs.some((page) => {
+    const u = normalizeRoute(page?.pageUrl).toLowerCase();
+    const name = String(page?.pageName || page?.pageDisplayName || '').trim().toLowerCase();
+    return u === '/settings/location' || u === '/settings/locations' || name === 'location' || name === 'locations';
+  });
+
+  if (!hasLocationsPage) {
+    settingsMenu.menuPermissionPageDTOs.push({
+      pageId: 'settings-locations',
+      pageName: 'Locations',
+      pageDisplayName: 'Locations',
+      pageUrl: '/settings/location',
+      pageOrder: 93,
+      isActive: true,
+      menuPagePermissionDTOs: [
+        { permissionName: 'View', permissionCode: 'location_view', isActive: true, hasPermission: true },
+        { permissionName: 'Add', permissionCode: 'location_add', isActive: true, hasPermission: true },
+        { permissionName: 'Edit', permissionCode: 'location_edit', isActive: true, hasPermission: true },
+        { permissionName: 'Delete', permissionCode: 'location_delete', isActive: true, hasPermission: true }
+      ]
+    });
+  }
+
   return clonedMenus;
 };
 

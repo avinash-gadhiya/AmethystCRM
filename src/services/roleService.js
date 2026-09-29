@@ -1,122 +1,162 @@
-import authService from './authService';
+import axios from 'axios';
+import { deleteById, getAuthHeaders } from './http';
 
-const API_BASE_URL = (import.meta.env.VITE_APP_API_URL || 'https://demoapi.enstasol.com/api').replace(/\/$/, '');
-
-const buildQuery = (params = {}) => {
-  const query = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value === '' || value === null || value === undefined) return;
-    query.set(key, String(value));
-  });
-  return query.toString();
+const getApiBaseUrl = () => {
+  return (import.meta.env.VITE_APP_API_URL || 'https://demoapi.enstasol.com/api').replace(/\/$/, '');
 };
 
-const request = async (path, { method = 'GET', params, data, signal } = {}) => {
-  const token = authService.getToken();
-  if (!token) throw new Error('Your session has expired. Please sign in again.');
+const roleService = {
+  // GET ${VITE_APP_API_URL}/Role
+  getRoles: async (params = {}) => {
+    try {
+      const API_URL = getApiBaseUrl();
+      const {
+        Text = '',
+        PageNumber = 1,
+        PageSize = 1000,
+        SortProperty = 'roleId',
+        IsDescending = true
+      } = params;
 
-  const query = buildQuery(params);
-  const headers = {
-    Accept: 'application/json',
-    Authorization: `Bearer ${token}`
-  };
-  if (data !== undefined) headers['Content-Type'] = 'application/json';
+      const response = await axios.get(`${API_URL}/Role`, {
+        headers: getAuthHeaders(),
+        params: {
+          Text,
+          PageNumber,
+          PageSize,
+          SortProperty,
+          IsDescending
+        }
+      });
 
-  const response = await fetch(`${API_BASE_URL}${path}${query ? `?${query}` : ''}`, {
-    method,
-    headers,
-    body: data === undefined ? undefined : JSON.stringify(data),
-    signal
-  });
+      if (response.data && response.data.success) {
+        return {
+          data: response.data.data || [],
+          totalCount: response.data.totalCount || 0
+        };
+      }
 
-  if (response.status === 204) return { success: true };
-
-  let payload;
-  try {
-    payload = await response.json();
-  } catch {
-    if (response.ok) return { success: true };
-    throw new Error(`Role API returned an invalid response (${response.status}).`);
-  }
-
-  if (!response.ok || payload?.success === false) {
-    const validationMessage = payload?.errors ? Object.values(payload.errors).flat().join(', ') : '';
-    throw new Error(payload?.message || validationMessage || `Role request failed (${response.status}).`);
-  }
-
-  return payload;
-};
-
-const normalizeList = (payload) => {
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.data)) return payload.data;
-  if (Array.isArray(payload?.items)) return payload.items;
-  return [];
-};
-
-export const roleService = {
-  // GET /api/Role
-  async getRoles(params = {}, signal) {
-    const payload = await request('/Role', {
-      params: {
-        Text: params.Text || '',
-        PageNumber: params.PageNumber || 1,
-        PageSize: params.PageSize || 10,
-        SortProperty: params.SortProperty || 'roleId',
-        IsDescending: params.IsDescending ?? false
-      },
-      signal
-    });
-
-    return {
-      data: normalizeList(payload),
-      totalCount: payload?.totalCount ?? payload?.totalRecords ?? normalizeList(payload).length,
-      raw: payload
-    };
+      const rows = Array.isArray(response.data?.data)
+        ? response.data.data
+        : Array.isArray(response.data)
+        ? response.data
+        : [];
+      return {
+        data: rows,
+        totalCount: response.data?.totalCount ?? rows.length
+      };
+    } catch (error) {
+      console.error('Error fetching roles:', error);
+      throw error;
+    }
   },
 
-  // POST /api/Role
-  async createRole(roleDTO) {
-    return request('/Role', {
-      method: 'POST',
-      data: roleDTO
-    });
+  // GET ${VITE_APP_API_URL}/Role/{id}
+  getRoleById: async (roleId) => {
+    try {
+      const API_URL = getApiBaseUrl();
+      const response = await axios.get(`${API_URL}/Role/${encodeURIComponent(roleId)}`, {
+        headers: getAuthHeaders()
+      });
+
+      if (response.data && response.data.success) {
+        return response.data.data;
+      }
+
+      return response.data?.data || response.data || null;
+    } catch (error) {
+      console.error('Error fetching role:', error);
+      throw error;
+    }
   },
 
-  // PUT /api/Role
-  async updateRole(roleDTO) {
-    return request('/Role', {
-      method: 'PUT',
-      data: roleDTO
-    });
+  // POST ${VITE_APP_API_URL}/Role
+  createRole: async (roleData) => {
+    try {
+      const API_URL = getApiBaseUrl();
+      const response = await axios.post(`${API_URL}/Role`, {
+        roleId: 0,
+        roleName: String(roleData.roleName || '').trim(),
+        roleDescription: String(roleData.roleDescription || '').trim(),
+        isSystemRole: Boolean(roleData.isSystemRole),
+        isActive: roleData.isActive !== false
+      }, {
+        headers: getAuthHeaders()
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('Error creating role:', error);
+      throw error;
+    }
   },
 
-  // DELETE /api/Role?id={id}
-  async deleteRole(roleId) {
-    return request('/Role', {
-      method: 'DELETE',
-      params: { id: roleId }
-    });
+  // PUT ${VITE_APP_API_URL}/Role
+  updateRole: async (roleData) => {
+    try {
+      const API_URL = getApiBaseUrl();
+      const response = await axios.put(`${API_URL}/Role`, {
+        roleId: Number(roleData.roleId),
+        roleName: String(roleData.roleName || '').trim(),
+        roleDescription: String(roleData.roleDescription || '').trim(),
+        isSystemRole: Boolean(roleData.isSystemRole),
+        isActive: roleData.isActive !== false
+      }, {
+        headers: getAuthHeaders()
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('Error updating role:', error);
+      throw error;
+    }
   },
 
-  // GET /api/Role/RoleDropdown
-  async getRoleDropdown(params = {}, signal) {
-    const payload = await request('/Role/RoleDropdown', {
-      params: {
-        Text: params.Text || '',
-        PageNumber: params.PageNumber || 1,
-        PageSize: params.PageSize || 100,
-        SortProperty: 'roleName',
-        IsDescending: false
-      },
-      signal
-    });
-    return normalizeList(payload);
+  // DELETE role (try /Role/{id} then fallback to /Role?id={id})
+  deleteRole: async (roleId) => {
+    try {
+      const API_URL = getApiBaseUrl();
+      const response = await deleteById(`${API_URL}/Role`, roleId);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting role:', error);
+      throw error;
+    }
   },
 
-  // GET /api/Role/{id}
-  async getRoleById(roleId, signal) {
-    return request(`/Role/${encodeURIComponent(roleId)}`, { signal });
+  // GET ${VITE_APP_API_URL}/Permission?roleId={roleId}
+  getPermissions: async (roleId) => {
+    try {
+      const API_URL = getApiBaseUrl();
+      const response = await axios.get(`${API_URL}/Permission`, {
+        headers: getAuthHeaders(),
+        params: { roleId }
+      });
+
+      if (response.data && response.data.success) {
+        return response.data.data;
+      }
+
+      return response.data?.data || [];
+    } catch (error) {
+      console.error('Error fetching permissions:', error);
+      throw error;
+    }
+  },
+
+  // POST ${VITE_APP_API_URL}/Permission
+  assignPermissions: async (payload) => {
+    try {
+      const API_URL = getApiBaseUrl();
+      const response = await axios.post(`${API_URL}/Permission`, payload, {
+        headers: getAuthHeaders()
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('Error assigning permissions:', error);
+      throw error;
+    }
   }
 };
 

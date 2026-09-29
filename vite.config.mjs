@@ -26,7 +26,9 @@ export default defineConfig(({ mode }) => {
       global: 'window'
     },
     resolve: {
-      alias: []
+      alias: [
+        { find: '@', replacement: resolvePath('src') }
+      ]
     },
     css: {
       preprocessorOptions: {

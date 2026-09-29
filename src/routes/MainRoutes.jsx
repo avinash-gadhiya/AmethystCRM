@@ -1,4 +1,5 @@
-import { lazy } from 'react';
+import { lazy, useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 
 import AdminLayout from 'layouts/AdminLayout';
 import GuestLayout from 'layouts/GuestLayout';
@@ -15,10 +16,116 @@ const CustomersPage = lazy(() => import('../views/customers/CustomersPage'));
 const ReportCenter = lazy(() => import('../views/reports/ReportCenter'));
 const GatewayPage = lazy(() => import('../views/gateway/GatewayPage'));
 const SettingsPage = lazy(() => import('../views/settings/SettingsPage'));
+const RolesPage = lazy(() => import('../views/settings/role/RolesPage'));
 const UsersPage = lazy(() => import('../views/users/UsersPage'));
+const BlockedIpPage = lazy(() => import('../views/settings/ip/BlockedIpPage'));
+const CountryPage = lazy(() => import('../views/settings/country/CountryPage'));
+const SettingPage = lazy(() => import('../views/settings/setting/SettingPage'));
+const BrandListPage = lazy(() => import('../views/settings/brand/BrandListPage'));
+const BrandDetailsPage = lazy(() => import('../views/settings/brand/BrandDetailsPage'));
+const BrandEmailPage = lazy(() => import('../views/settings/brand/BrandEmailPage'));
+const BrandTemplatePage = lazy(() => import('../views/settings/brand/BrandTemplatePage'));
+const GroupPage = lazy(() => import('../views/settings/group/GroupPage'));
+const GroupEmailPage = lazy(() => import('../views/settings/group-email/GroupEmailPage'));
+const PagesPage = lazy(() => import('../views/settings/pages/PagesPage'));
+const MenusPage = lazy(() => import('../views/settings/menus/MenusPage'));
+const TemplatePage = lazy(() => import('../views/settings/template/TemplatePage'));
+const LocationPage = lazy(() => import('../views/settings/location/LocationPage'));
+const SalesTargetPage = lazy(() => import('../views/settings/sales-target/SalesTargetPage'));
 const MyProfilePage = lazy(() => import('../views/users/MyProfilePage'));
 const OrdersPage = lazy(() => import('../views/orders/OrdersPage'));
 const ProductsPage = lazy(() => import('../views/products/ProductsPage'));
+
+const isConfiguredLocationPath = (pathname) => {
+  try {
+    const normalizedPath = String(pathname || '').toLowerCase().replace(/\/+$/, '') || '/';
+    const cacheKeys = Object.keys(localStorage).filter(
+      (key) => key.startsWith('crm_permission_menus:') || key === 'crm_permission_menus'
+    );
+
+    return cacheKeys.some((key) => {
+      const menus = JSON.parse(localStorage.getItem(key) || '[]');
+      return (Array.isArray(menus) ? menus : []).some((menu) =>
+        (menu?.menuPermissionPageDTOs || []).some((page) => {
+          const name = String(page?.pageName || page?.pageDisplayName || '').trim().toLowerCase();
+          const url = String(page?.pageUrl || '').trim().toLowerCase().replace(/\/+$/, '') || '/';
+          return (name === 'location' || name === 'locations') && url === normalizedPath;
+        })
+      );
+    });
+  } catch {
+    return false;
+  }
+};
+
+const isConfiguredBrandTemplatePath = (pathname) => {
+  try {
+    const normalizedPath = String(pathname || '').toLowerCase().replace(/\/+$/, '') || '/';
+    const cacheKeys = Object.keys(localStorage).filter(
+      (key) => key.startsWith('crm_permission_menus:') || key === 'crm_permission_menus'
+    );
+
+    return cacheKeys.some((key) => {
+      const menus = JSON.parse(localStorage.getItem(key) || '[]');
+      return (Array.isArray(menus) ? menus : []).some((menu) =>
+        (menu?.menuPermissionPageDTOs || []).some((page) => {
+          const name = String(page?.pageName || page?.pageDisplayName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+          const url = String(page?.pageUrl || '').trim().toLowerCase().replace(/\/+$/, '') || '/';
+          return (name === 'brandtemplate' || name === 'brandtemplates') && url === normalizedPath;
+        })
+      );
+    });
+  } catch {
+    return false;
+  }
+};
+
+const isConfiguredGroupEmailPath = (pathname) => {
+  try {
+    const normalizedPath = String(pathname || '').toLowerCase().replace(/\/+$/, '') || '/';
+    const cacheKeys = Object.keys(localStorage).filter(
+      (key) => key.startsWith('crm_permission_menus:') || key === 'crm_permission_menus'
+    );
+
+    return cacheKeys.some((key) => {
+      const menus = JSON.parse(localStorage.getItem(key) || '[]');
+      return (Array.isArray(menus) ? menus : []).some((menu) =>
+        (menu?.menuPermissionPageDTOs || []).some((page) => {
+          const name = String(page?.pageName || page?.pageDisplayName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+          const url = String(page?.pageUrl || '').trim().toLowerCase().replace(/\/+$/, '') || '/';
+          return (name === 'groupemail' || name === 'groupemails') && url === normalizedPath;
+        })
+      );
+    });
+  } catch {
+    return false;
+  }
+};
+
+const AuthenticatedDynamicRoute = () => {
+  const location = useLocation();
+  const [, setNavigationVersion] = useState(0);
+
+  useEffect(() => {
+    const handleInvalidation = () => setNavigationVersion((version) => version + 1);
+    window.addEventListener('app:routes-invalidated', handleInvalidation);
+    return () => window.removeEventListener('app:routes-invalidated', handleInvalidation);
+  }, []);
+
+  if (isConfiguredLocationPath(location.pathname)) return <LocationPage />;
+  if (isConfiguredBrandTemplatePath(location.pathname)) return <BrandTemplatePage />;
+  if (isConfiguredGroupEmailPath(location.pathname)) return <GroupEmailPage />;
+  return <CRMModuleView />;
+};
+
+const GatewaySettingsRoute = () => {
+  const [params] = new URLSearchParams(window.location.search);
+  const brandId = params.get('brandId');
+  if (brandId) {
+    return <BrandDetailsPage />;
+  }
+  return <GatewayPage />;
+};
 
 const Typography = lazy(() => import('../views/ui-elements/basic/BasicTypography'));
 const Color = lazy(() => import('../views/ui-elements/basic/BasicColor'));
@@ -279,7 +386,11 @@ const MainRoutes = {
             },
             {
               path: '/settings/gateway',
-              element: <GatewayPage />
+              element: <GatewaySettingsRoute />
+            },
+            {
+              path: '/Settings/Gateway',
+              element: <GatewaySettingsRoute />
             },
             {
               path: '/GatewayTransactionDashboard',
@@ -332,55 +443,96 @@ const MainRoutes = {
             },
             {
               path: '/settings/roles',
-              element: <SettingsPage />
+              element: <RolesPage />
             },
             {
               path: '/settings/role',
-              element: <SettingsPage />
+              element: <RolesPage />
             },
             {
               path: '/Settings/Roles',
-              element: <SettingsPage />
+              element: <RolesPage />
             },
             {
               path: '/Settings/Role',
-              element: <SettingsPage />
+              element: <RolesPage />
             },
             {
               path: '/roles',
-              element: <SettingsPage />
+              element: <RolesPage />
             },
             {
               path: '/Roles',
-              element: <SettingsPage />
+              element: <RolesPage />
             },
             {
               path: '/role',
-              element: <SettingsPage />
+              element: <RolesPage />
             },
             {
               path: '/Role',
-              element: <SettingsPage />
+              element: <RolesPage />
             },
             {
               path: '/Role/*',
-              element: <SettingsPage />
+              element: <RolesPage />
             },
             {
               path: '/Roles/*',
-              element: <SettingsPage />
+              element: <RolesPage />
+            },
+            // Settings & Setting Values Configuration Management
+            {
+              path: '/settings/settings',
+              element: <SettingPage />
+            },
+            {
+              path: '/settings/setting',
+              element: <SettingPage />
+            },
+            {
+              path: '/Settings/Settings',
+              element: <SettingPage />
+            },
+            {
+              path: '/Settings/Setting',
+              element: <SettingPage />
             },
             {
               path: '/settings/values',
-              element: <SettingsPage />
+              element: <SettingPage />
             },
             {
               path: '/settings/settingvalue',
-              element: <SettingsPage />
+              element: <SettingPage />
             },
             {
               path: '/settings/settingvalues',
-              element: <SettingsPage />
+              element: <SettingPage />
+            },
+            {
+              path: '/Settings/Values',
+              element: <SettingPage />
+            },
+            {
+              path: '/Settings/SettingValue',
+              element: <SettingPage />
+            },
+            {
+              path: '/Setting',
+              element: <SettingPage />
+            },
+            {
+              path: '/setting',
+              element: <SettingPage />
+            },
+            {
+              path: '/SettingValue',
+              element: <SettingPage />
+            },
+            {
+              path: '/settingvalue',
+              element: <SettingPage />
             },
             {
               path: '/settings/users',
@@ -397,6 +549,392 @@ const MainRoutes = {
             {
               path: '/Settings/User',
               element: <UsersPage />
+            },
+            // Blocked IP Addresses
+            {
+              path: '/settings/ip',
+              element: <BlockedIpPage />
+            },
+            {
+              path: '/settings/blockip',
+              element: <BlockedIpPage />
+            },
+            {
+              path: '/settings/blocked-ip',
+              element: <BlockedIpPage />
+            },
+            {
+              path: '/settings/blocked-ips',
+              element: <BlockedIpPage />
+            },
+            {
+              path: '/Settings/Ip',
+              element: <BlockedIpPage />
+            },
+            {
+              path: '/Settings/BlockIp',
+              element: <BlockedIpPage />
+            },
+            {
+              path: '/BlockIp',
+              element: <BlockedIpPage />
+            },
+            {
+              path: '/blockip',
+              element: <BlockedIpPage />
+            },
+            // Countries & States
+            {
+              path: '/settings/country',
+              element: <CountryPage />
+            },
+            {
+              path: '/settings/countries',
+              element: <CountryPage />
+            },
+            {
+              path: '/settings/state',
+              element: <CountryPage />
+            },
+            {
+              path: '/settings/states',
+              element: <CountryPage />
+            },
+            {
+              path: '/Settings/Country',
+              element: <CountryPage />
+            },
+            {
+              path: '/Settings/Countries',
+              element: <CountryPage />
+            },
+            {
+              path: '/Settings/State',
+              element: <CountryPage />
+            },
+            {
+              path: '/Settings/States',
+              element: <CountryPage />
+            },
+            {
+              path: '/Country',
+              element: <CountryPage />
+            },
+            {
+              path: '/country',
+              element: <CountryPage />
+            },
+            {
+              path: '/State',
+              element: <CountryPage />
+            },
+            {
+              path: '/state',
+              element: <CountryPage />
+            },
+            // Brand Management & Details Routes
+            {
+              path: '/settings/brand',
+              element: <BrandListPage />
+            },
+            {
+              path: '/settings/brands',
+              element: <BrandListPage />
+            },
+            {
+              path: '/Settings/Brand',
+              element: <BrandListPage />
+            },
+            {
+              path: '/Settings/Brands',
+              element: <BrandListPage />
+            },
+            {
+              path: '/Brand',
+              element: <BrandListPage />
+            },
+            {
+              path: '/brand',
+              element: <BrandListPage />
+            },
+            {
+              path: '/settings/branddetails',
+              element: <BrandDetailsPage />
+            },
+            {
+              path: '/Settings/BrandDetails',
+              element: <BrandDetailsPage />
+            },
+            {
+              path: '/settings/brandemail',
+              element: <BrandEmailPage />
+            },
+            {
+              path: '/settings/brand-emails',
+              element: <BrandEmailPage />
+            },
+            {
+              path: '/settings/brand-emails/*',
+              element: <BrandEmailPage />
+            },
+            {
+              path: '/settings/email',
+              element: <BrandEmailPage />
+            },
+            {
+              path: '/Settings/BrandEmail',
+              element: <BrandEmailPage />
+            },
+            {
+              path: '/settings/brandtemplate',
+              element: <BrandTemplatePage />
+            },
+            {
+              path: '/settings/brandtemplates',
+              element: <BrandTemplatePage />
+            },
+            {
+              path: '/Settings/BrandTemplate',
+              element: <BrandTemplatePage />
+            },
+            {
+              path: '/Settings/BrandTemplates',
+              element: <BrandTemplatePage />
+            },
+            {
+              path: '/settings/brand-template',
+              element: <BrandTemplatePage />
+            },
+            {
+              path: '/settings/brand-templates',
+              element: <BrandTemplatePage />
+            },
+            {
+              path: '/BrandTemplate',
+              element: <BrandTemplatePage />
+            },
+            // Template Management Routes (/Template API)
+            {
+              path: '/settings/template',
+              element: <TemplatePage />
+            },
+            {
+              path: '/settings/templates',
+              element: <TemplatePage />
+            },
+            {
+              path: '/Settings/Template',
+              element: <TemplatePage />
+            },
+            {
+              path: '/Settings/Templates',
+              element: <TemplatePage />
+            },
+            {
+              path: '/Templates',
+              element: <TemplatePage />
+            },
+            {
+              path: '/templates',
+              element: <TemplatePage />
+            },
+            {
+              path: '/Template',
+              element: <TemplatePage />
+            },
+            {
+              path: '/template',
+              element: <TemplatePage />
+            },
+            // Group & Group Email Routes
+            {
+              path: '/settings/group',
+              element: <GroupPage />
+            },
+            {
+              path: '/settings/groups',
+              element: <GroupPage />
+            },
+            {
+              path: '/Settings/Group',
+              element: <GroupPage />
+            },
+            {
+              path: '/Settings/Groups',
+              element: <GroupPage />
+            },
+            {
+              path: '/Group',
+              element: <GroupPage />
+            },
+            {
+              path: '/group',
+              element: <GroupPage />
+            },
+            // Group Email Management Routes (/GroupEmail API)
+            {
+              path: '/settings/group-email',
+              element: <GroupEmailPage />
+            },
+            {
+              path: '/settings/groupemail',
+              element: <GroupEmailPage />
+            },
+            {
+              path: '/settings/group-emails',
+              element: <GroupEmailPage />
+            },
+            {
+              path: '/Settings/Group-Email',
+              element: <GroupEmailPage />
+            },
+            {
+              path: '/Settings/GroupEmail',
+              element: <GroupEmailPage />
+            },
+            {
+              path: '/Settings/GroupEmails',
+              element: <GroupEmailPage />
+            },
+            {
+              path: '/group-email',
+              element: <GroupEmailPage />
+            },
+            {
+              path: '/groupemail',
+              element: <GroupEmailPage />
+            },
+            {
+              path: '/Group-Email',
+              element: <GroupEmailPage />
+            },
+            {
+              path: '/GroupEmail',
+              element: <GroupEmailPage />
+            },
+            {
+              path: '/group-emails',
+              element: <GroupEmailPage />
+            },
+            {
+              path: '/GroupEmails',
+              element: <GroupEmailPage />
+            },
+            // Pages Management Routes
+            {
+              path: '/settings/pages',
+              element: <PagesPage />
+            },
+            {
+              path: '/settings/page',
+              element: <PagesPage />
+            },
+            {
+              path: '/Settings/Pages',
+              element: <PagesPage />
+            },
+            {
+              path: '/Settings/Page',
+              element: <PagesPage />
+            },
+            {
+              path: '/Pages',
+              element: <PagesPage />
+            },
+            {
+              path: '/pages',
+              element: <PagesPage />
+            },
+            {
+              path: '/Page',
+              element: <PagesPage />
+            },
+            {
+              path: '/page',
+              element: <PagesPage />
+            },
+            // Menus Management Routes
+            {
+              path: '/settings/menus',
+              element: <MenusPage />
+            },
+            {
+              path: '/settings/menu',
+              element: <MenusPage />
+            },
+            {
+              path: '/Settings/Menus',
+              element: <MenusPage />
+            },
+            {
+              path: '/Settings/Menu',
+              element: <MenusPage />
+            },
+            {
+              path: '/Menus',
+              element: <MenusPage />
+            },
+            {
+              path: '/menus',
+              element: <MenusPage />
+            },
+            {
+              path: '/Menu',
+              element: <MenusPage />
+            },
+            {
+              path: '/menu',
+              element: <MenusPage />
+            },
+            // Location Management Routes
+            {
+              path: '/settings/location',
+              element: <LocationPage />
+            },
+            {
+              path: '/settings/locations',
+              element: <LocationPage />
+            },
+            {
+              path: '/Settings/Location',
+              element: <LocationPage />
+            },
+            {
+              path: '/Settings/Locations',
+              element: <LocationPage />
+            },
+            {
+              path: '/Locations',
+              element: <LocationPage />
+            },
+            {
+              path: '/locations',
+              element: <LocationPage />
+            },
+            {
+              path: '/Location',
+              element: <LocationPage />
+            },
+            {
+              path: '/location',
+              element: <LocationPage />
+            },
+            // Sales Target Management Routes (/User API)
+            {
+              path: '/settings/sales-target',
+              element: <SalesTargetPage />
+            },
+            {
+              path: '/settings/sales-targets',
+              element: <SalesTargetPage />
+            },
+            {
+              path: '/settings/salestarget',
+              element: <SalesTargetPage />
+            },
+            {
+              path: '/SalesTarget',
+              element: <SalesTargetPage />
             },
             {
               path: '/Setting/*',
@@ -479,7 +1017,7 @@ const MainRoutes = {
             // Authenticated Catch-All inside AdminLayout
             {
               path: '*',
-              element: <CRMModuleView />
+              element: <AuthenticatedDynamicRoute />
             }
           ]
         }

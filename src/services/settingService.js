@@ -1,102 +1,284 @@
-import authService from './authService';
+import axios from 'axios';
+import { deleteById, getAuthHeaders } from './http';
 
-const API_BASE_URL = (import.meta.env.VITE_APP_API_URL || 'https://demoapi.enstasol.com/api').replace(/\/$/, '');
-
-const buildQuery = (params = {}) => {
-  const query = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value === '' || value === null || value === undefined) return;
-    query.set(key, String(value));
-  });
-  return query.toString();
+const getApiBaseUrl = () => {
+  return (import.meta.env.VITE_APP_API_URL || 'https://demoapi.enstasol.com/api').replace(/\/$/, '');
 };
 
-const request = async (path, { method = 'GET', params, data, signal } = {}) => {
-  const token = authService.getToken();
-  if (!token) throw new Error('Your session has expired. Please sign in again.');
+// In-flight deduplication & Settings cache
+const inFlightRequests = new Map();
+const settingsCache = new Map();
 
-  const query = buildQuery(params);
-  const response = await fetch(`${API_BASE_URL}${path}${query ? `?${query}` : ''}`, {
-    method,
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...(data !== undefined ? { 'Content-Type': 'application/json' } : {})
-    },
-    body: data !== undefined ? JSON.stringify(data) : undefined,
-    signal
-  });
+const normalizeSettingsList = (payload) => {
+  if (!payload) return { data: [], totalCount: 0 };
 
-  let payload;
-  try {
-    payload = await response.json();
-  } catch {
-    payload = null;
+  let list = [];
+  let total = 0;
+
+  // Format 1: { data: { data: [], totalCount: number } }
+  if (payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data)) {
+    list = Array.isArray(payload.data.data) ? payload.data.data : [];
+    total =
+      payload.data.totalCount ??
+      payload.data.totalRecords ??
+      payload.data.count ??
+      list.length;
+  }
+  // Format 2: { success?: boolean, data: [], totalCount?: number }
+  else if (Array.isArray(payload.data)) {
+    list = payload.data;
+    total =
+      payload.totalCount ??
+      payload.totalRecords ??
+      payload.count ??
+      list.length;
+  }
+  // Format 3: Raw array []
+  else if (Array.isArray(payload)) {
+    list = payload;
+    total = payload.length;
   }
 
-  if (!response.ok || payload?.success === false) {
-    const validationMessage = payload?.errors ? Object.values(payload.errors).flat().join(', ') : '';
-    throw new Error(payload?.message || validationMessage || `Settings request failed (${response.status}).`);
+  // Ensure each setting has normalized fields and settingValueDTOs array
+  const normalizedList = list.map((item) => ({
+    settingId: Number(item.settingId ?? item.id ?? 0),
+    settingName: String(item.settingName ?? item.name ?? '').trim(),
+    settingKey: String(item.settingKey ?? item.key ?? '').trim(),
+    isActive: Boolean(item.isActive ?? item.status ?? true),
+    settingValueDTOs: Array.isArray(item.settingValueDTOs)
+      ? item.settingValueDTOs.map((v) => ({
+          settingValueId: Number(v.settingValueId ?? v.id ?? 0),
+          settingId: Number(v.settingId ?? item.settingId ?? 0),
+          settingValueText: String(v.settingValueText ?? v.text ?? v.value ?? '').trim(),
+          isActive: Boolean(v.isActive ?? v.status ?? true)
+        }))
+      : []
+  }));
+
+  return {
+    data: normalizedList,
+    totalCount: Number(total) || normalizedList.length
+  };
+};
+
+const normalizeSettingValuesList = (payload) => {
+  if (!payload) return { data: [], totalCount: 0 };
+  let list = [];
+  let total = 0;
+
+  if (payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data)) {
+    list = Array.isArray(payload.data.data) ? payload.data.data : [];
+    total = payload.data.totalCount ?? list.length;
+  } else if (Array.isArray(payload.data)) {
+    list = payload.data;
+    total = payload.totalCount ?? list.length;
+  } else if (Array.isArray(payload)) {
+    list = payload;
+    total = payload.length;
   }
 
-  return payload || {};
-};
+  const normalized = list.map((v) => ({
+    settingValueId: Number(v.settingValueId ?? v.id ?? 0),
+    settingId: Number(v.settingId ?? 0),
+    settingValueText: String(v.settingValueText ?? v.text ?? v.value ?? '').trim(),
+    isActive: Boolean(v.isActive ?? v.status ?? true)
+  }));
 
-const unwrapList = (payload) => {
-  const rows = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : [];
-  return { data: rows, totalCount: Number(payload?.totalCount) || rows.length };
+  return { data: normalized, totalCount: Number(total) || normalized.length };
 };
-
-const listParams = (params = {}, sortProperty) => ({
-  Text: params.Text || '',
-  PageNumber: params.PageNumber || 1,
-  PageSize: params.PageSize || 10,
-  SortProperty: params.SortProperty || sortProperty,
-  IsDescending: params.IsDescending !== false,
-  SettingId: params.SettingId || ''
-});
 
 export const settingService = {
+  // GET /Setting
   async getSettings(params = {}, signal) {
-    return unwrapList(await request('/Setting', { params: listParams(params, 'settingId'), signal }));
+    const API_URL = getApiBaseUrl();
+    const queryParams = {
+      Text: params.Text || '',
+      PageNumber: params.PageNumber || 1,
+      PageSize: params.PageSize || 10000,
+      SortProperty: params.SortProperty || 'settingId',
+      IsDescending: params.IsDescending ?? true
+    };
+
+    const cacheKey = `settings:${JSON.stringify(queryParams)}`;
+
+    // Return cached data if present
+    if (settingsCache.has(cacheKey)) {
+      return settingsCache.get(cacheKey);
+    }
+
+    // In-flight deduplication
+    if (inFlightRequests.has(cacheKey)) {
+      return inFlightRequests.get(cacheKey);
+    }
+
+    const requestPromise = (async () => {
+      try {
+        const response = await axios.get(`${API_URL}/Setting`, {
+          headers: getAuthHeaders(),
+          params: queryParams,
+          signal
+        });
+
+        const parsed = normalizeSettingsList(response.data);
+        const result = {
+          ...parsed,
+          raw: response.data
+        };
+        settingsCache.set(cacheKey, result);
+        return result;
+      } finally {
+        inFlightRequests.delete(cacheKey);
+      }
+    })();
+
+    inFlightRequests.set(cacheKey, requestPromise);
+    return requestPromise;
   },
 
-  async createSetting(setting) {
-    return request('/Setting', { method: 'POST', data: setting });
+  // POST /Setting
+  async createSetting({ settingId = 0, settingName, settingKey, isActive = true, settingValueDTOs = [] }) {
+    const API_URL = getApiBaseUrl();
+    const payload = {
+      settingId: 0,
+      settingName: String(settingName || '').trim(),
+      settingKey: String(settingKey || '').trim(),
+      isActive: Boolean(isActive),
+      settingValueDTOs: Array.isArray(settingValueDTOs) ? settingValueDTOs : []
+    };
+
+    const response = await axios.post(`${API_URL}/Setting`, payload, {
+      headers: getAuthHeaders()
+    });
+
+    this.clearCache();
+    return response.data;
   },
 
-  async updateSetting(setting) {
-    return request('/Setting', { method: 'PUT', data: setting });
+  // PUT /Setting
+  async updateSetting({ settingId, settingName, settingKey, isActive, settingValueDTOs = [] }) {
+    const API_URL = getApiBaseUrl();
+    const payload = {
+      settingId: Number(settingId),
+      settingName: String(settingName || '').trim(),
+      settingKey: String(settingKey || '').trim(),
+      isActive: Boolean(isActive),
+      settingValueDTOs: Array.isArray(settingValueDTOs) ? settingValueDTOs : []
+    };
+
+    const response = await axios.put(`${API_URL}/Setting`, payload, {
+      headers: getAuthHeaders()
+    });
+
+    this.clearCache();
+    return response.data;
   },
 
+  // DELETE /Setting?id={settingId}
   async deleteSetting(settingId) {
-    return request('/Setting', { method: 'DELETE', params: { id: settingId } });
+    const API_URL = getApiBaseUrl();
+    this.clearCache();
+
+    // Dual-strategy deletion: query param first as requested by backend spec, then REST path fallback
+    try {
+      const response = await axios.delete(`${API_URL}/Setting`, {
+        headers: getAuthHeaders(),
+        params: { id: settingId }
+      });
+      return response.data;
+    } catch (error) {
+      const status = error?.response?.status;
+      if (status === 404 || status === 405) {
+        const fallbackRes = await axios.delete(`${API_URL}/Setting/${settingId}`, {
+          headers: getAuthHeaders()
+        });
+        return fallbackRes.data;
+      }
+      throw error;
+    }
   },
 
+  // GET /SettingValue
   async getSettingValues(params = {}, signal) {
-    return unwrapList(await request('/SettingValue', { params: listParams(params, 'settingValueId'), signal }));
+    const API_URL = getApiBaseUrl();
+    const queryParams = {
+      Text: params.Text || '',
+      PageNumber: params.PageNumber || 1,
+      PageSize: params.PageSize || 1000,
+      SortProperty: params.SortProperty || 'settingValueId',
+      IsDescending: params.IsDescending ?? true,
+      SettingId: params.SettingId || ''
+    };
+
+    const response = await axios.get(`${API_URL}/SettingValue`, {
+      headers: getAuthHeaders(),
+      params: queryParams,
+      signal
+    });
+
+    return normalizeSettingValuesList(response.data);
   },
 
-  async createSettingValue(value) {
-    return request('/SettingValue', { method: 'POST', data: value });
+  // POST /SettingValue
+  async createSettingValue({ settingValueId = 0, settingId, settingValueText, isActive = true }) {
+    const API_URL = getApiBaseUrl();
+    const payload = {
+      settingValueId: 0,
+      settingId: Number(settingId),
+      settingValueText: String(settingValueText || '').trim(),
+      isActive: Boolean(isActive)
+    };
+
+    const response = await axios.post(`${API_URL}/SettingValue`, payload, {
+      headers: getAuthHeaders()
+    });
+
+    this.clearCache();
+    return response.data;
   },
 
-  async updateSettingValue(value) {
-    return request('/SettingValue', { method: 'PUT', data: value });
+  // PUT /SettingValue
+  async updateSettingValue({ settingValueId, settingId, settingValueText, isActive }) {
+    const API_URL = getApiBaseUrl();
+    const payload = {
+      settingValueId: Number(settingValueId),
+      settingId: Number(settingId),
+      settingValueText: String(settingValueText || '').trim(),
+      isActive: Boolean(isActive)
+    };
+
+    const response = await axios.put(`${API_URL}/SettingValue`, payload, {
+      headers: getAuthHeaders()
+    });
+
+    this.clearCache();
+    return response.data;
   },
 
+  // DELETE /SettingValue/{settingValueId} (preferred) with fallback DELETE /SettingValue?id={settingValueId}
   async deleteSettingValue(settingValueId) {
-    return request(`/SettingValue/${settingValueId}`, { method: 'DELETE' });
+    const API_URL = getApiBaseUrl();
+    this.clearCache();
+    return deleteById(`${API_URL}/SettingValue`, settingValueId);
   },
 
+  // GET /SettingValue/SettingValueDropDown?settingKey={settingKey}
   async getSettingValueDropdown(settingKey, signal) {
-    if (!String(settingKey || '').trim()) throw new Error('Setting key is required.');
-    return unwrapList(
-      await request('/SettingValue/SettingValueDropDown', {
-        params: { settingKey: String(settingKey).trim() },
-        signal
-      })
-    );
+    const key = String(settingKey || '').trim();
+    if (!key) throw new Error('Setting key is required.');
+
+    const API_URL = getApiBaseUrl();
+    const response = await axios.get(`${API_URL}/SettingValue/SettingValueDropDown`, {
+      headers: getAuthHeaders(),
+      params: { settingKey: key },
+      signal
+    });
+
+    return normalizeSettingValuesList(response.data);
+  },
+
+  // Invalidate cache
+  clearCache() {
+    settingsCache.clear();
   }
 };
 

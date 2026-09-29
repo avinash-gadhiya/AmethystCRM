@@ -1,54 +1,8 @@
-import authService from './authService';
+import axios from 'axios';
+import { deleteById, getAuthHeaders } from './http';
 
-const API_BASE_URL = (import.meta.env.VITE_APP_API_URL || 'https://demoapi.enstasol.com/api').replace(/\/$/, '');
-
-const buildQuery = (params = {}) => {
-  const query = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value === '' || value === null || value === undefined) return;
-    if (Array.isArray(value)) {
-      value.forEach((val) => query.append(key, String(val)));
-    } else {
-      query.set(key, String(value));
-    }
-  });
-  return query.toString();
-};
-
-const request = async (path, { method = 'GET', params, data, signal } = {}) => {
-  const token = authService.getToken();
-  if (!token) throw new Error('Your session has expired. Please sign in again.');
-
-  const query = buildQuery(params);
-  const headers = {
-    Accept: 'application/json',
-    Authorization: `Bearer ${token}`
-  };
-  if (data !== undefined) headers['Content-Type'] = 'application/json';
-
-  const response = await fetch(`${API_BASE_URL}${path}${query ? `?${query}` : ''}`, {
-    method,
-    headers,
-    body: data === undefined ? undefined : JSON.stringify(data),
-    signal
-  });
-
-  if (response.status === 204) return { success: true };
-
-  let payload;
-  try {
-    payload = await response.json();
-  } catch {
-    if (response.ok) return { success: true };
-    throw new Error(`User API returned an invalid response (${response.status}).`);
-  }
-
-  if (!response.ok || payload?.success === false) {
-    const validationMessage = payload?.errors ? Object.values(payload.errors).flat().join(', ') : '';
-    throw new Error(payload?.message || validationMessage || `User request failed (${response.status}).`);
-  }
-
-  return payload;
+const getApiBaseUrl = () => {
+  return (import.meta.env.VITE_APP_API_URL || 'https://demoapi.enstasol.com/api').replace(/\/$/, '');
 };
 
 const normalizeList = (payload) => {
@@ -60,159 +14,286 @@ const normalizeList = (payload) => {
 
 export const userService = {
   // GET /api/User
-  async getUsers(params = {}, signal) {
-    const payload = await request('/User', {
-      params: {
-        Text: params.Text || '',
-        RoleIds: params.RoleIds,
-        LocationId: params.LocationId,
-        isActive: params.isActive,
-        PageNumber: params.PageNumber || 1,
-        PageSize: params.PageSize || 10,
-        SortProperty: params.SortProperty || 'userId',
-        IsDescending: params.IsDescending ?? true
-      },
-      signal
+  async getUsers(params = {}) {
+    const API_URL = getApiBaseUrl();
+    const queryParams = {
+      PageNumber: params.PageNumber || 1,
+      PageSize: params.PageSize || 10,
+      SortProperty: params.SortProperty || 'userId',
+      IsDescending: params.IsDescending ?? true
+    };
+
+    if (params.Text && params.Text.trim()) {
+      queryParams.Text = params.Text.trim();
+    }
+    if (params.RoleIds !== undefined && params.RoleIds !== null && params.RoleIds !== '') {
+      queryParams.RoleIds = params.RoleIds;
+    }
+    if (params.LocationId !== undefined && params.LocationId !== null && params.LocationId !== '') {
+      queryParams.LocationId = params.LocationId;
+    }
+    if (params.isActive !== undefined && params.isActive !== null && params.isActive !== '') {
+      queryParams.isActive = params.isActive;
+    }
+
+    const response = await axios.get(`${API_URL}/User`, {
+      headers: getAuthHeaders(),
+      params: queryParams
     });
 
+    const resData = response.data;
+    const list = normalizeList(resData);
+    const count =
+      resData?.totalCount ??
+      resData?.totalRecords ??
+      resData?.count ??
+      list.length;
+
     return {
-      data: normalizeList(payload),
-      totalCount: payload?.totalCount ?? payload?.totalRecords ?? normalizeList(payload).length,
-      raw: payload
+      data: list,
+      totalCount: Number(count) || list.length,
+      raw: resData
     };
+  },
+
+  // GET /api/User/{id}
+  async getUserById(userId) {
+    const API_URL = getApiBaseUrl();
+    const response = await axios.get(`${API_URL}/User/${encodeURIComponent(userId)}`, {
+      headers: getAuthHeaders()
+    });
+    return response.data?.data || response.data;
   },
 
   // POST /api/User
   async createUser(userDTO) {
-    return request('/User', {
-      method: 'POST',
-      data: userDTO
+    const API_URL = getApiBaseUrl();
+    const payload = {
+      userId: 0,
+      username: String(userDTO.username || '').trim(),
+      email: String(userDTO.email || '').trim(),
+      firstName: String(userDTO.firstName || '').trim(),
+      lastName: String(userDTO.lastName || '').trim(),
+      passwordHash: userDTO.passwordHash || userDTO.password || '',
+      roleId: Number(userDTO.roleId) || 0,
+      locationId: Number(userDTO.locationId) || 0,
+      salesTarget: Number(userDTO.salesTarget) || 0,
+      rplTarget: Number(userDTO.rplTarget) || 0,
+      isActive: userDTO.isActive !== false,
+      isLeadOn: Boolean(userDTO.isLeadOn)
+    };
+
+    const response = await axios.post(`${API_URL}/User`, payload, {
+      headers: getAuthHeaders()
     });
+    return response.data;
   },
 
   // PUT /api/User
   async updateUser(userDTO) {
-    return request('/User', {
-      method: 'PUT',
-      data: userDTO
+    const API_URL = getApiBaseUrl();
+    const payload = {
+      userId: Number(userDTO.userId),
+      username: String(userDTO.username || '').trim(),
+      email: String(userDTO.email || '').trim(),
+      firstName: String(userDTO.firstName || '').trim(),
+      lastName: String(userDTO.lastName || '').trim(),
+      roleId: Number(userDTO.roleId) || 0,
+      locationId: Number(userDTO.locationId) || 0,
+      salesTarget: Number(userDTO.salesTarget) || 0,
+      rplTarget: Number(userDTO.rplTarget) || 0,
+      isActive: userDTO.isActive !== false,
+      isLeadOn: Boolean(userDTO.isLeadOn)
+    };
+
+    if (userDTO.passwordHash || userDTO.password) {
+      payload.passwordHash = userDTO.passwordHash || userDTO.password;
+    }
+
+    const response = await axios.put(`${API_URL}/User`, payload, {
+      headers: getAuthHeaders()
     });
+    return response.data;
   },
 
-  // DELETE /api/User?id={id}
+  // DELETE /api/User/{id} (dual-strategy delete with ?id= fallback)
   async deleteUser(userId) {
-    return request('/User', {
-      method: 'DELETE',
-      params: { id: userId }
+    const API_URL = getApiBaseUrl();
+    return deleteById(`${API_URL}/User`, userId);
+  },
+
+  // PUT /api/User to toggle status
+  async toggleUserStatus(user, nextStatus) {
+    const API_URL = getApiBaseUrl();
+    const payload = {
+      ...user,
+      isActive: nextStatus
+    };
+    const response = await axios.put(`${API_URL}/User`, payload, {
+      headers: getAuthHeaders()
     });
+    return response.data;
+  },
+
+  // GET roles for filter dropdown & user create/edit
+  async getRoles() {
+    const API_URL = getApiBaseUrl();
+    try {
+      const response = await axios.get(`${API_URL}/Role/RoleDropdown`, {
+        headers: getAuthHeaders()
+      });
+      const list = normalizeList(response.data);
+      if (list.length > 0) return list;
+    } catch {
+      // fallback
+    }
+
+    try {
+      const response = await axios.get(`${API_URL}/Role`, {
+        headers: getAuthHeaders(),
+        params: { PageNumber: 1, PageSize: 1000 }
+      });
+      return normalizeList(response.data);
+    } catch (err) {
+      console.warn('Could not load roles:', err);
+      return [];
+    }
+  },
+
+  // GET locations for filter dropdown & user create/edit
+  async getLocations() {
+    const API_URL = getApiBaseUrl();
+    try {
+      const response = await axios.get(`${API_URL}/Location/LocationDropdown`, {
+        headers: getAuthHeaders()
+      });
+      const list = normalizeList(response.data);
+      if (list.length > 0) return list;
+    } catch {
+      // fallback
+    }
+
+    try {
+      const response = await axios.get(`${API_URL}/Location`, {
+        headers: getAuthHeaders(),
+        params: { PageNumber: 1, PageSize: 1000 }
+      });
+      return normalizeList(response.data);
+    } catch (err) {
+      console.warn('Could not load locations:', err);
+      return [];
+    }
+  },
+
+  // GET available groups
+  async getGroups() {
+    const API_URL = getApiBaseUrl();
+    try {
+      const response = await axios.get(`${API_URL}/Group/GroupDropdown`, {
+        headers: getAuthHeaders()
+      });
+      const list = normalizeList(response.data);
+      if (list.length > 0) return list;
+    } catch {
+      // fallback
+    }
+
+    try {
+      const response = await axios.get(`${API_URL}/Group`, {
+        headers: getAuthHeaders(),
+        params: { PageNumber: 1, PageSize: 1000 }
+      });
+      return normalizeList(response.data);
+    } catch (err) {
+      console.warn('Could not load groups:', err);
+      return [];
+    }
+  },
+
+  // GET /api/UserGroup?id={id}
+  async getUserGroup(id) {
+    const API_URL = getApiBaseUrl();
+    try {
+      const response = await axios.get(`${API_URL}/UserGroup`, {
+        headers: getAuthHeaders(),
+        params: { id }
+      });
+      return response.data?.data || response.data || [];
+    } catch (err) {
+      // Fallback try with userId param
+      try {
+        const fallback = await axios.get(`${API_URL}/UserGroup`, {
+          headers: getAuthHeaders(),
+          params: { userId: id }
+        });
+        return fallback.data?.data || fallback.data || [];
+      } catch {
+        throw err;
+      }
+    }
+  },
+
+  // PUT /api/UserGroup
+  async updateUserGroup(data) {
+    const API_URL = getApiBaseUrl();
+    const response = await axios.put(`${API_URL}/UserGroup`, data, {
+      headers: getAuthHeaders()
+    });
+    return response.data;
+  },
+
+  // GET /api/UserPermission?userId={userId}
+  async getUserPermissions(userId) {
+    const API_URL = getApiBaseUrl();
+    const response = await axios.get(`${API_URL}/UserPermission`, {
+      headers: getAuthHeaders(),
+      params: { userId }
+    });
+    return response.data?.data || response.data || [];
+  },
+
+  // POST /api/UserPermission
+  async assignUserPermissions(data) {
+    const API_URL = getApiBaseUrl();
+    const response = await axios.post(`${API_URL}/UserPermission`, data, {
+      headers: getAuthHeaders()
+    });
+    return response.data;
   },
 
   // GET /api/User/UserDropDown
-  async getUserDropDown(params = {}, signal) {
-    const payload = await request('/User/UserDropDown', {
+  async getUserDropDown(params = {}) {
+    const API_URL = getApiBaseUrl();
+    const response = await axios.get(`${API_URL}/User/UserDropDown`, {
+      headers: getAuthHeaders(),
       params: {
         isActive: params.isActive ?? true,
         PageNumber: params.PageNumber || 1,
         PageSize: params.PageSize || 100,
         Text: params.Text || ''
-      },
-      signal
+      }
     });
-    return normalizeList(payload);
-  },
-
-  // GET /api/User/GetLeadOn
-  async getLeadOn(params = {}, signal) {
-    const payload = await request('/User/GetLeadOn', {
-      params,
-      signal
-    });
-    return {
-      data: normalizeList(payload),
-      totalCount: payload?.totalCount ?? normalizeList(payload).length
-    };
-  },
-
-  // GET /api/User/GetUserLeadOn
-  async getUserLeadOn(signal) {
-    return request('/User/GetUserLeadOn', { signal });
+    return normalizeList(response.data);
   },
 
   // PUT /api/User/LeadON
   async setLeadOn(userLeadOnDTO) {
-    return request('/User/LeadON', {
-      method: 'PUT',
-      data: userLeadOnDTO
+    const API_URL = getApiBaseUrl();
+    const response = await axios.put(`${API_URL}/User/LeadON`, userLeadOnDTO, {
+      headers: getAuthHeaders()
     });
-  },
-
-  // PUT /api/User/UserLeadON
-  async toggleCurrentUserLeadOn() {
-    return request('/User/UserLeadON', {
-      method: 'PUT'
-    });
-  },
-
-  // PUT /api/User/ChangeProfile
-  async changeProfile({ firstName, lastName, email }) {
-    return request('/User/ChangeProfile', {
-      method: 'PUT',
-      data: {
-        firstName: firstName?.trim(),
-        lastName: lastName?.trim(),
-        email: email?.trim()
-      }
-    });
+    return response.data;
   },
 
   // PUT /api/User/ChangePassword
   async changePassword({ oldPassword, newPassword }) {
-    return request('/User/ChangePassword', {
-      method: 'PUT',
-      data: {
-        oldPassword,
-        newPassword
-      }
-    });
-  },
-
-  // PUT /api/User/ReviseSalesTargets
-  async reviseSalesTargets(data) {
-    return request('/User/ReviseSalesTargets', {
-      method: 'PUT',
-      data
-    });
-  },
-
-  // GET /api/UserGroup?id={id}
-  async getUserGroup(id, signal) {
-    return request('/UserGroup', {
-      params: { id },
-      signal
-    });
-  },
-
-  // PUT /api/UserGroup
-  async updateUserGroup(data) {
-    return request('/UserGroup', {
-      method: 'PUT',
-      data
-    });
-  },
-
-  // GET /api/UserPermission?userId={userId}
-  async getUserPermissions(userId, signal) {
-    return request('/UserPermission', {
-      params: { userId },
-      signal
-    });
-  },
-
-  // POST /api/UserPermission
-  async assignUserPermissions(data) {
-    return request('/UserPermission', {
-      method: 'POST',
-      data
-    });
+    const API_URL = getApiBaseUrl();
+    const response = await axios.put(
+      `${API_URL}/User/ChangePassword`,
+      { oldPassword, newPassword },
+      { headers: getAuthHeaders() }
+    );
+    return response.data;
   }
 };
 
