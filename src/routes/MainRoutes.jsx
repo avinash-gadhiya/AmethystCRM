@@ -5,6 +5,7 @@ import AdminLayout from 'layouts/AdminLayout';
 import GuestLayout from 'layouts/GuestLayout';
 import { ProtectedRoute, GuestRoute, RootRedirect } from 'components/AuthGuard';
 
+const DashboardPage = lazy(() => import('../views/dashboard/DashboardPage'));
 const DashboardSales = lazy(() => import('../views/dashboard/DashSales/index'));
 const DailyLocationWiseSales = lazy(() => import('../views/dashboard/DailyLocationWiseSales'));
 const LeadsDashboard = lazy(() => import('../views/dashboard/leads'));
@@ -102,6 +103,29 @@ const isConfiguredGroupEmailPath = (pathname) => {
   }
 };
 
+const isConfiguredDashboardPath = (pathname) => {
+  try {
+    const normalizedPath = String(pathname || '').toLowerCase().replace(/\/+$/, '') || '/';
+    if (normalizedPath === '/dashboard' || normalizedPath === '/dashboards') return true;
+    const cacheKeys = Object.keys(localStorage).filter(
+      (key) => key.startsWith('crm_permission_menus:') || key === 'crm_permission_menus'
+    );
+
+    return cacheKeys.some((key) => {
+      const menus = JSON.parse(localStorage.getItem(key) || '[]');
+      return (Array.isArray(menus) ? menus : []).some((menu) =>
+        (menu?.menuPermissionPageDTOs || []).some((page) => {
+          const name = String(page?.pageName || page?.pageDisplayName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+          const url = String(page?.pageUrl || '').trim().toLowerCase().replace(/\/+$/, '') || '/';
+          return (name === 'dashboard' || name === 'dashboards') && url === normalizedPath;
+        })
+      );
+    });
+  } catch {
+    return false;
+  }
+};
+
 const AuthenticatedDynamicRoute = () => {
   const location = useLocation();
   const [, setNavigationVersion] = useState(0);
@@ -112,6 +136,7 @@ const AuthenticatedDynamicRoute = () => {
     return () => window.removeEventListener('app:routes-invalidated', handleInvalidation);
   }, []);
 
+  if (isConfiguredDashboardPath(location.pathname)) return <DashboardPage />;
   if (isConfiguredLocationPath(location.pathname)) return <LocationPage />;
   if (isConfiguredBrandTemplatePath(location.pathname)) return <BrandTemplatePage />;
   if (isConfiguredGroupEmailPath(location.pathname)) return <GroupEmailPage />;
@@ -153,11 +178,23 @@ const MainRoutes = {
           element: <AdminLayout />,
           children: [
             {
-              path: '/dashboard/sales',
-              element: <DashboardSales />
+              path: '/dashboard',
+              element: <DashboardPage />
+            },
+            {
+              path: '/Dashboard',
+              element: <DashboardPage />
+            },
+            {
+              path: '/dashboards',
+              element: <DashboardPage />
             },
             {
               path: '/Dashboards',
+              element: <DashboardPage />
+            },
+            {
+              path: '/dashboard/sales',
               element: <DashboardSales />
             },
             {

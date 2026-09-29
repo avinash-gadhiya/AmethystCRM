@@ -1,3 +1,5 @@
+import axios from 'axios';
+
 const API_BASE_URL = (import.meta.env.VITE_APP_API_URL || 'https://demoapi.enstasol.com/api').replace(/\/$/, '');
 
 const normalizePermissionCodes = (value) => {
@@ -239,6 +241,16 @@ export const authService = {
       clearPermissionMenuCache();
     } catch {
       // ignore
+    }
+  },
+
+  /**
+   * Configure Axios default authorization header with stored token
+   */
+  setupAxios() {
+    const token = this.getToken();
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     }
   }
 };
