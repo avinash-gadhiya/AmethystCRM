@@ -13,14 +13,15 @@ const GatewayPaymentTypeModal = ({
   brand = null,
   gateway = null,
   onClose,
-  onSuccess
+  onSuccess,
+  permissions = { canAdd: false, canDelete: false }
 }) => {
   const [availablePaymentTypes, setAvailablePaymentTypes] = useState([]);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [existingRecord, setExistingRecord] = useState(null);
+  const [existingRecord, setExistingRecord] = useState([]);
 
   const brandId = Number(brand?.brandId || gateway?.brandId);
   const gatewayId = Number(gateway?.gatewayId);
@@ -44,27 +45,18 @@ const GatewayPaymentTypeModal = ({
         });
 
         const list = assignedRes.data || [];
-        const matching = list.find(
-          (m) =>
-            Number(m.gatewayId) === gatewayId &&
-            (!brandId || Number(m.brandId) === brandId)
+        const matching = list.filter((m) => Number(m.gatewayId) === gatewayId && (!brandId || Number(m.brandId) === brandId));
+        setExistingRecord(matching);
+        const ids = new Set(
+          matching
+            .flatMap((m) => m.paymentTypeIds || [m.paymentTypeId])
+            .filter(Boolean)
+            .map(Number)
         );
-
-        setExistingRecord(matching || null);
-
-        // Populate selectedIds from array or single id
-        const ids = new Set();
-        if (matching) {
-          if (Array.isArray(matching.paymentTypeIds)) {
-            matching.paymentTypeIds.forEach((id) => ids.add(Number(id)));
-          } else if (matching.paymentTypeId) {
-            ids.add(Number(matching.paymentTypeId));
-          }
-        }
         setSelectedIds(ids);
       } catch (err) {
         console.error('Failed to load gateway payment types:', err);
-        setErrorMsg('Failed to load payment types.');
+        setErrorMsg(getApiErrorMessage(err, 'Failed to load payment types.'));
       } finally {
         setLoading(false);
       }
@@ -106,17 +98,35 @@ const GatewayPaymentTypeModal = ({
 
     setSaving(true);
     try {
-      const paymentTypeIds = Array.from(selectedIds);
-      const payload = {
-        gatewayPaymentTypeId: existingRecord?.gatewayPaymentTypeId || 0,
-        gatewayId,
-        brandId,
-        gatewayName,
-        paymentTypeIds,
-        isActive: paymentTypeIds.length > 0 // When unchecked, explicitly set isActive: false
-      };
-
-      await brandService.saveGatewayPaymentTypes(payload);
+      const originalIds = new Set(
+        existingRecord
+          .flatMap((m) => m.paymentTypeIds || [m.paymentTypeId])
+          .filter(Boolean)
+          .map(Number)
+      );
+      const removed = [...originalIds].filter((id) => !selectedIds.has(id));
+      const added = [...selectedIds].filter((id) => !originalIds.has(id));
+      if (removed.length && !permissions.canDelete) throw new Error('You do not have permission to delete payment assignments.');
+      if (added.length && !permissions.canAdd) throw new Error('You do not have permission to add payment assignments.');
+      // Grouped backend records must be recreated with their retained assignments.
+      const affected = existingRecord.filter((m) => (m.paymentTypeIds || [m.paymentTypeId]).some((id) => removed.includes(Number(id))));
+      const retained = affected
+        .flatMap((m) => m.paymentTypeIds || [m.paymentTypeId])
+        .map(Number)
+        .filter((id) => selectedIds.has(id));
+      if (retained.length && !permissions.canAdd) throw new Error('Updating grouped assignments also requires Add permission.');
+      if (removed.length && !window.confirm(`Remove ${removed.length} payment type assignment(s) from ${gatewayName}?`)) return;
+      for (const mapping of affected) await brandService.deleteGatewayPaymentType(mapping);
+      const paymentTypeIds = [...new Set([...added, ...retained])];
+      if (paymentTypeIds.length)
+        await brandService.saveGatewayPaymentTypes({
+          gatewayPaymentTypeId: 0,
+          gatewayId,
+          brandId,
+          gatewayName,
+          paymentTypeIds,
+          isActive: true
+        });
       toast.success(`Payment types updated for ${gatewayName}`);
       onSuccess?.();
       onClose?.();
@@ -140,9 +150,7 @@ const GatewayPaymentTypeModal = ({
               <CreditCard size={18} />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-gray-900 dark:text-white">
-                Assigned Payment Types
-              </h3>
+              <h3 className="text-base font-semibold text-gray-900 dark:text-white">Assigned Payment Types</h3>
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 Gateway: <strong className="text-gray-700 dark:text-gray-200">{gatewayName}</strong>
               </p>
@@ -180,9 +188,7 @@ const GatewayPaymentTypeModal = ({
                 <span className="text-xs">Loading payment methods...</span>
               </div>
             ) : availablePaymentTypes.length === 0 ? (
-              <div className="py-6 text-center text-xs text-gray-400">
-                No payment types available in the system.
-              </div>
+              <div className="py-6 text-center text-xs text-gray-400">No payment types available in the system.</div>
             ) : (
               <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                 {availablePaymentTypes.map((type) => {
@@ -190,10 +196,13 @@ const GatewayPaymentTypeModal = ({
                   const isChecked = selectedIds.has(id);
 
                   return (
-                    <label
+                    <button
+                      type="button"
+                      aria-pressed={isChecked}
+                      disabled={saving}
                       key={id}
                       onClick={() => togglePaymentType(id)}
-                      className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer select-none transition-all ${
+                      className={`w-full flex items-center justify-between p-3 rounded-xl border cursor-pointer select-none transition-all ${
                         isChecked
                           ? 'border-purple-500/50 bg-purple-50/50 dark:bg-purple-950/20 dark:border-purple-800/50'
                           : 'border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/[0.02]'
@@ -209,12 +218,10 @@ const GatewayPaymentTypeModal = ({
                         >
                           {isChecked && <Check size={13} strokeWidth={3} />}
                         </div>
-                        <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                          {type.paymentTypeName}
-                        </span>
+                        <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{type.paymentTypeName}</span>
                       </div>
                       <span className="text-xs font-mono text-gray-400">#{id}</span>
-                    </label>
+                    </button>
                   );
                 })}
               </div>
@@ -223,13 +230,7 @@ const GatewayPaymentTypeModal = ({
 
           {/* Footer Actions */}
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-white/10 bg-gray-50/50 dark:bg-white/[0.02]">
-            <LiquidGlassButton
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onClose}
-              disabled={saving}
-            >
+            <LiquidGlassButton type="button" variant="outline" size="sm" onClick={onClose} disabled={saving}>
               Cancel
             </LiquidGlassButton>
             <LiquidGlassButton
@@ -237,7 +238,7 @@ const GatewayPaymentTypeModal = ({
               variant="primary"
               size="sm"
               loading={saving}
-              disabled={loading}
+              disabled={loading || saving || Boolean(errorMsg) || (!permissions.canAdd && !permissions.canDelete)}
             >
               Save Payment Methods
             </LiquidGlassButton>

@@ -9,13 +9,7 @@ import LiquidGlassButton from '@/components/common/LiquidGlassButton';
 import GlassCloseButton from '@/components/common/GlassCloseButton';
 import IosToggle from '@/components/common/IosToggle';
 
-const BrandTemplateModal = ({
-  open,
-  brand = null,
-  template = null,
-  onClose,
-  onSuccess
-}) => {
+const BrandTemplateModal = ({ open, brand = null, template = null, onClose, onSuccess }) => {
   const isEditing = Boolean(template && template.brandEmailTemplateId);
 
   const [templateName, setTemplateName] = useState('');
@@ -48,18 +42,18 @@ const BrandTemplateModal = ({
       try {
         const [templates, emailsRes, sales] = await Promise.all([
           brandService.getMasterTemplates(),
-          brandService.getBrandEmails({ BrandId: brandId, PageSize: 500 }),
+          brandService.getBrandEmailOptions(brandId),
           brandService.getSaleTypes()
         ]);
 
         setMasterTemplates(templates);
-        setBrandEmails(emailsRes.data || []);
+        setBrandEmails(emailsRes || []);
         setSaleTypes(sales);
 
         if (template) {
           setTemplateName(template.templateName || '');
           setTemplateId(template.templateId ? String(template.templateId) : '');
-          setSaleTypeId(template.saleTypeId || 1);
+          setSaleTypeId(template.saleTypeId || 0);
           setFromEmailId(template.fromEmailId ? String(template.fromEmailId) : '');
           setSubject(template.subject || '');
           setCcEmail(template.ccEmail || '');
@@ -68,15 +62,15 @@ const BrandTemplateModal = ({
         } else {
           setTemplateName('');
           setTemplateId(templates[0]?.templateId ? String(templates[0].templateId) : '');
-          setSaleTypeId(sales[0]?.saleTypeId || 1);
-          setFromEmailId(emailsRes.data?.[0]?.brandEmailId ? String(emailsRes.data[0].brandEmailId) : '');
+          setSaleTypeId(sales[0]?.saleTypeId || 0);
+          setFromEmailId(emailsRes?.[0]?.brandEmailId ? String(emailsRes[0].brandEmailId) : '');
           setSubject('');
           setCcEmail('');
           setBccEmail('');
           setIsActive(true);
         }
       } catch (err) {
-        console.error('Failed to load template reference data:', err);
+        setErrorMsg(getApiErrorMessage(err, 'Failed to load template reference data'));
       } finally {
         setLoadingRefs(false);
       }
@@ -253,9 +247,7 @@ const BrandTemplateModal = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
-                      Sale Type
-                    </label>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">Sale Type</label>
                     <select
                       value={saleTypeId}
                       onChange={(e) => setSaleTypeId(Number(e.target.value))}
@@ -272,9 +264,7 @@ const BrandTemplateModal = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
-                    Email Subject
-                  </label>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">Email Subject</label>
                   <input
                     type="text"
                     value={subject}
@@ -287,9 +277,7 @@ const BrandTemplateModal = ({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
-                      CC Recipients
-                    </label>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">CC Recipients</label>
                     <input
                       type="text"
                       value={ccEmail}
@@ -301,9 +289,7 @@ const BrandTemplateModal = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
-                      BCC Recipients
-                    </label>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">BCC Recipients</label>
                     <input
                       type="text"
                       value={bccEmail}
@@ -318,9 +304,7 @@ const BrandTemplateModal = ({
                 {/* Active Toggle */}
                 <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-white/5">
                   <div>
-                    <span className="block text-xs font-semibold text-gray-700 dark:text-gray-200">
-                      Active Status
-                    </span>
+                    <span className="block text-xs font-semibold text-gray-700 dark:text-gray-200">Active Status</span>
                     <span className="text-xs text-gray-500 dark:text-gray-400">
                       Send this email template automatically when events trigger
                     </span>
@@ -338,22 +322,10 @@ const BrandTemplateModal = ({
 
           {/* Footer Actions */}
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-white/10 bg-gray-50/50 dark:bg-white/[0.02]">
-            <LiquidGlassButton
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onClose}
-              disabled={saving}
-            >
+            <LiquidGlassButton type="button" variant="outline" size="sm" onClick={onClose} disabled={saving}>
               Cancel
             </LiquidGlassButton>
-            <LiquidGlassButton
-              type="submit"
-              variant="primary"
-              size="sm"
-              loading={saving}
-              disabled={loadingRefs}
-            >
+            <LiquidGlassButton type="submit" variant="primary" size="sm" loading={saving} disabled={loadingRefs}>
               {isEditing ? 'Save Changes' : 'Create Template'}
             </LiquidGlassButton>
           </div>

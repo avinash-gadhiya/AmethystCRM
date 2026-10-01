@@ -1977,34 +1977,50 @@ input[type="checkbox"]:checked {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 0;
   color: #334155;
   background: #ffffff;
   animation: login-welcome-fade-in 180ms ease-out both;
 }
 
-.login-welcome-gif-stage {
+.login-welcome-stage {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: min(680px, 94vw);
+  width: 100vw;
+  height: 100vh;
   text-align: center;
 }
 
-.login-welcome-gif {
+.login-welcome-lottie {
+  position: absolute;
+  inset: 0;
   display: block;
-  width: min(520px, 90vw);
-  height: auto;
-  object-fit: contain;
+  width: 100vw !important;
+  height: 100vh !important;
+  transform: scale(1.07);
+  transform-origin: center;
 }
 
 .login-welcome-user {
-  margin: 18px 0 0;
+  position: absolute;
+  z-index: 1;
+  top: 82%;
+  left: 50%;
+  margin: 0;
   color: #334155;
   font-size: clamp(1.45rem, 3vw, 2.2rem);
   font-weight: 700;
   letter-spacing: -0.025em;
+  translate: -50% -50%;
+}
+
+@media (max-height: 700px) {
+  .login-welcome-user {
+    top: 84%;
+  }
 }
 
 @keyframes login-welcome-fade-in {

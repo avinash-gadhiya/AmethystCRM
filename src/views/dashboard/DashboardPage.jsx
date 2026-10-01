@@ -16,7 +16,7 @@ import UserOptionBadges, {
   getUserLocationName,
   getUserRoleName,
 } from '@/components/common/UserOptionBadges';
-import { ChartSkeleton } from '@/components/common/skeleton-loader';
+import { ChartSkeleton, DashboardStatCardSkeleton, DonutChartSkeleton } from '@/components/common/skeleton-loader';
 
 const API_URL = (import.meta.env.VITE_APP_API_URL || 'https://demoapi.enstasol.com/api').replace(/\/$/, '');
 
@@ -135,6 +135,16 @@ const readChargeback = (item) =>
 const readChargebackCount = (item) =>
   Number(item?.totalChargebacksCount ?? item?.totalChargeBacksCount ?? item?.chargebackCount ?? item?.chargebacksCount ?? 0) || 0;
 
+const ChartEmptyState = ({ icon: Icon, title, description, className = 'h-[280px] sm:h-[360px]' }) => (
+  <div className={`flex flex-col items-center justify-center px-6 text-center ${className}`}>
+    <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-50 text-violet-500 ring-1 ring-violet-100 dark:bg-violet-500/10 dark:text-violet-300 dark:ring-violet-400/10">
+      <Icon className="h-5 w-5" aria-hidden="true" />
+    </div>
+    <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{title}</p>
+    <p className="mt-1 max-w-xs text-xs leading-relaxed text-slate-400 dark:text-slate-500">{description}</p>
+  </div>
+);
+
 // Whether a payload actually carries a chargeback field, as opposed to simply
 // reading 0 through the defaults above. This is what decides between the
 // per-user rows and the response envelope as the source for the card.
@@ -168,7 +178,8 @@ const DashboardPage = () => {
   const [salesPersons, setSalesPersons] = useState([]);
   const [salesManagerTargets, setSalesManagerTargets] = useState([]);
   const [salesPersonSearchText, setSalesPersonSearchText] = useState('');
-  const [loading, setLoading] = useState(false);
+  // Avoid flashing zero values before the first dashboard request starts.
+  const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState({
     totalSales: 0,
     totalSalesCount: 0,
@@ -1410,7 +1421,7 @@ const DashboardPage = () => {
   }, [fetchDashboard]);
 
   const renderSectionLoader = useCallback(
-    (heightClass = 'h-40') => <ChartSkeleton className={heightClass} />,
+    (heightClass = 'h-40', bars) => <ChartSkeleton className={heightClass} bars={bars} />,
     [],
   );
 
@@ -1665,17 +1676,17 @@ const DashboardPage = () => {
         `}
       </style>
 
-      <div className="flex flex-col gap-4 sm:gap-6 lg:gap-8">
+      <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 sm:gap-6 lg:gap-7">
 
           {/* ── Header ── */}
-          <div className="flex flex-col gap-3 sm:gap-4 sm:flex-row sm:items-center sm:justify-between pt-1 w-full">
-            <div>
+          <div className="flex w-full flex-col gap-3 pt-1 lg:flex-row lg:items-center lg:justify-between lg:gap-5">
+            <div className="shrink-0">
               <h1 className="text-xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:!text-white">Dashboard</h1>
               <p className="text-xs sm:text-sm text-gray-500 dark:!text-slate-300 mt-0.5">Overview of your business performance</p>
             </div>
 
             {/* Date controls */}
-            <div className="dashboard-toolbar-row w-full md:w-auto min-w-0 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end sm:items-center xl:flex-nowrap rounded-2xl border border-gray-200/70 dark:border-slate-700/60 bg-white/70 dark:bg-slate-900/40 backdrop-blur-sm p-2 shadow-sm">
+            <div className="dashboard-toolbar-row flex w-full min-w-0 flex-col gap-2 rounded-2xl border border-gray-200/70 bg-white/70 p-2 shadow-sm backdrop-blur-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-end lg:w-auto xl:flex-nowrap dark:border-slate-700/60 dark:bg-slate-900/40">
               {/* Selects sit side by side as soon as there is room for two. */}
               <div className="flex flex-col min-[420px]:flex-row items-stretch min-[420px]:items-center gap-2 w-full sm:w-auto min-w-0">
               {isAdminUser && (
@@ -1755,14 +1766,14 @@ const DashboardPage = () => {
           </div>
 
           {/* ── Top row: stat cards + pie chart ── */}
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-stretch">
+          <div className="flex flex-col gap-4 lg:gap-5 xl:flex-row xl:items-stretch">
 
             {/* Summary stat cards: Sales+Net, RPL, Refunds/Voids/Chargeback, Leads */}
             <div className={`grid auto-rows-fr gap-2.5 sm:gap-4 ${isAdminUser ? 'grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-4 xl:grid-cols-2 xl:w-[48%] xl:flex-none xl:shrink-0' : 'grid-cols-2 sm:grid-cols-4 w-full'}`}>
               {loading ? (
-                <div className={`${isAdminUser ? 'col-span-1 min-[420px]:col-span-2' : 'col-span-2 sm:col-span-4'} rounded-2xl bg-white/80 dark:bg-slate-950 backdrop-blur-md border border-gray-100 dark:border-slate-800 shadow-md dark:shadow-black/40 p-3 sm:p-5 lg:p-6`}>
-                  {renderSectionLoader('h-[210px] sm:h-[260px]')}
-                </div>
+                Array.from({ length: 4 }).map((_, index) => (
+                  <DashboardStatCardSkeleton key={`dashboard-stat-skeleton-${index}`} list={index === 2} />
+                ))
               ) : (
                 summaryCards.map((card) => {
                   const CardIcon = card.Icon;
@@ -1804,11 +1815,11 @@ const DashboardPage = () => {
                   return (
                     <div
                       key={card.key}
-                      className="relative overflow-hidden rounded-2xl p-3 sm:p-5 lg:p-6 bg-white/80 dark:bg-slate-950 backdrop-blur-md border border-gray-100 dark:border-slate-800 shadow-md dark:shadow-black/40 hover:shadow-lg transition-all duration-300 min-h-[120px] sm:min-h-[150px] flex flex-col"
+                      className="relative flex min-h-[140px] flex-col overflow-hidden rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-sm backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950 dark:shadow-black/30 sm:min-h-[170px] sm:p-5"
                     >
                       <div className="relative flex flex-1 flex-col">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 truncate">{card.title}</span>
+                          <span className="min-w-0 pr-1 text-[10px] font-semibold uppercase leading-snug tracking-[0.08em] text-gray-500 dark:text-slate-400 sm:text-xs">{card.title}</span>
                           <div className={`flex h-7 w-7 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-gradient-to-br ${card.iconGradient} text-white shadow-sm shrink-0`}>
                             <CardIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                           </div>
@@ -1857,7 +1868,7 @@ const DashboardPage = () => {
 
             {/* Pie chart - right side of top row */}
             {showFullDashboard && (
-              <div className="bg-white/80 dark:bg-slate-950 backdrop-blur-md rounded-2xl border border-gray-100 dark:border-slate-800 shadow-md dark:shadow-black/40 hover:shadow-lg transition-shadow duration-300 p-3 sm:p-5 lg:p-6 flex-1 min-w-0 flex flex-col">
+              <div className="flex min-w-0 flex-1 flex-col rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-sm backdrop-blur-md transition-shadow duration-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-950 dark:shadow-black/30 sm:p-5">
                 <div className="flex items-center gap-2 sm:gap-3 mb-4">
                   <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-sm shrink-0">
                     <PieChart className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
@@ -1869,9 +1880,13 @@ const DashboardPage = () => {
                 </div>
                 <div className="flex-1">
                   {loading ? (
-                    renderSectionLoader('h-40 sm:h-56')
+                    <DonutChartSkeleton />
                   ) : locationWiseSales.length === 0 ? (
-                    <div className="flex items-center justify-center h-40 text-sm text-gray-400 dark:text-slate-400">No data available</div>
+                    <ChartEmptyState
+                      icon={PieChart}
+                      title="No location sales yet"
+                      description="Location totals for the selected period will appear here."
+                    />
                   ) : (
                     <HighchartsReact highcharts={Highcharts} options={locationPieOptions} />
                   )}
@@ -1884,7 +1899,7 @@ const DashboardPage = () => {
           <div className="flex flex-col gap-4 sm:gap-5">
 
             {/* Day-wise bar chart */}
-            <div className="bg-white/80 dark:bg-slate-950 backdrop-blur-md rounded-2xl border border-gray-100 dark:border-slate-800 shadow-md dark:shadow-black/40 hover:shadow-lg transition-shadow duration-300 p-3 sm:p-5 lg:p-6">
+            <div className="rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-sm backdrop-blur-md transition-shadow duration-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-950 dark:shadow-black/30 sm:p-5">
               <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-5">
                 <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center shadow-sm shrink-0">
                   <BarChart2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
@@ -1896,9 +1911,14 @@ const DashboardPage = () => {
               </div>
               <div className="w-full">
                 {loading ? (
-                  renderSectionLoader('h-40 sm:h-52')
+                  renderSectionLoader('h-[320px] sm:h-[400px]', [44, 68, 54, 82, 60, 91, 72, 48, 76, 64, 88, 58])
                 ) : dayWiseSalesAndRpl.length === 0 ? (
-                  <div className="flex items-center justify-center h-40 text-sm text-gray-400 dark:text-slate-400">No data available</div>
+                  <ChartEmptyState
+                    icon={BarChart2}
+                    title="No daily performance data"
+                    description="Try another date range or sales person to view the daily forecast."
+                    className="h-[320px] sm:h-[400px]"
+                  />
                 ) : (
                   <HighchartsReact highcharts={Highcharts} options={dayWiseOptions} />
                 )}
@@ -1908,7 +1928,7 @@ const DashboardPage = () => {
             {showFullDashboard && (
               <>
                 {/* User-wise bar chart */}
-                <div className="bg-white/80 dark:bg-slate-950 backdrop-blur-md rounded-2xl border border-gray-100 dark:border-slate-800 shadow-md dark:shadow-black/40 hover:shadow-lg transition-shadow duration-300 p-3 sm:p-5 lg:p-6">
+                <div className="rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-sm backdrop-blur-md transition-shadow duration-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-950 dark:shadow-black/30 sm:p-5">
                   <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-5">
                     <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-sm shrink-0">
                       <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
@@ -1921,9 +1941,14 @@ const DashboardPage = () => {
                   <div className="w-full">
                     <div>
                       {loading ? (
-                        renderSectionLoader('h-40 sm:h-56')
+                        renderSectionLoader('h-[320px] sm:h-[460px]', [76, 48, 88, 62, 94, 55, 80, 68])
                       ) : userWiseRechartsData.length === 0 ? (
-                        <div className="flex items-center justify-center h-40 text-sm text-gray-400 dark:text-slate-400">No data available</div>
+                        <ChartEmptyState
+                          icon={Users}
+                          title="No agent totals available"
+                          description="User financial totals for the selected period will appear here."
+                          className="h-[320px] sm:h-[460px]"
+                        />
                       ) : (
                         <HighchartsReact highcharts={Highcharts} options={userWiseOptions} />
                       )}
@@ -1932,7 +1957,7 @@ const DashboardPage = () => {
                 </div>
 
                 {/* Location-wise Daily Sales chart */}
-                <div className="bg-white/80 dark:bg-slate-950 backdrop-blur-md rounded-2xl border border-gray-100 dark:border-slate-800 shadow-md dark:shadow-black/40 hover:shadow-lg transition-shadow duration-300 p-3 sm:p-5 lg:p-6">
+                <div className="rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-sm backdrop-blur-md transition-shadow duration-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-950 dark:shadow-black/30 sm:p-5">
                   <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-5">
                     <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-rose-500 to-orange-500 flex items-center justify-center shadow-sm shrink-0">
                       <MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
@@ -1944,9 +1969,14 @@ const DashboardPage = () => {
                   </div>
                   <div className="w-full">
                     {loading ? (
-                      renderSectionLoader('h-40 sm:h-56')
+                      renderSectionLoader('h-[300px] sm:h-[400px]', [52, 78, 64, 90, 56, 84, 70, 94, 62, 80])
                     ) : dailyLocChartData.length === 0 ? (
-                      <div className="flex items-center justify-center h-40 text-sm text-gray-400 dark:text-slate-400">No data available</div>
+                      <ChartEmptyState
+                        icon={MapPin}
+                        title="No location trend data"
+                        description="Daily location sales will appear after transactions are recorded."
+                        className="h-[300px] sm:h-[400px]"
+                      />
                     ) : (
                       <HighchartsReact highcharts={Highcharts} options={dailyLocationWiseOptions} />
                     )}

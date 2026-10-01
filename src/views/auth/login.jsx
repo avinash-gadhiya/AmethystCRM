@@ -1,44 +1,102 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { User, Lock, Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
-// project imports
+import LoginWelcomeOverlay from 'components/auth/LoginWelcomeOverlay';
 import authService from 'services/authService';
 import permissionService from 'services/permissionService';
-import LoginWelcomeOverlay from 'components/auth/LoginWelcomeOverlay';
+import 'styles/bear-login.css';
 
-// assets
-import logoDark from 'assets/images/logo-dark.svg';
+function Bear() {
+  return (
+    <div className="bear__wrapper" aria-hidden="true">
+      <svg className="bear" viewBox="0 0 241 257" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <g className="bear__body">
+          <path
+            d="M213.727 108.553C213.727 136.968 213.701 173.493 201.933 202.922C196.071 217.583 187.328 230.384 174.292 239.532C161.263 248.676 143.78 254.286 120.235 254.286C96.6889 254.286 79.2065 248.676 66.1771 239.532C53.1413 230.384 44.3983 217.583 38.536 202.922C26.7685 173.493 26.7425 136.968 26.7425 108.553C26.7425 52.8665 68.7328 7.97217 120.235 7.97217C171.736 7.97217 213.727 52.8665 213.727 108.553Z"
+            fill="#AF7128"
+            stroke="currentColor"
+            strokeWidth="4"
+          />
+          <circle cx="37.3983" cy="36.9758" r="34.8416" fill="#AF7128" stroke="currentColor" strokeWidth="4" />
+          <circle cx="203.509" cy="36.9758" r="34.8416" fill="#AF7128" stroke="currentColor" strokeWidth="4" />
+          <g className="bear__eyes">
+            <g className="bear__eyes-crossed">
+              <line x1="164.746" x2="183.746" y1="99.811" y2="111.811" strokeWidth="4" strokeLinecap="round" stroke="currentColor" />
+              <line x1="164.746" x2="183.746" y1="111.811" y2="99.811" strokeWidth="4" strokeLinecap="round" stroke="currentColor" />
+              <line x1="58.1606" x2="74.1606" y1="99.811" y2="111.811" strokeWidth="4" strokeLinecap="round" stroke="currentColor" />
+              <line x1="58.1606" x2="74.1606" y1="111.811" y2="99.811" strokeWidth="4" strokeLinecap="round" stroke="currentColor" />
+            </g>
+            <g className="bear__eyes-normal">
+              <circle cx="174.746" cy="105.811" r="8.0793" fill="currentColor" />
+              <circle cx="66.1606" cy="105.811" r="8.0793" fill="currentColor" />
+            </g>
+          </g>
+          <path
+            d="M141.246 120.415C141.246 128.625 131.378 137.866 120.401 137.866C109.425 137.866 99.5567 128.625 99.5567 120.415C99.5567 112.205 109.425 108.134 120.401 108.134C131.378 108.134 141.246 112.205 141.246 120.415Z"
+            fill="currentColor"
+          />
+          <rect x="75.7932" y="69.9394" width="88.3706" height="13.25" fill="#FF1E1E" />
+          <path
+            fillRule="evenodd"
+            clipRule="evenodd"
+            d="M187.771 28.755C205.711 43.1491 215.789 65.9033 215.789 86.2595H154.142C154.055 72.5907 142.947 61.5369 129.258 61.5369H110.699C97.0096 61.5369 85.902 72.5907 85.8151 86.2595L24.4714 86.2595C24.4714 65.9033 34.5498 43.149 52.4893 28.755C70.4288 14.361 94.76 6.27448 120.13 6.27448C145.501 6.27448 169.832 14.361 187.771 28.755Z"
+            fill="currentColor"
+          />
+        </g>
+        <g className="bear__arm">
+          <rect x="2" y="120" height="54" width="220" rx="27" fill="#AF7128" strokeWidth="4" stroke="currentColor" />
+          <line x1="214" y1="139" x2="192" y2="138" strokeLinecap="round" stroke="currentColor" strokeWidth="4" />
+          <line x1="214" y1="157" x2="192" y2="158" strokeLinecap="round" stroke="currentColor" strokeWidth="4" />
+        </g>
+        <g className="bear__arms">
+          <rect x="-10" y="100" width="54" height="80" ry="27" strokeWidth="4" stroke="currentColor" fill="#AF7128" />
+          <rect x="0" y="110" width="34" height="40" ry="17" fill="#F2DA89" />
+          <rect x="198" y="100" width="54" height="80" ry="27" strokeWidth="4" stroke="currentColor" fill="#AF7128" />
+          <rect x="208" y="110" width="34" height="40" ry="17" fill="#F2DA89" />
+        </g>
+      </svg>
+    </div>
+  );
+}
 
-// -----------------------|| SIGNIN ||-----------------------//
+function IndicatorArm() {
+  return (
+    <svg className="indicator-arm" viewBox="-4 -4 102 62" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <clipPath id="bear-arm">
+          <rect x="0" y="0" width="98" height="58" rx="28" />
+        </clipPath>
+      </defs>
+      <g className="indicator-arm__arm" clipPath="url(#bear-arm)">
+        <g className="indicator-arm__hand">
+          <rect x="2" y="2" width="94" height="54" rx="28" fill="#AF7128" stroke="currentColor" strokeWidth="4" />
+          <line x1="8" y1="21" x2="30" y2="19" strokeLinecap="round" stroke="currentColor" strokeWidth="4" />
+          <line x1="8" y1="39" x2="30" y2="41" strokeLinecap="round" stroke="currentColor" strokeWidth="4" />
+        </g>
+      </g>
+    </svg>
+  );
+}
 
 export default function SignIn() {
   const navigate = useNavigate();
   const location = useLocation();
-
   const [userName, setUserName] = useState('developer');
   const [password, setPassword] = useState('Pass@2026@Dev');
-  const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [welcomeUser, setWelcomeUser] = useState('');
+  const [pendingRedirectPath, setPendingRedirectPath] = useState('');
 
   useEffect(() => {
     const savedUser = localStorage.getItem('saved_username');
-    if (savedUser) {
-      setUserName(savedUser);
-    }
+    if (savedUser) setUserName(savedUser);
   }, []);
 
-  const handleFillDefaultCredentials = () => {
-    setUserName('developer');
-    setPassword('Pass@2026@Dev');
-    setErrorMessage('');
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setErrorMessage('');
 
     if (!userName.trim()) {
@@ -55,11 +113,7 @@ export default function SignIn() {
       const result = await authService.login(userName, password);
 
       if (result.success) {
-        if (rememberMe) {
-          localStorage.setItem('saved_username', userName.trim());
-        } else {
-          localStorage.removeItem('saved_username');
-        }
+        localStorage.setItem('saved_username', userName.trim());
 
         const navResult = await permissionService.fetchPermissions(result.data?.roleId, { force: true });
         const requestedPath = location.state?.from?.pathname;
@@ -69,9 +123,8 @@ export default function SignIn() {
           '/Dashboards';
 
         const authenticatedUser = authService.getUser();
+        setPendingRedirectPath(redirectPath);
         setWelcomeUser(authenticatedUser?.displayName || authenticatedUser?.userName || userName.trim());
-        await new Promise((resolve) => setTimeout(resolve, 8300));
-        navigate(redirectPath, { replace: true });
       } else {
         setErrorMessage(result.message || 'Invalid Email and/or Password');
       }
@@ -82,144 +135,60 @@ export default function SignIn() {
     }
   };
 
+  const handleWelcomeComplete = useCallback(() => {
+    if (pendingRedirectPath) navigate(pendingRedirectPath, { replace: true });
+  }, [navigate, pendingRedirectPath]);
+
   return (
-    <div className="auth-wrapper">
-      {welcomeUser && <LoginWelcomeOverlay userName={welcomeUser} />}
-      <div className="auth-content">
-        <div className="auth-card">
-          <div className="px-5 py-7 sm:px-8 sm:py-9">
-            {/* Logo */}
-            <div className="flex justify-center mb-5">
-              <img src={logoDark} alt="DashboardKit" className="h-10 w-auto" />
-            </div>
-
-            <h2 className="text-2xl font-extrabold text-gray-800 text-center mb-1 tracking-tight">Welcome back</h2>
-            <p className="text-xs text-gray-500 text-center mb-6 font-medium">Neumorphic CRM Portal &bull; Enterprise Access</p>
-
-            {/* Quick Demo Credentials Pill */}
-            <div
-              className="neu-preset-btn flex items-center justify-between mb-5 px-3 py-2 text-xs cursor-pointer select-none"
-              onClick={handleFillDefaultCredentials}
-              title="Click to fill developer credentials"
-            >
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span className="font-semibold text-gray-700">Dev Login:</span>
-                <span className="text-indigo-600 font-mono">developer</span>
-              </div>
-              <span className="text-gray-400 text-[11px] bg-white/70 px-2 py-0.5 rounded shadow-sm">Auto-ready</span>
-            </div>
-
-            {/* Error Alert */}
-            {errorMessage && (
-              <div className="alert alert-danger mb-5 flex items-center gap-2" role="alert">
-                <AlertCircle size={16} className="flex-shrink-0" />
-                <span className="flex-1 text-xs">{errorMessage}</span>
-                <button
-                  type="button"
-                  onClick={() => setErrorMessage('')}
-                  className="bg-transparent border-0 text-red-500 hover:text-red-700 p-0 cursor-pointer leading-none text-base font-bold"
-                  aria-label="Dismiss"
-                >
-                  ×
-                </button>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} noValidate>
-              {/* Username */}
-              <div className="mb-4">
-                <label htmlFor="username" className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">
-                  Username / Email
-                </label>
-                <div className="relative flex items-center">
-                  <span className="absolute left-3.5 text-gray-400 pointer-events-none flex items-center justify-center z-10">
-                    <User size={18} />
-                  </span>
-                  <input
-                    id="username"
-                    type="text"
-                    className="form-control neu-input"
-                    style={{ paddingLeft: '2.75rem', paddingRight: '1rem', height: '46px' }}
-                    placeholder="Enter your username or email"
-                    value={userName}
-                    onChange={(e) => setUserName(e.target.value)}
-                    disabled={loading}
-                    autoComplete="username"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Password */}
-              <div className="mb-5">
-                <label htmlFor="password" className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">
-                  Password
-                </label>
-                <div className="relative flex items-center">
-                  <span className="absolute left-3.5 text-gray-400 pointer-events-none flex items-center justify-center z-10">
-                    <Lock size={18} />
-                  </span>
-                  <input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    className="form-control neu-input"
-                    style={{ paddingLeft: '2.75rem', paddingRight: '2.75rem', height: '46px' }}
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    disabled={loading}
-                    autoComplete="current-password"
-                    required
-                  />
-                  <button
-                    type="button"
-                    tabIndex={-1}
-                    className="absolute right-3 text-gray-400 hover:text-gray-600 bg-transparent border-0 cursor-pointer p-1.5 flex items-center justify-center z-10 transition-colors"
-                    onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Remember Me */}
-              <div className="flex items-center justify-between mb-6">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    id="rememberMe"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    disabled={loading}
-                    className="w-4 h-4 rounded border-gray-300 text-indigo-600 cursor-pointer"
-                  />
-                  <span className="text-xs font-medium text-gray-600">Remember username</span>
-                </label>
-                <span className="text-[11px] text-gray-400">Secure sign-in</span>
-              </div>
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                className="btn btn-primary neu-btn-primary w-full py-3 text-sm font-bold flex items-center justify-center gap-2"
-                style={{ height: '48px' }}
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 size={18} className="animate-spin" />
-                    <span>Authenticating...</span>
-                  </>
-                ) : (
-                  'Sign In to Dashboard'
-                )}
-              </button>
-            </form>
+    <div className={`bear-login ${errorMessage ? 'bear-login--error' : ''}`}>
+      {welcomeUser && <LoginWelcomeOverlay userName={welcomeUser} onComplete={handleWelcomeComplete} />}
+      <Bear />
+      <main className="bear-login__main">
+        <form className="bear-login__form" onSubmit={handleSubmit} noValidate>
+          <div className="bear-login__group">
+            <label htmlFor="email">Username / Email</label>
+            <input
+              id="email"
+              type="text"
+              autoComplete="username"
+              required
+              placeholder="Enter username"
+              value={userName}
+              onChange={(event) => setUserName(event.target.value)}
+              disabled={loading}
+            />
           </div>
-        </div>
-      </div>
+          <div className="bear-login__group">
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              required
+              placeholder="Enter password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              disabled={loading}
+            />
+            <button
+              id="reveal"
+              className="bear-login__reveal"
+              type="button"
+              aria-pressed={showPassword}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              onClick={() => setShowPassword((visible) => !visible)}
+              disabled={loading}
+            >
+              {showPassword ? <EyeOff size={21} /> : <Eye size={21} />}
+            </button>
+          </div>
+          <button className="bear-login__submit" type="submit" disabled={loading}>
+            {loading ? <Loader2 size={18} className="animate-spin" /> : 'Sign In'}
+          </button>
+          {errorMessage && <p className="bear-login__error">{errorMessage}</p>}
+          <IndicatorArm />
+        </form>
+      </main>
     </div>
   );
 }

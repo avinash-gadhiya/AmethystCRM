@@ -5,22 +5,14 @@
 // Flexible primitive skeleton component
 export function Skeleton({ className = '', variant = 'block', style, ...props }) {
   const variantClass = variant === 'circle' ? 'skeleton-circle' : variant === 'bar' ? 'skeleton-bar' : 'skeleton-block';
-  return (
-    <div
-      className={`${variantClass} ${className}`}
-      style={style}
-      role="status"
-      aria-label="Loading..."
-      {...props}
-    />
-  );
+  return <div className={`${variantClass} ${className}`} style={style} role="status" aria-label="Loading..." {...props} />;
 }
 
 // Bar-chart shape: a title line, a row of bars at varied heights, an axis line.
 // `className` carries the height the real chart will take (e.g. "h-40 sm:h-56").
 export function ChartSkeleton({ className = 'h-40', bars = [62, 88, 45, 74, 96, 55, 80] }) {
   return (
-    <div className={`w-full ${className}`} role="status" aria-label="Loading chart">
+    <div className={`dashboard-skeleton-wave w-full overflow-hidden rounded-xl p-3 ${className}`} role="status" aria-label="Loading chart">
       <div className="skeleton-chart">
         <div className="skeleton-block h-3 w-1/3 shrink-0" />
 
@@ -31,6 +23,73 @@ export function ChartSkeleton({ className = 'h-40', bars = [62, 88, 45, 74, 96, 
         </div>
 
         <div className="skeleton-block h-2 w-full shrink-0" />
+      </div>
+    </div>
+  );
+}
+
+// Dashboard-specific KPI placeholder. It mirrors the real cards closely so the
+// two-column grid keeps exactly the same proportions while data is requested.
+export function DashboardStatCardSkeleton({ list = false }) {
+  return (
+    <div
+      className="dashboard-skeleton-wave relative flex min-h-[150px] flex-col overflow-hidden rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950 sm:p-5"
+      role="status"
+      aria-label="Loading dashboard statistic"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="skeleton-block h-3 w-28" />
+        <div className="skeleton-block h-9 w-9 rounded-xl" />
+      </div>
+
+      {list ? (
+        <div className="mt-5 space-y-3">
+          {[72, 58, 66].map((width, index) => (
+            <div key={`dashboard-list-stat-${index}`} className="flex items-center justify-between gap-4">
+              <div className="space-y-1.5">
+                <div className="skeleton-block h-3 w-20" />
+                <div className="skeleton-block h-2 w-12" />
+              </div>
+              <div className="skeleton-block h-5 rounded-md" style={{ width: `${width}px` }} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-5 flex flex-1 flex-col justify-center">
+          <div className="skeleton-block h-3 w-16" />
+          <div className="skeleton-block mt-2 h-9 w-28" />
+          <div className="skeleton-block mt-3 h-2 w-full rounded-full" />
+          <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 dark:border-slate-800">
+            <div className="skeleton-block h-3 w-20" />
+            <div className="skeleton-block h-5 w-12" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Donut-shaped placeholder for pie/donut panels instead of showing bar-chart
+// bones for every chart type.
+export function DonutChartSkeleton({ className = 'h-[280px] sm:h-[360px]' }) {
+  return (
+    <div
+      className={`dashboard-skeleton-wave flex w-full items-center justify-center overflow-hidden rounded-xl ${className}`}
+      role="status"
+      aria-label="Loading location breakdown"
+    >
+      <div className="grid w-full max-w-md grid-cols-1 items-center gap-8 px-5 sm:grid-cols-[minmax(0,1fr)_8rem]">
+        <div className="dashboard-donut-skeleton mx-auto" aria-hidden="true">
+          <div className="dashboard-donut-skeleton__center" />
+        </div>
+        <div className="hidden space-y-3 sm:block">
+          {[88, 112, 76, 98].map((width, index) => (
+            <div key={`donut-legend-${index}`} className="flex items-center gap-2">
+              <div className="skeleton-circle h-2.5 w-2.5" />
+              <div className="skeleton-block h-2.5" style={{ width: `${width}px` }} />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -78,10 +137,7 @@ export function TableSkeletonRows({ rows = 6, columns = 6, cellClassName = 'px-4
 
 // A row of stat cards. `className` supplies the grid, so the placeholder sits on
 // exactly the same layout as the real cards.
-export function StatCardGridSkeleton({
-  count = 4,
-  className = 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4',
-}) {
+export function StatCardGridSkeleton({ count = 4, className = 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4' }) {
   return (
     <div className={`${className} skeleton-stagger`} role="status" aria-label="Loading statistics grid">
       {Array.from({ length: count }).map((_, index) => (
@@ -132,7 +188,10 @@ export function ListSkeleton({ count = 5 }) {
   return (
     <div className="space-y-3.5 skeleton-stagger" role="status" aria-label="Loading list">
       {Array.from({ length: count }).map((_, idx) => (
-        <div key={`sk-list-${idx}`} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/40">
+        <div
+          key={`sk-list-${idx}`}
+          className="flex items-center justify-between p-3 rounded-xl border border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/40"
+        >
           <div className="flex items-center gap-3">
             <div className="skeleton-circle h-10 w-10 shrink-0" />
             <div className="space-y-1.5">

@@ -1,178 +1,180 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, Minus } from 'lucide-react';
-import LiquidGlassButton from './LiquidGlassButton';
+import { Check, ChevronRight, Minus } from 'lucide-react';
+
 import GlassCloseButton from './GlassCloseButton';
+import LiquidGlassButton from './LiquidGlassButton';
 
-// ---------------------------------------------------------------------------
-// Self-contained Custom Checkbox supporting checked & indeterminate
-// ---------------------------------------------------------------------------
-const CustomCheckbox = ({ checked, onCheckedChange, disabled = false, className = '', ...props }) => {
-  const isIndeterminate = checked === 'indeterminate';
-  const isChecked = checked === true;
+const getPages = (menu) => menu?.menuPermissionPageDTOs || [];
+const getPermissions = (page) => page?.menuPagePermissionDTOs || [];
 
-  const handleClick = (e) => {
-    e.stopPropagation();
-    if (disabled) return;
-    onCheckedChange?.(!isChecked);
-  };
+const getSelectionState = (values, fallback = false) => {
+  if (values.length === 0) {
+    const selected = Boolean(fallback);
+    return { all: selected, any: selected, checked: selected };
+  }
 
-  return (
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={isIndeterminate ? 'mixed' : isChecked}
-      disabled={disabled}
-      onClick={handleClick}
-      className={`size-4.5 rounded-md border flex items-center justify-center transition-colors shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-purple-500/40 ${
-        isChecked
-          ? 'bg-purple-600 border-purple-600 text-white'
-          : isIndeterminate
-          ? 'bg-purple-600/20 border-purple-600 text-purple-600 dark:bg-purple-500/30 dark:border-purple-400 dark:text-purple-300'
-          : 'bg-white dark:bg-white/5 border-gray-300 dark:border-white/20 hover:border-purple-400 text-transparent'
-      } ${className}`.trim()}
-      {...props}
-    >
-      {isChecked && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-      {isIndeterminate && <Minus className="w-3.5 h-3.5 stroke-[3]" />}
-    </button>
+  const all = values.every(Boolean);
+  const any = values.some(Boolean);
+  return { all, any, checked: all ? true : any ? 'indeterminate' : false };
+};
+
+const getPageState = (page) =>
+  getSelectionState(
+    getPermissions(page).map((permission) => Boolean(permission.hasPermission)),
+    page?.hasPermission
   );
-};
 
-// ---------------------------------------------------------------------------
-// Helpers (pure, no state)
-// ---------------------------------------------------------------------------
+const getMenuState = (menu) =>
+  getSelectionState(
+    getPages(menu).map((page) => getPageState(page).all),
+    menu?.hasPermission
+  );
 
-const getPageMeta = (page) => {
-  const perms = page?.menuPagePermissionDTOs || [];
-  if (perms.length === 0) {
-    const v = !!page?.hasPermission;
-    return { all: v, any: v };
-  }
-  return {
-    all: perms.every((p) => !!p.hasPermission),
-    any: perms.some((p) => !!p.hasPermission)
-  };
-};
-
-const getPageChecked = (page) => {
-  const { all, any } = getPageMeta(page);
-  if (all) return true;
-  if (any) return 'indeterminate';
-  return false;
-};
-
-const getMenuMeta = (menu) => {
-  const pages = menu?.menuPermissionPageDTOs || [];
-  if (pages.length === 0) {
-    const v = !!menu?.hasPermission;
-    return { all: v, any: v };
-  }
-  return {
-    all: pages.every((p) => getPageMeta(p).all),
-    any: pages.some((p) => getPageMeta(p).any)
-  };
-};
-
-const getMenuChecked = (menu) => {
-  const { all, any } = getMenuMeta(menu);
-  if (all) return true;
-  if (any) return 'indeterminate';
-  return false;
-};
-
-const getSelectAllChecked = (permissions) => {
-  if (!permissions?.length) return false;
-  const all = permissions.every((m) => getMenuMeta(m).all);
-  const any = permissions.some((m) => getMenuMeta(m).any);
-  if (all) return true;
-  return any ? 'indeterminate' : false;
-};
-
-// ---------------------------------------------------------------------------
-// Immutable update helpers
-// ---------------------------------------------------------------------------
-
-const applyPermissionToggle = (permissions, menuIndex, pageIndex, permIndex) => {
-  return permissions.map((menu, mi) => {
-    if (mi !== menuIndex) return menu;
-
-    const pages = (menu.menuPermissionPageDTOs || []).map((page, pi) => {
-      if (pi !== pageIndex && pageIndex !== undefined) return page;
-
-      if (pageIndex === undefined) {
-        // Menu-level toggle
-        const newVal = !menu.hasPermission;
-        return {
-          ...page,
-          hasPermission: newVal,
-          menuPagePermissionDTOs: (page.menuPagePermissionDTOs || []).map((p) => ({
-            ...p,
-            hasPermission: newVal
-          }))
-        };
-      }
-
-      if (permIndex === undefined) {
-        // Page-level toggle
-        const newVal = !page.hasPermission;
-        return {
-          ...page,
-          hasPermission: newVal,
-          menuPagePermissionDTOs: (page.menuPagePermissionDTOs || []).map((p) => ({
-            ...p,
-            hasPermission: newVal
-          }))
-        };
-      }
-
-      // Permission-level toggle
-      const perms = (page.menuPagePermissionDTOs || []).map((p, idx) =>
-        idx === permIndex ? { ...p, hasPermission: !p.hasPermission } : p
-      );
-      const allGranted = perms.length > 0 ? perms.every((p) => !!p.hasPermission) : !!page.hasPermission;
-      return { ...page, hasPermission: allGranted, menuPagePermissionDTOs: perms };
-    });
-
-    if (pageIndex === undefined) {
-      const newVal = !menu.hasPermission;
-      return { ...menu, hasPermission: newVal, menuPermissionPageDTOs: pages };
-    }
-
-    const menuGranted = pages.length > 0 ? pages.every((p) => !!p.hasPermission) : !!menu.hasPermission;
-    return { ...menu, hasPermission: menuGranted, menuPermissionPageDTOs: pages };
-  });
-};
-
-const applySelectAll = (permissions, checked) =>
-  permissions.map((menu) => ({
+const updateAll = (tree, checked) =>
+  tree.map((menu) => ({
     ...menu,
     hasPermission: checked,
-    menuPermissionPageDTOs: (menu.menuPermissionPageDTOs || []).map((page) => ({
+    menuPermissionPageDTOs: getPages(menu).map((page) => ({
       ...page,
       hasPermission: checked,
-      menuPagePermissionDTOs: (page.menuPagePermissionDTOs || []).map((p) => ({
-        ...p,
+      menuPagePermissionDTOs: getPermissions(page).map((permission) => ({
+        ...permission,
         hasPermission: checked
       }))
     }))
   }));
 
-const toggleMenuExpand = (permissions, menuIndex) =>
-  permissions.map((m, idx) => (idx === menuIndex ? { ...m, isExpanded: !m.isExpanded } : m));
+const updateMenu = (tree, menuIndex, checked) =>
+  tree.map((menu, currentMenuIndex) =>
+    currentMenuIndex !== menuIndex
+      ? menu
+      : {
+          ...menu,
+          hasPermission: checked,
+          menuPermissionPageDTOs: getPages(menu).map((page) => ({
+            ...page,
+            hasPermission: checked,
+            menuPagePermissionDTOs: getPermissions(page).map((permission) => ({
+              ...permission,
+              hasPermission: checked
+            }))
+          }))
+        }
+  );
 
-const togglePageExpand = (permissions, menuIndex, pageIndex) =>
-  permissions.map((m, mi) => {
-    if (mi !== menuIndex) return m;
-    const pages = (m.menuPermissionPageDTOs || []).map((p, pi) =>
-      pi === pageIndex ? { ...p, isExpanded: !p.isExpanded } : p
+const updatePage = (tree, menuIndex, pageIndex, checked) =>
+  tree.map((menu, currentMenuIndex) => {
+    if (currentMenuIndex !== menuIndex) return menu;
+
+    const pages = getPages(menu).map((page, currentPageIndex) =>
+      currentPageIndex !== pageIndex
+        ? page
+        : {
+            ...page,
+            hasPermission: checked,
+            menuPagePermissionDTOs: getPermissions(page).map((permission) => ({
+              ...permission,
+              hasPermission: checked
+            }))
+          }
     );
-    return { ...m, menuPermissionPageDTOs: pages };
+
+    return {
+      ...menu,
+      hasPermission: pages.length > 0 ? pages.every((page) => getPageState(page).all) : checked,
+      menuPermissionPageDTOs: pages
+    };
   });
 
-// ---------------------------------------------------------------------------
-// Main Component
-// ---------------------------------------------------------------------------
+const updatePermission = (tree, menuIndex, pageIndex, permissionIndex, checked) =>
+  tree.map((menu, currentMenuIndex) => {
+    if (currentMenuIndex !== menuIndex) return menu;
+
+    const pages = getPages(menu).map((page, currentPageIndex) => {
+      if (currentPageIndex !== pageIndex) return page;
+
+      const permissions = getPermissions(page).map((permission, currentPermissionIndex) =>
+        currentPermissionIndex === permissionIndex ? { ...permission, hasPermission: checked } : permission
+      );
+
+      return {
+        ...page,
+        hasPermission: permissions.length > 0 && permissions.every((permission) => Boolean(permission.hasPermission)),
+        menuPagePermissionDTOs: permissions
+      };
+    });
+
+    return {
+      ...menu,
+      hasPermission: pages.length > 0 && pages.every((page) => getPageState(page).all),
+      menuPermissionPageDTOs: pages
+    };
+  });
+
+const toggleMenu = (tree, menuIndex) =>
+  tree.map((menu, currentMenuIndex) =>
+    currentMenuIndex === menuIndex ? { ...menu, isExpanded: !menu.isExpanded } : menu
+  );
+
+const togglePage = (tree, menuIndex, pageIndex) =>
+  tree.map((menu, currentMenuIndex) => {
+    if (currentMenuIndex !== menuIndex) return menu;
+    return {
+      ...menu,
+      menuPermissionPageDTOs: getPages(menu).map((page, currentPageIndex) =>
+        currentPageIndex === pageIndex ? { ...page, isExpanded: !page.isExpanded } : page
+      )
+    };
+  });
+
+const PermissionCheckbox = ({ checked, disabled, label, onChange }) => {
+  const selected = checked === true;
+  const indeterminate = checked === 'indeterminate';
+
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={indeterminate ? 'mixed' : selected}
+      aria-label={label}
+      disabled={disabled}
+      onClick={(event) => {
+        event.stopPropagation();
+        onChange?.(!selected);
+      }}
+      className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] border outline-none transition focus-visible:ring-2 focus-visible:ring-purple-500/40 disabled:cursor-not-allowed disabled:opacity-60 ${
+        selected
+          ? 'border-purple-600 bg-purple-600 text-white dark:border-purple-500 dark:bg-purple-500'
+          : indeterminate
+            ? 'border-purple-600 bg-purple-100 text-purple-700 dark:border-purple-400 dark:bg-purple-500/25 dark:text-purple-300'
+            : 'border-gray-300 bg-white text-transparent hover:border-purple-400 dark:border-white/20 dark:bg-white/5'
+      }`}
+    >
+      {selected && <Check className="h-3.5 w-3.5 stroke-[3]" />}
+      {indeterminate && <Minus className="h-3.5 w-3.5 stroke-[3]" />}
+    </button>
+  );
+};
+
+const ActiveBadge = ({ active }) => (
+  <span
+    className={`shrink-0 rounded-md border px-2 py-0.5 text-[11px] font-medium ${
+      active
+        ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300'
+        : 'border-gray-200 bg-gray-100 text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400'
+    }`}
+  >
+    {active ? 'Active' : 'Inactive'}
+  </span>
+);
+
+const Arrow = ({ expanded }) => (
+  <ChevronRight
+    className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${expanded ? 'rotate-90' : ''}`}
+    aria-hidden="true"
+  />
+);
 
 const PermissionModal = ({
   open,
@@ -185,188 +187,214 @@ const PermissionModal = ({
   onClose,
   onSave
 }) => {
-  if (!open) return null;
+  const tree = Array.isArray(permissions) ? permissions : [];
 
-  const change = (updater) => {
-    onPermissionsChange?.(updater(permissions));
-  };
+  useEffect(() => {
+    if (!open) return undefined;
 
-  const handleSelectAll = () => {
-    const current = getSelectAllChecked(permissions);
-    const nextVal = current !== true;
-    change((p) => applySelectAll(p, nextVal));
-  };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleEscape = (event) => {
+      if (event.key === 'Escape' && !saving) onClose?.();
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open, saving, onClose]);
+
+  useEffect(() => {
+    if (!open || loading || tree.length === 0) return;
+    const missingExpansionState = tree.some(
+      (menu) =>
+        typeof menu.isExpanded !== 'boolean' ||
+        getPages(menu).some((page) => typeof page.isExpanded !== 'boolean')
+    );
+    if (!missingExpansionState) return;
+
+    onPermissionsChange?.(
+      tree.map((menu, menuIndex) => ({
+        ...menu,
+        isExpanded:
+          typeof menu.isExpanded === 'boolean'
+            ? menu.isExpanded
+            : menuIndex === 0 && getPages(menu).length > 0,
+        menuPermissionPageDTOs: getPages(menu).map((page, pageIndex) => ({
+          ...page,
+          isExpanded:
+            typeof page.isExpanded === 'boolean'
+              ? page.isExpanded
+              : menuIndex === 0 && pageIndex === 0 && getPermissions(page).length > 0
+        }))
+      }))
+    );
+  }, [open, loading, tree, onPermissionsChange]);
+
+  if (!open || typeof document === 'undefined') return null;
+
+  const change = (updater) => onPermissionsChange?.(updater(tree));
+  const selectAllState = getSelectionState(tree.map((menu) => getMenuState(menu).all));
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-[#17132a] rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col border border-gray-200 dark:border-white/10">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-white/95 dark:bg-[#1d1733] backdrop-blur z-10">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
-            {subtitle && (
-              <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-300">{subtitle}</p>
-            )}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-3 backdrop-blur-sm animate-fade-in sm:p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="permission-modal-title"
+      onClick={(event) => {
+        if (event.target === event.currentTarget && !saving) onClose?.();
+      }}
+    >
+      <div className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-[40rem] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl animate-slide-in dark:border-white/10 dark:bg-[#17132a] sm:max-h-[90vh]">
+        <header className="sticky top-0 z-10 flex shrink-0 items-start justify-between gap-4 border-b border-gray-200 bg-white/95 px-5 py-4 backdrop-blur dark:border-white/10 dark:bg-[#1d1733]/95 sm:px-6">
+          <div className="min-w-0">
+            <h2 id="permission-modal-title" className="text-lg font-bold text-gray-900 dark:text-white">
+              {title || 'Role Permissions'}
+            </h2>
+            {subtitle && <p className="mt-0.5 truncate text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>}
           </div>
-          <GlassCloseButton onClick={onClose} disabled={saving} />
-        </div>
+          <GlassCloseButton className="shrink-0" onClick={onClose} disabled={saving} />
+        </header>
 
-        {/* Scrollable Body */}
-        <div className="p-6 space-y-4 overflow-y-auto flex-1 dark:bg-[#17132a]">
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-12 gap-3 text-gray-500 dark:text-gray-400">
-              <span className="inline-block w-6 h-6 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm">Loading permissions...</span>
+            <div className="flex min-h-64 flex-col items-center justify-center gap-3 text-gray-500 dark:text-gray-400">
+              <span className="h-7 w-7 animate-spin rounded-full border-2 border-purple-200 border-t-purple-600 dark:border-purple-900 dark:border-t-purple-400" />
+              <span className="text-sm font-medium">Loading permissions...</span>
             </div>
-          ) : !permissions || permissions.length === 0 ? (
-            <div className="py-12 text-center text-sm text-gray-500 dark:text-gray-400">
+          ) : tree.length === 0 ? (
+            <div className="flex min-h-64 items-center justify-center text-sm text-gray-500 dark:text-gray-400">
               No permissions available
             </div>
           ) : (
-            <>
-              {/* Select All */}
-              <div className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#1d1733]">
-                <div className="flex items-center gap-3">
-                  <CustomCheckbox
-                    checked={getSelectAllChecked(permissions)}
-                    onCheckedChange={handleSelectAll}
-                  />
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">Select All</span>
-                </div>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 dark:border-white/10 dark:bg-white/5">
+                <PermissionCheckbox
+                  checked={selectAllState.checked}
+                  disabled={saving}
+                  label="Select all permissions"
+                  onChange={(checked) => change((currentTree) => updateAll(currentTree, checked))}
+                />
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">Select All</span>
               </div>
 
-              {/* Three-level tree */}
               <div className="space-y-3">
-                {permissions.map((menu, menuIndex) => (
-                  <div
-                    key={menu.menuId || menuIndex}
-                    className="border border-gray-200 dark:border-white/10 rounded-lg bg-white dark:bg-[#1d1733] overflow-hidden"
-                  >
-                    {/* Menu row */}
-                    <div
-                      className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer rounded-lg transition-colors"
-                      onClick={() => {
-                        if (menu.menuPermissionPageDTOs?.length > 0) {
-                          change((p) => toggleMenuExpand(p, menuIndex));
-                        }
-                      }}
-                    >
-                      <div className="flex items-center gap-3">
-                        <CustomCheckbox
-                          checked={getMenuChecked(menu)}
-                          onCheckedChange={() =>
-                            change((p) => applyPermissionToggle(p, menuIndex, undefined, undefined))
-                          }
-                        />
-                        <span className="font-medium text-gray-800 dark:text-white">{menu.menuName}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-                        {menu.menuPermissionPageDTOs?.length > 0 ? (
-                          <>
-                            <span className="text-xs">
-                              {menu.menuPermissionPageDTOs.filter((p) => p.hasPermission).length}/
-                              {menu.menuPermissionPageDTOs.length}
-                            </span>
-                            <span className="text-gray-400 dark:text-gray-300 text-xs">
-                              {menu.isExpanded ? '▼' : '›'}
-                            </span>
-                          </>
-                        ) : (
-                          <span className="px-2 py-0.5 text-xs font-medium text-emerald-700 bg-emerald-50 rounded dark:bg-emerald-500/15 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30">
-                            Active
+                {tree.map((menu, menuIndex) => {
+                  const pages = getPages(menu);
+                  const menuState = getMenuState(menu);
+                  const grantedPages = pages.filter((page) => getPageState(page).all).length;
+                  const menuKey = menu.menuId ?? `menu-${menuIndex}`;
+
+                  return (
+                    <section key={menuKey} className="overflow-hidden rounded-xl border border-gray-200 dark:border-white/10">
+                      <div
+                        className={`flex min-h-14 items-center justify-between gap-3 px-4 py-3 transition-colors ${pages.length ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5' : ''}`}
+                        onClick={() => pages.length && change((currentTree) => toggleMenu(currentTree, menuIndex))}
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <PermissionCheckbox
+                            checked={menuState.checked}
+                            disabled={saving}
+                            label={`Toggle ${menu.menuName || 'menu'} permissions`}
+                            onChange={(checked) => change((currentTree) => updateMenu(currentTree, menuIndex, checked))}
+                          />
+                          <span className="truncate text-sm font-semibold text-gray-800 dark:text-gray-100">
+                            {menu.menuName || 'Unnamed menu'}
                           </span>
+                        </div>
+                        {pages.length ? (
+                          <div className="flex shrink-0 items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                            <span>{grantedPages}/{pages.length}</span>
+                            <Arrow expanded={Boolean(menu.isExpanded)} />
+                          </div>
+                        ) : (
+                          <ActiveBadge active={menu.isActive !== false} />
                         )}
                       </div>
-                    </div>
 
-                    {/* Pages */}
-                    {menu.isExpanded && menu.menuPermissionPageDTOs?.length > 0 && (
-                      <div className="border-t border-gray-200 dark:border-white/10 bg-gray-50/70 dark:bg-[#17132a] p-3 space-y-2">
-                        {menu.menuPermissionPageDTOs.map((page, pageIndex) => (
-                          <div key={page.pageId || pageIndex}>
-                            {/* Page row */}
-                            <div
-                              className="flex items-center justify-between py-2 px-3 bg-white dark:bg-[#1d1733] rounded border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer transition-colors"
-                              onClick={() => {
-                                if (page.menuPagePermissionDTOs?.length > 0) {
-                                  change((p) => togglePageExpand(p, menuIndex, pageIndex));
-                                }
-                              }}
-                            >
-                              <div className="flex items-center gap-3">
-                                <CustomCheckbox
-                                  checked={getPageChecked(page)}
-                                  onCheckedChange={() =>
-                                    change((p) => applyPermissionToggle(p, menuIndex, pageIndex, undefined))
-                                  }
-                                />
-                                <span className="text-sm text-gray-700 dark:text-gray-200">{page.pageName}</span>
-                              </div>
-                              <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
-                                {page.menuPagePermissionDTOs?.length > 0 ? (
-                                  <>
-                                    <span>
-                                      {page.menuPagePermissionDTOs.filter((p) => p.hasPermission).length}/
-                                      {page.menuPagePermissionDTOs.length}
-                                    </span>
-                                    <span className="text-gray-400 dark:text-gray-300">
-                                      {page.isExpanded ? '▼' : '›'}
-                                    </span>
-                                  </>
-                                ) : (
-                                  <span className="px-2 py-0.5 text-xs font-medium text-emerald-700 bg-emerald-50 rounded dark:bg-emerald-500/15 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30">
-                                    Active
-                                  </span>
-                                )}
-                              </div>
-                            </div>
+                      {menu.isExpanded && pages.length > 0 && (
+                        <div className="space-y-2 border-t border-gray-200 bg-gray-50/80 p-3 pl-5 dark:border-white/10 dark:bg-black/10 sm:pl-7">
+                          {pages.map((page, pageIndex) => {
+                            const pagePermissions = getPermissions(page);
+                            const pageState = getPageState(page);
+                            const grantedPermissions = pagePermissions.filter((permission) => permission.hasPermission).length;
+                            const pageKey = page.pageId ?? `${menuKey}-page-${pageIndex}`;
 
-                            {/* Permission rows */}
-                            {page.isExpanded && page.menuPagePermissionDTOs?.length > 0 && (
-                              <div className="ml-6 mt-2 space-y-1">
-                                {page.menuPagePermissionDTOs.map((perm, permIndex) => (
-                                  <div
-                                    key={perm.pagePermissionId || permIndex}
-                                    className="flex items-center justify-between py-1.5 px-3 bg-gray-50 dark:bg-[#17132a] rounded border border-gray-200 dark:border-white/10"
-                                  >
-                                    <div className="flex items-center gap-2.5">
-                                      <CustomCheckbox
-                                        checked={!!perm.hasPermission}
-                                        onCheckedChange={() =>
-                                          change((p) =>
-                                            applyPermissionToggle(p, menuIndex, pageIndex, permIndex)
-                                          )
-                                        }
-                                      />
-                                      <span className="text-xs text-gray-700 dark:text-gray-200">
-                                        {perm.permissionName}
-                                      </span>
-                                    </div>
-                                    <span className="px-2 py-0.5 text-[11px] font-medium text-emerald-700 bg-emerald-50 rounded dark:bg-emerald-500/15 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30">
-                                      Active
+                            return (
+                              <div key={pageKey} className="space-y-2">
+                                <div
+                                  className={`flex min-h-12 items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 transition-colors dark:border-white/10 dark:bg-[#1d1733] ${pagePermissions.length ? 'cursor-pointer hover:border-purple-200 hover:bg-purple-50/30 dark:hover:border-purple-500/30' : ''}`}
+                                  onClick={() => pagePermissions.length && change((currentTree) => togglePage(currentTree, menuIndex, pageIndex))}
+                                >
+                                  <div className="flex min-w-0 items-center gap-3">
+                                    <PermissionCheckbox
+                                      checked={pageState.checked}
+                                      disabled={saving}
+                                      label={`Toggle ${page.pageDisplayName || page.pageName || 'page'} permissions`}
+                                      onChange={(checked) => change((currentTree) => updatePage(currentTree, menuIndex, pageIndex, checked))}
+                                    />
+                                    <span className="truncate text-sm font-medium text-gray-700 dark:text-gray-200">
+                                      {page.pageDisplayName || page.pageName || 'Unnamed page'}
                                     </span>
                                   </div>
-                                ))}
+                                  {pagePermissions.length ? (
+                                    <div className="flex shrink-0 items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                      <span>{grantedPermissions}/{pagePermissions.length}</span>
+                                      <Arrow expanded={Boolean(page.isExpanded)} />
+                                    </div>
+                                  ) : (
+                                    <ActiveBadge active={page.isActive !== false} />
+                                  )}
+                                </div>
+
+                                {page.isExpanded && pagePermissions.length > 0 && (
+                                  <div className="ml-4 space-y-1.5 border-l border-gray-200 pl-3 dark:border-white/10 sm:ml-8 sm:pl-4">
+                                    {pagePermissions.map((permission, permissionIndex) => (
+                                      <div
+                                        key={permission.pagePermissionId ?? `${pageKey}-permission-${permissionIndex}`}
+                                        className="flex min-h-11 items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 hover:bg-gray-100/80 dark:border-white/10 dark:bg-white/[0.03]"
+                                      >
+                                        <div className="flex min-w-0 items-center gap-2.5">
+                                          <PermissionCheckbox
+                                            checked={Boolean(permission.hasPermission)}
+                                            disabled={saving}
+                                            label={`Toggle ${permission.permissionName || permission.permissionCode || 'permission'}`}
+                                            onChange={(checked) =>
+                                              change((currentTree) =>
+                                                updatePermission(currentTree, menuIndex, pageIndex, permissionIndex, checked)
+                                              )
+                                            }
+                                          />
+                                          <span className="truncate text-xs font-medium text-gray-700 dark:text-gray-300 sm:text-sm">
+                                            {permission.permissionName || permission.permissionCode || 'Unnamed permission'}
+                                          </span>
+                                        </div>
+                                        <ActiveBadge active={permission.isActive !== false} />
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                            );
+                          })}
+                        </div>
+                      )}
+                    </section>
+                  );
+                })}
               </div>
-            </>
+            </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-t border-gray-200 dark:border-white/10 sticky bottom-0 bg-white/95 dark:bg-[#1d1733] backdrop-blur z-10">
+        <footer className="sticky bottom-0 z-10 flex shrink-0 items-center justify-between gap-3 border-t border-gray-200 bg-white/95 px-4 py-4 backdrop-blur dark:border-white/10 dark:bg-[#1d1733]/95 sm:px-6">
           <button
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg border border-gray-300 dark:border-white/15 transition-colors disabled:opacity-50"
+            className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200"
           >
             Cancel
           </button>
@@ -374,11 +402,12 @@ const PermissionModal = ({
             type="button"
             onClick={onSave}
             disabled={loading || saving}
-            className="sm:ml-auto text-center"
+            loading={saving}
+            className="min-w-[150px] px-4 py-2.5 text-sm font-semibold sm:min-w-[190px]"
           >
             {saving ? 'Saving...' : 'Save Permissions'}
           </LiquidGlassButton>
-        </div>
+        </footer>
       </div>
     </div>,
     document.body

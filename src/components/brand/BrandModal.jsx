@@ -112,6 +112,7 @@ const BrandModal = ({ open, brand = null, onClose, onSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving || uploadingLogo) return;
     setErrorMsg('');
 
     const trimmedName = formData.brandName.trim();

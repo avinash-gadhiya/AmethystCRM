@@ -16,13 +16,7 @@ const GATEWAY_TYPES = [
   { value: 3, label: 'Nuvei' }
 ];
 
-const GatewayModal = ({
-  open,
-  brand = null,
-  gateway = null,
-  onClose,
-  onSuccess
-}) => {
+const GatewayModal = ({ open, brand = null, gateway = null, onClose, onSuccess }) => {
   const isEditing = Boolean(gateway && gateway.gatewayId);
 
   const [gatewayName, setGatewayName] = useState('');
@@ -41,8 +35,27 @@ const GatewayModal = ({
   const [errorMsg, setErrorMsg] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const brandId = Number(brand?.brandId || gateway?.brandId);
-  const brandName = brand?.brandName || gateway?.brandName || `Brand #${brandId}`;
+  const [brandOptions, setBrandOptions] = useState([]);
+  const [selectedBrandId, setSelectedBrandId] = useState(0);
+  const brandId = Number(selectedBrandId || brand?.brandId || gateway?.brandId);
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    setSelectedBrandId(Number(brand?.brandId || gateway?.brandId || 0));
+    brandService
+      .getBrandDropdown()
+      .then((rows) => {
+        if (active) setBrandOptions(rows);
+      })
+      .catch((err) => {
+        if (active) setErrorMsg(getApiErrorMessage(err, 'Failed to load brands'));
+      });
+    return () => {
+      active = false;
+    };
+  }, [open, brand?.brandId, gateway?.brandId]);
+  const brandName =
+    brandOptions.find((b) => b.brandId === brandId)?.brandName || brand?.brandName || gateway?.brandName || `Brand #${brandId}`;
 
   useEffect(() => {
     if (!open) return;
@@ -157,9 +170,7 @@ const GatewayModal = ({
               <Server size={18} />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-gray-900 dark:text-white">
-                {isEditing ? 'Edit Gateway' : 'Add Gateway'}
-              </h3>
+              <h3 className="text-base font-semibold text-gray-900 dark:text-white">{isEditing ? 'Edit Gateway' : 'Add Gateway'}</h3>
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 Brand: <strong className="text-gray-700 dark:text-gray-200">{brandName}</strong>
               </p>
@@ -170,6 +181,23 @@ const GatewayModal = ({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit}>
+          <label className="block px-6 pt-4 text-sm">
+            Brand
+            <select
+              aria-label="Brand"
+              value={brandId}
+              onChange={(e) => setSelectedBrandId(Number(e.target.value))}
+              disabled={Boolean(brand?.brandId) || saving}
+              className="block w-full rounded-lg border p-2 dark:bg-[#17132a]"
+            >
+              {!brandOptions.some((b) => b.brandId === brandId) && <option value={brandId}>{brandName}</option>}
+              {brandOptions.map((b) => (
+                <option key={b.brandId} value={b.brandId}>
+                  {b.brandName}
+                </option>
+              ))}
+            </select>
+          </label>
           <div className="p-6 space-y-4 dark:bg-[#17132a]">
             {errorMsg && (
               <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs flex items-center gap-2">
@@ -195,9 +223,7 @@ const GatewayModal = ({
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
-                  Gateway Type
-                </label>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">Gateway Type</label>
                 <select
                   value={gatewayType}
                   onChange={(e) => setGatewayType(Number(e.target.value))}
@@ -213,9 +239,7 @@ const GatewayModal = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
-                  Environment
-                </label>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">Environment</label>
                 <div className="flex items-center gap-3 pt-2">
                   <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs text-gray-700 dark:text-gray-300">
                     <input
@@ -242,9 +266,7 @@ const GatewayModal = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
-                Custom API Base URL (optional)
-              </label>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">Custom API Base URL (optional)</label>
               <input
                 type="text"
                 value={apiBaseUrl}
@@ -268,9 +290,7 @@ const GatewayModal = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Key size={14} className="text-purple-600 dark:text-purple-400" />
-                  <span className="text-xs font-semibold uppercase tracking-wider text-gray-800 dark:text-gray-200">
-                    API Credentials
-                  </span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-gray-800 dark:text-gray-200">API Credentials</span>
                   {isEditing && (
                     <span className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">
                       {gateway.hasCredentials ? (
@@ -359,39 +379,24 @@ const GatewayModal = ({
             {/* Active Toggle */}
             <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-white/5">
               <div>
-                <span className="block text-xs font-semibold text-gray-700 dark:text-gray-200">
-                  Active Status
-                </span>
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  Allow processing payments through this gateway
-                </span>
+                <span className="block text-xs font-semibold text-gray-700 dark:text-gray-200">Active Status</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">Allow processing payments through this gateway</span>
               </div>
-                <IosToggle
-                  checked={Boolean(isActive)}
-                  onCheckedChange={(next) => setIsActive(next)}
-                  disabled={saving}
-                  title={isActive ? 'Active' : 'Inactive'}
-                />
-              </div>
+              <IosToggle
+                checked={Boolean(isActive)}
+                onCheckedChange={(next) => setIsActive(next)}
+                disabled={saving}
+                title={isActive ? 'Active' : 'Inactive'}
+              />
+            </div>
           </div>
 
           {/* Footer Actions */}
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-white/10 bg-gray-50/50 dark:bg-white/[0.02]">
-            <LiquidGlassButton
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onClose}
-              disabled={saving}
-            >
+            <LiquidGlassButton type="button" variant="outline" size="sm" onClick={onClose} disabled={saving}>
               Cancel
             </LiquidGlassButton>
-            <LiquidGlassButton
-              type="submit"
-              variant="primary"
-              size="sm"
-              loading={saving}
-            >
+            <LiquidGlassButton type="submit" variant="primary" size="sm" loading={saving}>
               {isEditing ? 'Save Changes' : 'Create Gateway'}
             </LiquidGlassButton>
           </div>

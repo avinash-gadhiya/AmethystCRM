@@ -1,15 +1,35 @@
-import axios from 'axios';
-import { deleteById, getAuthHeaders } from './http';
+import { resizeImageToDataUrl } from './brandLogoAdapter';
 import apiClient from './core/apiClient';
-
-const getApiBaseUrl = () => {
-  return (import.meta.env.VITE_APP_API_URL || 'https://demoapi.enstasol.com/api').replace(/\/$/, '');
-};
 
 // In-flight deduplication and cache maps
 const inFlightRequests = new Map();
 const cacheMap = new Map();
 let brandEmailCacheGeneration = 0;
+const normalizeFields = (value) => {
+  if (Array.isArray(value)) return value.map(normalizeFields);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key[0].toLowerCase() + key.slice(1), normalizeFields(item)]));
+};
+const invalidate = () => {
+  brandEmailCacheGeneration += 1;
+  cacheMap.clear();
+  inFlightRequests.clear();
+};
+const cachedReference = (key, loader) => {
+  if (cacheMap.has(key)) return Promise.resolve(cacheMap.get(key));
+  if (inFlightRequests.has(key)) return inFlightRequests.get(key);
+  const generation = brandEmailCacheGeneration;
+  const request = loader()
+    .then((data) => {
+      if (generation === brandEmailCacheGeneration) cacheMap.set(key, data);
+      return data;
+    })
+    .finally(() => {
+      if (inFlightRequests.get(key) === request) inFlightRequests.delete(key);
+    });
+  inFlightRequests.set(key, request);
+  return request;
+};
 
 const normalizeBoolean = (value, fallback = false) => {
   if (value === undefined || value === null) return fallback;
@@ -19,77 +39,23 @@ const normalizeBoolean = (value, fallback = false) => {
 
 // Helper to normalize lists from varying API response structures
 const unwrapList = (payload) => {
-  if (!payload) return { data: [], totalCount: 0 };
+  payload = normalizeFields(payload);
+  if (!payload) return { success: true, data: [], totalCount: 0 };
   let list = [];
   let total = 0;
 
   if (payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data)) {
     list = Array.isArray(payload.data.data) ? payload.data.data : [];
-    total =
-      payload.data.totalCount ??
-      payload.data.totalRecords ??
-      payload.data.count ??
-      list.length;
+    total = payload.data.totalCount ?? payload.data.totalRecords ?? payload.data.count ?? list.length;
   } else if (Array.isArray(payload.data)) {
     list = payload.data;
-    total =
-      payload.totalCount ??
-      payload.totalRecords ??
-      payload.count ??
-      list.length;
+    total = payload.totalCount ?? payload.totalRecords ?? payload.count ?? list.length;
   } else if (Array.isArray(payload)) {
     list = payload;
     total = payload.length;
   }
 
-  return { data: list, totalCount: Number(total) || list.length };
-};
-
-// Image resize utility for logos to keep raster images compact
-const resizeImageToDataUrl = (file, maxWidth = 300, maxHeight = 300) => {
-  return new Promise((resolve, reject) => {
-    if (!file.type.startsWith('image/')) {
-      return reject(new Error('Please select an image file.'));
-    }
-
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error('Failed to read image file.'));
-    reader.onload = (readerEvent) => {
-      const img = new Image();
-      img.onerror = () => reject(new Error('Failed to load image for resizing.'));
-      img.onload = () => {
-        let width = img.width;
-        let height = img.height;
-
-        if (width > maxWidth || height > maxHeight) {
-          if (width > height) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          } else {
-            width = Math.round((width * maxHeight) / height);
-            height = maxHeight;
-          }
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-
-        // Export as WebP if supported, fallback to PNG or JPEG
-        let dataUrl = '';
-        try {
-          dataUrl = canvas.toDataURL('image/webp', 0.85);
-        } catch {
-          dataUrl = canvas.toDataURL('image/png');
-        }
-        resolve(dataUrl);
-      };
-      img.src = readerEvent.target.result;
-    };
-    reader.readAsDataURL(file);
-  });
+  return { success: payload.success !== false, data: list, totalCount: Number(total) };
 };
 
 export const brandService = {
@@ -97,7 +63,6 @@ export const brandService = {
   // Brand CRUD
   // =========================================================================
   async getBrands(params = {}) {
-    const API_URL = getApiBaseUrl();
     const queryParams = {
       Text: params.Text || '',
       PageNumber: params.PageNumber || 1,
@@ -114,36 +79,35 @@ export const brandService = {
       return inFlightRequests.get(cacheKey);
     }
 
+    const cacheGeneration = brandEmailCacheGeneration;
     const requestPromise = (async () => {
       try {
-        const response = await axios.get(`${API_URL}/Brand`, {
-          headers: getAuthHeaders(),
-          params: queryParams
-        });
-        const parsed = unwrapList(response.data);
+        const response = await apiClient.get('/Brand', queryParams);
+        const parsed = unwrapList(response);
         const result = {
+          success: true,
           data: parsed.data.map((b) => ({
             brandId: Number(b.brandId ?? b.id ?? 0),
-            brandName: String(b.brandName ?? b.name ?? '').trim(),
-            brandDisplayName: String(b.brandDisplayName ?? b.displayName ?? '').trim(),
-            isActive: Boolean(b.isActive ?? b.status ?? true),
-            docAPIKey: String(b.docAPIKey ?? b.docApiKey ?? '').trim(),
-            docTemplateId: String(b.docTemplateId ?? '').trim(),
-            docRole: String(b.docRole ?? '').trim(),
-            isDocAPILive: Boolean(b.isDocAPILive ?? b.isDocApiLive ?? false),
-            address: String(b.address ?? '').trim(),
-            supportEmail: String(b.supportEmail ?? '').trim(),
-            tollfree: String(b.tollfree ?? b.tollFree ?? '').trim(),
-            altTollFree: String(b.altTollFree ?? b.altTollfree ?? '').trim(),
-            logoUrl: String(b.logoUrl ?? b.logo ?? '').trim(),
-            refundPolicyUrl: String(b.refundPolicyUrl ?? '').trim()
+            brandName: String(b.brandName ?? b.name ?? ''),
+            brandDisplayName: String(b.brandDisplayName ?? b.displayName ?? ''),
+            isActive: normalizeBoolean(b.isActive ?? b.status, true),
+            docAPIKey: String(b.docAPIKey ?? b.docApiKey ?? ''),
+            docTemplateId: String(b.docTemplateId ?? ''),
+            docRole: String(b.docRole ?? ''),
+            isDocAPILive: normalizeBoolean(b.isDocAPILive ?? b.isDocApiLive),
+            address: String(b.address ?? ''),
+            supportEmail: String(b.supportEmail ?? ''),
+            tollfree: String(b.tollfree ?? b.tollFree ?? ''),
+            altTollFree: String(b.altTollFree ?? b.altTollfree ?? ''),
+            logoUrl: String(b.logoUrl ?? b.logo ?? ''),
+            refundPolicyUrl: String(b.refundPolicyUrl ?? '')
           })),
           totalCount: parsed.totalCount
         };
-        cacheMap.set(cacheKey, result);
+        if (cacheGeneration === brandEmailCacheGeneration) cacheMap.set(cacheKey, result);
         return result;
       } finally {
-        inFlightRequests.delete(cacheKey);
+        if (cacheGeneration === brandEmailCacheGeneration) inFlightRequests.delete(cacheKey);
       }
     })();
 
@@ -153,22 +117,18 @@ export const brandService = {
 
   async getBrandById(brandId) {
     if (!brandId) return null;
-    const API_URL = getApiBaseUrl();
-    try {
-      const response = await axios.get(`${API_URL}/Brand/${brandId}`, {
-        headers: getAuthHeaders()
-      });
-      const data = response.data?.data || response.data;
-      if (data && data.brandId) return data;
-    } catch {
-      // Fallback: search in list
-    }
-    const listRes = await this.getBrands({ PageNumber: 1, PageSize: 500 });
-    return listRes.data.find((b) => b.brandId === Number(brandId)) || null;
+    let page = 1;
+    let result;
+    do {
+      result = await this.getBrands({ PageNumber: page, PageSize: 100 });
+      const brand = result.data.find((item) => item.brandId === Number(brandId));
+      if (brand) return brand;
+      page += 1;
+    } while (result.data.length && (page - 1) * 100 < result.totalCount);
+    return null;
   },
 
   async createBrand(brandData) {
-    const API_URL = getApiBaseUrl();
     const payload = {
       brandId: 0,
       brandName: String(brandData.brandName || '').trim(),
@@ -186,83 +146,44 @@ export const brandService = {
       refundPolicyUrl: String(brandData.refundPolicyUrl || '').trim()
     };
 
-    const response = await axios.post(`${API_URL}/Brand`, payload, {
-      headers: getAuthHeaders()
-    });
+    const response = await apiClient.post('/Brand', payload);
     this.clearBrandCache();
-    return response.data;
+    return response;
   },
 
   async updateBrand(brandData) {
-    const API_URL = getApiBaseUrl();
     const payload = {
       brandId: Number(brandData.brandId),
-      brandName: String(brandData.brandName || '').trim(),
-      brandDisplayName: String(brandData.brandDisplayName || '').trim(),
+      brandName: String(brandData.brandName || ''),
+      brandDisplayName: String(brandData.brandDisplayName || ''),
       isActive: Boolean(brandData.isActive),
-      docAPIKey: String(brandData.docAPIKey || '').trim(),
-      docTemplateId: String(brandData.docTemplateId || '').trim(),
-      docRole: String(brandData.docRole || '').trim(),
+      docAPIKey: String(brandData.docAPIKey || ''),
+      docTemplateId: String(brandData.docTemplateId || ''),
+      docRole: String(brandData.docRole || ''),
       isDocAPILive: Boolean(brandData.isDocAPILive ?? false),
-      address: String(brandData.address || '').trim(),
-      supportEmail: String(brandData.supportEmail || '').trim(),
-      tollfree: String(brandData.tollfree || '').trim(),
-      altTollFree: String(brandData.altTollFree || '').trim(),
-      logoUrl: String(brandData.logoUrl || '').trim(),
-      refundPolicyUrl: String(brandData.refundPolicyUrl || '').trim()
+      address: String(brandData.address || ''),
+      supportEmail: String(brandData.supportEmail || ''),
+      tollfree: String(brandData.tollfree || ''),
+      altTollFree: String(brandData.altTollFree || ''),
+      logoUrl: String(brandData.logoUrl || ''),
+      refundPolicyUrl: String(brandData.refundPolicyUrl || '')
     };
 
-    const response = await axios.put(`${API_URL}/Brand`, payload, {
-      headers: getAuthHeaders()
-    });
+    const response = await apiClient.put('/Brand', payload);
     this.clearBrandCache();
-    return response.data;
+    return response;
   },
 
   async deleteBrand(brandId) {
-    const API_URL = getApiBaseUrl();
-    this.clearBrandCache();
-    // Dual strategy: DELETE /Brand?id={brandId}, fallback /Brand/{brandId}
-    try {
-      const response = await axios.delete(`${API_URL}/Brand`, {
-        headers: getAuthHeaders(),
-        params: { id: brandId }
-      });
-      return response.data;
-    } catch (error) {
-      if (error?.response?.status === 404 || error?.response?.status === 405) {
-        const fallbackRes = await axios.delete(`${API_URL}/Brand/${brandId}`, {
-          headers: getAuthHeaders()
-        });
-        return fallbackRes.data;
-      }
-      throw error;
-    }
+    const response = await apiClient.delete(`/Brand`, { id: brandId });
+    this.clearAllCache();
+    return response;
   },
 
   // Upload/Process Brand Logo
   async uploadLogo(file) {
     if (!file) throw new Error('No file provided.');
-    const resizedDataUrl = await resizeImageToDataUrl(file);
-
-    // Try local upload endpoint if available
-    try {
-      const response = await axios.post(
-        '/__local-upload/brand-logo',
-        {
-          fileName: file.name,
-          dataUrl: resizedDataUrl
-        },
-        { headers: { 'Content-Type': 'application/json' } }
-      );
-      if (response.data?.url || response.data?.path) {
-        return response.data.url || response.data.path;
-      }
-    } catch {
-      // Endpoint not available; return resized dataUrl directly
-    }
-
-    return resizedDataUrl;
+    return resizeImageToDataUrl(file);
   },
 
   // =========================================================================
@@ -303,6 +224,7 @@ export const brandService = {
         }
 
         const result = {
+          success: true,
           data: items.map((e) => ({
             brandEmailId: Number(e.brandEmailId ?? e.id ?? 0),
             brandId: Number(e.brandId ?? 0),
@@ -315,7 +237,7 @@ export const brandService = {
             password: e.password ?? e.Password ?? e.passWord ?? e.PassWord ?? e.PASSWORD ?? '',
             isActive: normalizeBoolean(e.isActive, true)
           })),
-          totalCount: brandId && items.length !== parsed.data.length ? items.length : parsed.totalCount
+          totalCount: parsed.totalCount
         };
         if (requestGeneration === brandEmailCacheGeneration) cacheMap.set(cacheKey, result);
         return result;
@@ -370,17 +292,8 @@ export const brandService = {
   },
 
   async deleteBrandEmail(brandEmailId) {
-    const id = Number(brandEmailId);
-    if (!Number.isFinite(id) || id <= 0) throw new Error('A valid brand email ID is required.');
-
-    let response;
-    try {
-      response = await apiClient.delete(`/BrandEmail/${encodeURIComponent(id)}`);
-    } catch (error) {
-      if (![400, 404, 405].includes(error?.status)) throw error;
-      response = await apiClient.delete('/BrandEmail', { id });
-    }
-    this.clearBrandEmailCache();
+    const response = await apiClient.delete(`/BrandEmail/${brandEmailId}`);
+    this.clearAllCache();
     return response;
   },
 
@@ -388,7 +301,6 @@ export const brandService = {
   // Gateway & Gateway Payment Types CRUD
   // =========================================================================
   async getGateways(params = {}) {
-    const API_URL = getApiBaseUrl();
     const brandId = params.BrandId || params.brandId;
     const queryParams = {
       Text: params.Text || '',
@@ -409,40 +321,39 @@ export const brandService = {
       return inFlightRequests.get(cacheKey);
     }
 
+    const cacheGeneration = brandEmailCacheGeneration;
     const requestPromise = (async () => {
       try {
-        const response = await axios.get(`${API_URL}/Gateway`, {
-          headers: getAuthHeaders(),
-          params: queryParams
-        });
-        const parsed = unwrapList(response.data);
+        const response = await apiClient.get('/Gateway', queryParams);
+        const parsed = unwrapList(response);
         let items = parsed.data;
         if (brandId) {
           items = items.filter((g) => Number(g.brandId) === Number(brandId));
         }
 
         const result = {
+          success: true,
           data: items.map((g) => ({
             gatewayId: Number(g.gatewayId ?? g.id ?? 0),
             gatewayName: String(g.gatewayName ?? g.name ?? '').trim(),
             brandId: Number(g.brandId ?? 0),
             brandName: String(g.brandName || '').trim(),
-            isActive: Boolean(g.isActive ?? true),
+            isActive: normalizeBoolean(g.isActive, true),
             gatewayType: Number(g.gatewayType ?? 0),
             apiBaseUrl: g.apiBaseUrl ? String(g.apiBaseUrl).trim() : null,
-            isSandbox: Boolean(g.isSandbox ?? false),
+            isSandbox: normalizeBoolean(g.isSandbox),
             lastSyncedAtUtc: g.lastSyncedAtUtc || null,
-            hasCredentials: Boolean(g.hasCredentials ?? Boolean(g.apiLoginId || g.apiSecretKey)),
+            hasCredentials: normalizeBoolean(g.hasCredentials, Boolean(g.apiLoginId || g.apiSecretKey)),
             apiLoginId: g.apiLoginId || '',
             apiSecretKey: g.apiSecretKey || '',
             merchantSiteId: g.merchantSiteId || ''
           })),
-          totalCount: brandId ? items.length : parsed.totalCount
+          totalCount: parsed.totalCount
         };
-        cacheMap.set(cacheKey, result);
+        if (cacheGeneration === brandEmailCacheGeneration) cacheMap.set(cacheKey, result);
         return result;
       } finally {
-        inFlightRequests.delete(cacheKey);
+        if (cacheGeneration === brandEmailCacheGeneration) inFlightRequests.delete(cacheKey);
       }
     })();
 
@@ -451,7 +362,6 @@ export const brandService = {
   },
 
   async createGateway(data) {
-    const API_URL = getApiBaseUrl();
     const payload = {
       gatewayId: 0,
       gatewayName: String(data.gatewayName || '').trim(),
@@ -468,15 +378,12 @@ export const brandService = {
     if (data.apiSecretKey) payload.apiSecretKey = data.apiSecretKey;
     if (data.merchantSiteId) payload.merchantSiteId = data.merchantSiteId;
 
-    const response = await axios.post(`${API_URL}/Gateway`, payload, {
-      headers: getAuthHeaders()
-    });
+    const response = await apiClient.post('/Gateway', payload);
     this.clearGatewayCache();
-    return response.data;
+    return response;
   },
 
   async updateGateway(data) {
-    const API_URL = getApiBaseUrl();
     const payload = {
       gatewayId: Number(data.gatewayId),
       gatewayName: String(data.gatewayName || '').trim(),
@@ -491,51 +398,37 @@ export const brandService = {
     };
     // Only send credentials when user explicitly chose to edit/regenerate them
     if (data.changeCredentials) {
-      payload.apiLoginId = data.apiLoginId || '';
-      payload.apiSecretKey = data.apiSecretKey || '';
-      payload.merchantSiteId = data.merchantSiteId || '';
+      if (data.apiLoginId?.trim()) payload.apiLoginId = data.apiLoginId;
+      if (data.apiSecretKey?.trim()) payload.apiSecretKey = data.apiSecretKey;
+      if (data.merchantSiteId?.trim()) payload.merchantSiteId = data.merchantSiteId;
       payload.hasCredentials = Boolean(payload.apiLoginId && payload.apiSecretKey);
     }
 
-    const response = await axios.put(`${API_URL}/Gateway`, payload, {
-      headers: getAuthHeaders()
-    });
+    const response = await apiClient.put('/Gateway', payload);
     this.clearGatewayCache();
-    return response.data;
+    return response;
   },
 
   async deleteGateway(gatewayId) {
-    const API_URL = getApiBaseUrl();
-    this.clearGatewayCache();
-    try {
-      const response = await axios.delete(`${API_URL}/Gateway`, {
-        headers: getAuthHeaders(),
-        params: { id: gatewayId }
-      });
-      return response.data;
-    } catch (error) {
-      if (error?.response?.status === 404 || error?.response?.status === 405) {
-        const fallbackRes = await axios.delete(`${API_URL}/Gateway/${gatewayId}`, {
-          headers: getAuthHeaders()
-        });
-        return fallbackRes.data;
-      }
-      throw error;
-    }
+    const response = await apiClient.delete(`/Gateway`, { id: gatewayId });
+    this.clearAllCache();
+    return response;
   },
 
   // Gateway Payment Types
   async getGatewayPaymentTypes(params = {}) {
-    const API_URL = getApiBaseUrl();
-    const response = await axios.get(`${API_URL}/GatewayPaymentType`, {
-      headers: getAuthHeaders(),
-      params
+    const response = await apiClient.get('/GatewayPaymentType', {
+      Text: '',
+      PageNumber: 1,
+      PageSize: 1000,
+      SortProperty: 'gatewayPaymentTypeId',
+      IsDescending: false,
+      ...params
     });
-    return unwrapList(response.data);
+    return unwrapList(response);
   },
 
   async saveGatewayPaymentTypes(data) {
-    const API_URL = getApiBaseUrl();
     const payload = {
       gatewayPaymentTypeId: Number(data.gatewayPaymentTypeId || 0),
       gatewayId: Number(data.gatewayId),
@@ -547,53 +440,26 @@ export const brandService = {
 
     let response;
     if (payload.gatewayPaymentTypeId > 0) {
-      response = await axios.put(`${API_URL}/GatewayPaymentType`, payload, {
-        headers: getAuthHeaders()
-      });
+      response = await apiClient.put('/GatewayPaymentType', payload);
     } else {
-      response = await axios.post(`${API_URL}/GatewayPaymentType`, payload, {
-        headers: getAuthHeaders()
-      });
+      response = await apiClient.post('/GatewayPaymentType', payload);
     }
     this.clearGatewayCache();
-    return response.data;
+    return response;
   },
 
   async deleteGatewayPaymentType(mapping) {
-    const API_URL = getApiBaseUrl();
-    this.clearGatewayCache();
-
-    if (mapping.gatewayPaymentTypeId) {
-      return deleteById(`${API_URL}/GatewayPaymentType`, mapping.gatewayPaymentTypeId);
-    }
-
-    // Fallback: DELETE /GatewayPaymentType?gatewayId={gatewayId}&paymentTypeId={paymentTypeId}
-    const attempts = [
-      { gatewayId: mapping.gatewayId, paymentTypeId: mapping.paymentTypeId },
-      { getwayId: mapping.gatewayId, paymentTypeId: mapping.paymentTypeId }
-    ];
-
-    let lastError;
-    for (const params of attempts) {
-      try {
-        const res = await axios.delete(`${API_URL}/GatewayPaymentType`, {
-          headers: getAuthHeaders(),
-          params
-        });
-        return res.data;
-      } catch (err) {
-        lastError = err;
-        if (![400, 404, 405].includes(err?.response?.status)) throw err;
-      }
-    }
-    throw lastError;
+    const params = { gatewayId: mapping.gatewayId, paymentTypeId: mapping.paymentTypeId };
+    const path = mapping.gatewayPaymentTypeId ? `/GatewayPaymentType/${mapping.gatewayPaymentTypeId}` : '/GatewayPaymentType';
+    const response = await apiClient.delete(path, params);
+    this.clearAllCache();
+    return response;
   },
 
   // =========================================================================
   // Brand Email Templates CRUD
   // =========================================================================
   async getBrandEmailTemplates(params = {}) {
-    const API_URL = getApiBaseUrl();
     const brandId = params.BrandId || params.brandId;
     const queryParams = {
       Text: params.Text || '',
@@ -614,19 +480,19 @@ export const brandService = {
       return inFlightRequests.get(cacheKey);
     }
 
+    const cacheGeneration = brandEmailCacheGeneration;
     const requestPromise = (async () => {
       try {
-        const response = await axios.get(`${API_URL}/BrandEmailTemplates`, {
-          headers: getAuthHeaders(),
-          params: queryParams
-        });
-        const parsed = unwrapList(response.data);
+        const response = await apiClient.get('/BrandEmailTemplates', queryParams);
+        const parsed = unwrapList(response);
         let items = parsed.data;
         if (brandId) {
           items = items.filter((t) => Number(t.brandId) === Number(brandId));
         }
 
+        const emailOptions = await this.getBrandEmailOptions(brandId);
         const result = {
+          success: true,
           data: items.map((t) => ({
             brandEmailTemplateId: Number(t.brandEmailTemplateId ?? t.id ?? 0),
             templateId: Number(t.templateId ?? 0),
@@ -634,19 +500,19 @@ export const brandService = {
             brandId: Number(t.brandId ?? 0),
             brandName: String(t.brandName || '').trim(),
             fromEmailId: Number(t.fromEmailId ?? 0),
-            fromEmail: t.fromEmail || '',
+            fromEmail: t.fromEmail || emailOptions.find((e) => Number(e.brandEmailId) === Number(t.fromEmailId))?.email || '',
             ccEmail: String(t.ccEmail || '').trim(),
             bccEmail: String(t.bccEmail || '').trim(),
             templateName: String(t.templateName || '').trim(),
             subject: String(t.subject || '').trim(),
-            isActive: Boolean(t.isActive ?? true)
+            isActive: normalizeBoolean(t.isActive, true)
           })),
-          totalCount: brandId ? items.length : parsed.totalCount
+          totalCount: parsed.totalCount
         };
-        cacheMap.set(cacheKey, result);
+        if (cacheGeneration === brandEmailCacheGeneration) cacheMap.set(cacheKey, result);
         return result;
       } finally {
-        inFlightRequests.delete(cacheKey);
+        if (cacheGeneration === brandEmailCacheGeneration) inFlightRequests.delete(cacheKey);
       }
     })();
 
@@ -655,7 +521,6 @@ export const brandService = {
   },
 
   async createBrandEmailTemplate(data) {
-    const API_URL = getApiBaseUrl();
     const payload = {
       brandEmailTemplateId: 0,
       templateName: String(data.templateName || '').trim(),
@@ -669,15 +534,12 @@ export const brandService = {
       isActive: Boolean(data.isActive ?? true)
     };
 
-    const response = await axios.post(`${API_URL}/BrandEmailTemplates`, payload, {
-      headers: getAuthHeaders()
-    });
+    const response = await apiClient.post('/BrandEmailTemplates', payload);
     this.clearTemplateCache();
-    return response.data;
+    return response;
   },
 
   async updateBrandEmailTemplate(data) {
-    const API_URL = getApiBaseUrl();
     const payload = {
       brandEmailTemplateId: Number(data.brandEmailTemplateId),
       templateName: String(data.templateName || '').trim(),
@@ -691,151 +553,81 @@ export const brandService = {
       isActive: Boolean(data.isActive)
     };
 
-    const response = await axios.put(`${API_URL}/BrandEmailTemplates`, payload, {
-      headers: getAuthHeaders()
-    });
+    const response = await apiClient.put('/BrandEmailTemplates', payload);
     this.clearTemplateCache();
-    return response.data;
+    return response;
   },
 
   async deleteBrandEmailTemplate(templateId) {
-    const API_URL = getApiBaseUrl();
-    this.clearTemplateCache();
-    try {
-      const response = await axios.delete(`${API_URL}/BrandEmailTemplates`, {
-        headers: getAuthHeaders(),
-        params: { id: templateId }
-      });
-      return response.data;
-    } catch (error) {
-      if (error?.response?.status === 404 || error?.response?.status === 405) {
-        const fallbackRes = await axios.delete(`${API_URL}/BrandEmailTemplates/${templateId}`, {
-          headers: getAuthHeaders()
-        });
-        return fallbackRes.data;
-      }
-      throw error;
-    }
+    const response = await apiClient.delete(`/BrandEmailTemplates`, { id: templateId });
+    this.clearAllCache();
+    return response;
   },
 
   // =========================================================================
   // Reference Data (Master Templates, Sale Types, Payment Types)
   // =========================================================================
   async getMasterTemplates() {
-    const API_URL = getApiBaseUrl();
-    const cacheKey = 'masterTemplates';
-    if (cacheMap.has(cacheKey)) return cacheMap.get(cacheKey);
-
-    try {
-      const response = await axios.get(`${API_URL}/Template`, {
-        headers: getAuthHeaders(),
-        params: { PageNumber: 1, PageSize: 1000 }
-      });
-      const parsed = unwrapList(response.data);
-      const list = parsed.data.map((t) => ({
-        templateId: Number(t.templateId ?? t.id ?? 0),
-        templateName: String(t.templateName ?? t.name ?? `Template #${t.templateId}`).trim(),
-        subject: String(t.subject || '').trim(),
-        isActive: Boolean(t.isActive ?? true)
-      }));
-      cacheMap.set(cacheKey, list);
-      return list;
-    } catch (e) {
-      console.warn('Failed to load master templates:', e);
-      return [];
-    }
+    return cachedReference('masterTemplates', async () =>
+      (await this.getAllPages('/Template')).map((t) => ({
+        ...t,
+        templateId: Number(t.templateId ?? t.id),
+        templateName: t.templateName ?? t.name ?? ''
+      }))
+    );
   },
-
   async getSaleTypes() {
-    const API_URL = getApiBaseUrl();
-    const cacheKey = 'saleTypes';
-    if (cacheMap.has(cacheKey)) return cacheMap.get(cacheKey);
-
-    try {
-      const response = await axios.get(`${API_URL}/SaleType`, {
-        headers: getAuthHeaders(),
-        params: { PageNumber: 1, PageSize: 1000 }
-      });
-      const parsed = unwrapList(response.data);
-      if (parsed.data.length > 0) {
-        const list = parsed.data.map((s) => ({
-          saleTypeId: Number(s.saleTypeId ?? s.id ?? 0),
-          saleTypeName: String(s.saleTypeName ?? s.name ?? '').trim()
-        }));
-        cacheMap.set(cacheKey, list);
-        return list;
-      }
-    } catch {}
-
-    // Fallback options
-    const defaults = [
-      { saleTypeId: 1, saleTypeName: 'Sale' },
-      { saleTypeId: 2, saleTypeName: 'Renewal' },
-      { saleTypeId: 3, saleTypeName: 'Upsell' },
-      { saleTypeId: 4, saleTypeName: 'Recurring' }
-    ];
-    cacheMap.set(cacheKey, defaults);
-    return defaults;
+    return cachedReference('saleTypes', async () =>
+      unwrapList(await apiClient.get('/SettingValue/SettingValueDropDown', { settingKey: 'SaleTypes' })).data.map((s) => ({
+        saleTypeId: Number(s.settingValueId ?? s.id ?? s.valueId),
+        saleTypeName: s.settingValueText ?? s.name ?? s.text ?? ''
+      }))
+    );
   },
-
   async getPaymentTypes() {
-    const API_URL = getApiBaseUrl();
-    const cacheKey = 'paymentTypes';
-    if (cacheMap.has(cacheKey)) return cacheMap.get(cacheKey);
-
-    try {
-      const response = await axios.get(`${API_URL}/PaymentType`, {
-        headers: getAuthHeaders(),
-        params: { PageNumber: 1, PageSize: 1000 }
-      });
-      const parsed = unwrapList(response.data);
-      if (parsed.data.length > 0) {
-        const list = parsed.data.map((p) => ({
-          paymentTypeId: Number(p.paymentTypeId ?? p.id ?? 0),
-          paymentTypeName: String(p.paymentTypeName ?? p.name ?? '').trim()
-        }));
-        cacheMap.set(cacheKey, list);
-        return list;
-      }
-    } catch {}
-
-    // Fallback payment types
-    const defaults = [
-      { paymentTypeId: 1, paymentTypeName: 'Card' },
-      { paymentTypeId: 2, paymentTypeName: 'Cheque' },
-      { paymentTypeId: 3, paymentTypeName: 'Zelle' },
-      { paymentTypeId: 4, paymentTypeName: 'PayPal' },
-      { paymentTypeId: 5, paymentTypeName: 'Bank Transfer' }
-    ];
-    cacheMap.set(cacheKey, defaults);
-    return defaults;
+    return cachedReference('paymentTypes', async () =>
+      (await this.getAllPages('/PaymentType')).map((p) => ({
+        paymentTypeId: Number(p.paymentTypeId ?? p.id),
+        paymentTypeName: p.paymentTypeName ?? p.name ?? ''
+      }))
+    );
   },
-
-  // Cache clearance
-  clearBrandCache() {
-    for (const key of cacheMap.keys()) {
-      if (key.startsWith('brands:')) cacheMap.delete(key);
-    }
+  async getBrandDropdown() {
+    return cachedReference('brandDropdown', async () =>
+      unwrapList(await apiClient.get('/Brand/BrandDropDown')).data.map((b) => ({
+        ...b,
+        brandId: Number(b.brandId ?? b.id ?? b.value),
+        brandName: b.brandName ?? b.name ?? b.text ?? b.label ?? ''
+      }))
+    );
   },
-  clearBrandEmailCache() {
-    brandEmailCacheGeneration += 1;
-    for (const key of cacheMap.keys()) {
-      if (key.startsWith('brandEmails:')) cacheMap.delete(key);
-    }
+  async getAllPages(path, params = {}) {
+    const rows = [];
+    let result;
+    let page = 1;
+    do {
+      result = unwrapList(
+        await apiClient.get(path, {
+          Text: '',
+          SortProperty: path === '/Template' ? 'templateId' : path === '/PaymentType' ? 'paymentTypeId' : 'brandEmailId',
+          IsDescending: false,
+          ...params,
+          PageNumber: page++,
+          PageSize: 100
+        })
+      );
+      rows.push(...result.data);
+    } while (result.data.length && rows.length < result.totalCount);
+    return rows;
   },
-  clearGatewayCache() {
-    for (const key of cacheMap.keys()) {
-      if (key.startsWith('gateways:')) cacheMap.delete(key);
-    }
+  async getBrandEmailOptions(brandId) {
+    return cachedReference(`emailOptions:${brandId}`, () => this.getAllPages('/BrandEmail', { BrandId: brandId }));
   },
-  clearTemplateCache() {
-    for (const key of cacheMap.keys()) {
-      if (key.startsWith('brandTemplates:')) cacheMap.delete(key);
-    }
-  },
-  clearAllCache() {
-    cacheMap.clear();
-  }
+  clearBrandCache: invalidate,
+  clearBrandEmailCache: invalidate,
+  clearGatewayCache: invalidate,
+  clearTemplateCache: invalidate,
+  clearAllCache: invalidate
 };
 
 export default brandService;

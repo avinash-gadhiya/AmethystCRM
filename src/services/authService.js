@@ -1,6 +1,40 @@
 import axios from 'axios';
 
 const API_BASE_URL = (import.meta.env.VITE_APP_API_URL || 'https://demoapi.enstasol.com/api').replace(/\/$/, '');
+export const AUTH_SESSION_CHANGED_EVENT = 'auth-session-changed';
+
+const notifySessionChanged = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(AUTH_SESSION_CHANGED_EVENT));
+  }
+};
+
+const parseExpirationTime = (value) => {
+  if (value === undefined || value === null || value === '') return null;
+
+  const numericValue = Number(value);
+  if (Number.isFinite(numericValue)) {
+    // APIs commonly return Unix timestamps in seconds; JavaScript uses milliseconds.
+    return numericValue < 1e12 ? numericValue * 1000 : numericValue;
+  }
+
+  const parsedValue = new Date(value).getTime();
+  return Number.isNaN(parsedValue) ? null : parsedValue;
+};
+
+const getJwtExpirationTime = (token) => {
+  try {
+    const encodedPayload = token.split('.')[1];
+    if (!encodedPayload) return null;
+
+    const base64Payload = encodedPayload.replace(/-/g, '+').replace(/_/g, '/');
+    const normalizedPayload = base64Payload.padEnd(Math.ceil(base64Payload.length / 4) * 4, '=');
+    const payload = JSON.parse(atob(normalizedPayload));
+    return parseExpirationTime(payload?.exp);
+  } catch {
+    return null;
+  }
+};
 
 const normalizePermissionCodes = (value) => {
   if (Array.isArray(value)) {
@@ -110,7 +144,7 @@ export const authService = {
         roleId: payload.roleId || 0,
         locationId: payload.locationId || 0,
         lastLoginDate: payload.lastLoginDate || new Date().toISOString(),
-        tokenExpirationTime: payload.tokenExpirationTime || null,
+        tokenExpirationTime: payload.tokenExpirationTime || resData.tokenExpirationTime || null,
         permissionCodes: normalizePermissionCodes(payload.permissionCodes ?? payload.permissionCode),
         isBlockedBy2FA: payload.isBlockedBy2FA || false,
         isAssignPersonalPermission: payload.isAssignPersonalPermission || false,
@@ -137,6 +171,8 @@ export const authService = {
         localStorage.removeItem('permissionCodes');
         localStorage.removeItem('permissions');
       }
+
+      notifySessionChanged();
 
       return {
         success: true,
@@ -200,6 +236,19 @@ export const authService = {
   },
 
   /**
+   * Return the session expiry timestamp in milliseconds.
+   * Uses the API expiry value first and falls back to the JWT exp claim.
+   * @returns {number | null}
+   */
+  getExpirationTime() {
+    const userExpirationTime = parseExpirationTime(this.getUser()?.tokenExpirationTime);
+    if (userExpirationTime !== null) return userExpirationTime;
+
+    const token = this.getToken();
+    return token ? getJwtExpirationTime(token) : null;
+  },
+
+  /**
    * Check whether a user is currently authenticated with a valid API token
    * @returns {boolean}
    */
@@ -210,13 +259,10 @@ export const authService = {
     }
 
     // Optional expiration check
-    const user = this.getUser();
-    if (user?.tokenExpirationTime) {
-      const expTime = new Date(user.tokenExpirationTime).getTime();
-      if (!isNaN(expTime) && Date.now() > expTime) {
-        this.logout();
-        return false;
-      }
+    const expirationTime = this.getExpirationTime();
+    if (expirationTime !== null && Date.now() >= expirationTime) {
+      this.logout();
+      return false;
     }
 
     return true;
@@ -239,6 +285,8 @@ export const authService = {
       localStorage.removeItem('permissions');
       localStorage.removeItem('authData');
       clearPermissionMenuCache();
+      delete axios.defaults.headers.common['Authorization'];
+      notifySessionChanged();
     } catch {
       // ignore
     }

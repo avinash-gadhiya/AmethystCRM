@@ -186,7 +186,7 @@ const GroupEmailModal = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain bg-black/60 p-3 backdrop-blur-sm animate-fade-in sm:p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget && !saving) onClose?.();
       }}
@@ -195,11 +195,11 @@ const GroupEmailModal = ({
       aria-labelledby="group-email-modal-title"
     >
       <div
-        className="relative w-full max-w-lg max-h-[90vh] bg-white dark:bg-[#17132a] border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-scaleUp"
+        className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl animate-slide-in dark:border-white/10 dark:bg-[#17132a] sm:max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4.5 border-b border-gray-200 dark:border-white/10 bg-white/95 dark:bg-[#1d1733] backdrop-blur sticky top-0 z-10 shrink-0">
+        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white/95 px-4 py-[18px] backdrop-blur dark:border-white/10 dark:bg-[#1d1733] sm:px-6">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-200/50 dark:border-purple-800/30 flex items-center justify-center shrink-0">
               <Mail size={20} />
@@ -225,7 +225,7 @@ const GroupEmailModal = ({
         <form
           id="group-email-form"
           onSubmit={handleSubmit}
-          className="flex-1 overflow-y-auto p-6 space-y-4.5"
+          className="flex-1 space-y-[18px] overflow-y-auto p-4 sm:p-6"
         >
           {/* 1. Group Field */}
           <div>
@@ -317,7 +317,7 @@ const GroupEmailModal = ({
           </div>
 
           {/* 3 & 4. Name and Location */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-[18px] sm:grid-cols-2 sm:gap-4">
             {/* Name Field */}
             <div>
               <label
@@ -424,7 +424,7 @@ const GroupEmailModal = ({
         </form>
 
         {/* Fixed Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-white/10 bg-gray-50/50 dark:bg-[#1d1733] shrink-0">
+        <div className="flex shrink-0 items-center justify-end gap-3 border-t border-gray-200 bg-gray-50/50 px-4 py-4 dark:border-white/10 dark:bg-[#1d1733] sm:px-6">
           <button
             type="button"
             onClick={onClose}

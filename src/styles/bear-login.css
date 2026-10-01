@@ -1,0 +1,328 @@
+.bear-login {
+  --bear-ink: #202124;
+  --bear-cyan: #0ea5b7;
+  --bear-step: 0.1s;
+  position: relative;
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  overflow: hidden;
+  color: var(--bear-ink);
+  background: #f1f3f5;
+}
+
+.bear-login__main {
+  position: relative;
+  display: grid;
+  width: 100vw;
+  height: 100vh;
+  place-items: center;
+}
+
+.bear-login__form {
+  --anchor-name: --email;
+  position: relative;
+  z-index: 2;
+  display: grid;
+  gap: 20px;
+  width: max-content;
+  padding: 24px 48px 34px;
+  background: #ffffff;
+  border: 2px solid #dfe3e7;
+  border-radius: 0;
+  box-shadow: 0 20px 25px -5px rgba(32, 33, 36, 0.12), 0 8px 10px -6px rgba(32, 33, 36, 0.12);
+  anchor-name: --form;
+}
+
+.bear-login__group {
+  position: relative;
+  display: grid;
+  gap: 4px;
+}
+
+.bear-login__group label {
+  margin: 0;
+  color: #4b5057;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.bear-login .bear-login__group input {
+  width: 220px;
+  max-width: 220px;
+  height: 38px !important;
+  padding: 8px 16px !important;
+  color: var(--bear-ink) !important;
+  background: #ffffff !important;
+  border: 1px solid #b8bec5 !important;
+  border-radius: 3px !important;
+  box-shadow: none !important;
+  font-size: 13px;
+}
+
+.bear-login .bear-login__group input:focus {
+  border-color: var(--bear-cyan) !important;
+  box-shadow: 0 0 0 2px rgba(14, 165, 183, 0.2) !important;
+  outline: none !important;
+}
+
+.bear-login #email {
+  anchor-name: --email;
+}
+
+.bear-login #password {
+  padding-right: 44px !important;
+  anchor-name: --password;
+}
+
+.bear-login__form:has(#email:focus) {
+  --anchor-name: --email;
+}
+
+.bear-login__form:has(#password:focus, #reveal:focus, .bear-login__submit:focus) {
+  --anchor-name: --password;
+}
+
+.bear-login__reveal {
+  position: absolute;
+  top: anchor(--password center);
+  right: anchor(--password right);
+  display: grid;
+  width: 44px;
+  aspect-ratio: 1;
+  padding: 0;
+  place-items: center;
+  color: #5f666d;
+  background: transparent;
+  border: 0;
+  translate: 0 -50%;
+  cursor: pointer;
+}
+
+.bear-login__reveal:focus-visible {
+  color: var(--bear-cyan);
+  outline: 2px solid var(--bear-cyan);
+  outline-offset: -6px;
+}
+
+.bear-login .bear-login__submit {
+  display: grid;
+  width: 220px;
+  max-width: 220px;
+  height: 38px;
+  padding: 8px 16px;
+  place-items: center;
+  color: #ffffff;
+  background: var(--bear-cyan);
+  border: 0;
+  border-radius: 3px;
+  box-shadow: none;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.bear-login .bear-login__submit:hover:not(:disabled) {
+  background: #0b8f9f;
+}
+
+.bear-login .bear-login__submit:focus-visible {
+  outline: 2px solid #087986;
+  outline-offset: 2px;
+}
+
+.bear-login .bear-login__submit:disabled,
+.bear-login__reveal:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.bear-login__error {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  width: max-content;
+  max-width: min(320px, 90vw);
+  margin: 0;
+  padding: 7px 10px;
+  color: #a4262c;
+  background: #fff1f1;
+  border: 1px solid #f0c2c4;
+  border-radius: 3px;
+  font-size: 12px;
+  translate: -50% 0;
+}
+
+.bear-login .bear__wrapper {
+  position: absolute;
+  z-index: 1;
+  right: anchor(--form right);
+  bottom: anchor(--form top);
+  width: 240px;
+  aspect-ratio: 1;
+  translate: calc(var(--show-valid, 0) * -20%) 50%;
+  transition: translate var(--bear-step) var(--bear-step);
+}
+
+.bear-login .bear {
+  width: 100%;
+  overflow: visible;
+  color: var(--bear-ink);
+  transform:
+    translateY(calc((50 - (var(--show-bear, 0) * 100)) * 1%))
+    rotate(calc(var(--password-focus, 0) * -15deg))
+    translate(calc(var(--password-focus, 0) * -5%), calc(var(--password-focus, 0) * 5%));
+  transition: transform var(--bear-step);
+}
+
+.bear-login .bear__arm {
+  transform-box: fill-box;
+  transform-origin: 5% 50%;
+  translate: calc((-12 + (var(--reveal, 0) * -16)) * 1%) calc((50 - (var(--password-focus, 0) * 62)) * 1%);
+  rotate: calc(var(--password-focus, 0) * -12deg);
+  transition: translate var(--bear-step), rotate var(--bear-step);
+}
+
+.bear-login .bear__body {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+}
+
+.bear-login .bear__eyes-normal {
+  opacity: calc(1 - var(--show-cross, 0));
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: bear-blink 6s -2s infinite;
+}
+
+.bear-login .bear__eyes-crossed {
+  opacity: var(--show-cross, 0);
+}
+
+.bear-login .bear__arms {
+  display: none;
+  opacity: var(--show-valid, 0);
+  transform-box: fill-box;
+  transform-origin: 50%;
+  translate: 0 60%;
+  animation: bear-pump 0.25s 4 both;
+}
+
+.bear-login:has(.bear-login__form:hover) {
+  --show-bear: 0.45;
+}
+
+.bear-login:has(.bear-login__form:valid:hover),
+.bear-login:has(.bear-login__form:focus-within) {
+  --show-bear: 0.55;
+}
+
+.bear-login:has(#password[type='text']) {
+  --reveal: 1;
+}
+
+.bear-login:has(#password:focus, #reveal:focus) {
+  --password-focus: 1;
+}
+
+.bear-login:has(.bear-login__form:valid:not(:focus-within)) {
+  --show-paw: 0;
+  --show-valid: 1;
+}
+
+.bear-login:has(.bear-login__form:valid:not(:focus-within)) .bear__arms {
+  display: block;
+}
+
+.bear-login--error {
+  --show-cross: 1;
+}
+
+.bear-login--error .bear__body {
+  animation: bear-shake 0.2s both;
+}
+
+.bear-login .indicator-arm {
+  position: absolute;
+  z-index: 2;
+  top: anchor(var(--anchor-name) center);
+  left: 100%;
+  width: 96px;
+  overflow: visible;
+  color: var(--bear-ink);
+  translate: -60% -50%;
+}
+
+.bear-login .indicator-arm__hand {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  translate: calc((110 - (var(--show-paw, 0) * 110)) * 1%) 0;
+  transition: translate var(--bear-step);
+}
+
+.bear-login:has(.bear-login__form:focus-within) {
+  --show-paw: 1;
+}
+
+.bear-login__form:focus-within .indicator-arm__hand {
+  transition: translate var(--bear-step) var(--bear-step);
+}
+
+@keyframes bear-blink {
+  0%, 46%, 48%, 50%, 100% { scale: 1 1; }
+  47%, 49% { scale: 1 0.01; }
+}
+
+@keyframes bear-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 40%, 60%, 80% { transform: translateX(-2%); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(2%); }
+}
+
+@keyframes bear-pump {
+  50% { translate: 0 -20%; }
+}
+
+@supports not (bottom: anchor(--form top)) {
+  .bear-login .bear__wrapper {
+    top: 50%;
+    right: calc(50% - 158px);
+    bottom: auto;
+    transform: translateY(-190px);
+  }
+
+  .bear-login__reveal {
+    top: auto;
+    right: 0;
+    bottom: -3px;
+    translate: 0;
+  }
+
+  .bear-login .indicator-arm {
+    top: 50%;
+  }
+}
+
+@media (max-width: 480px) {
+  .bear-login__form {
+    padding-inline: 34px;
+  }
+
+  .bear-login .bear__wrapper {
+    width: 220px;
+  }
+
+  .bear-login .indicator-arm {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bear-login *,
+  .bear-login *::before,
+  .bear-login *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

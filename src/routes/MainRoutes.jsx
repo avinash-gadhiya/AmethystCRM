@@ -143,8 +143,13 @@ const AuthenticatedDynamicRoute = () => {
   return <CRMModuleView />;
 };
 
+const BrandEmailSettingsRoute = () => {
+  const location = useLocation();
+  return new URLSearchParams(location.search).get('brandId') ? <BrandDetailsPage /> : <BrandEmailPage />;
+};
+
 const GatewaySettingsRoute = () => {
-  const [params] = new URLSearchParams(window.location.search);
+  const params = new URLSearchParams(window.location.search);
   const brandId = params.get('brandId');
   if (brandId) {
     return <BrandDetailsPage />;
@@ -704,23 +709,23 @@ const MainRoutes = {
             },
             {
               path: '/settings/brandemail',
-              element: <BrandEmailPage />
+              element: <BrandEmailSettingsRoute />
             },
             {
               path: '/settings/brand-emails',
-              element: <BrandEmailPage />
+              element: <BrandEmailSettingsRoute />
             },
             {
               path: '/settings/brand-emails/*',
-              element: <BrandEmailPage />
+              element: <BrandEmailSettingsRoute />
             },
             {
               path: '/settings/email',
-              element: <BrandEmailPage />
+              element: <BrandEmailSettingsRoute />
             },
             {
               path: '/Settings/BrandEmail',
-              element: <BrandEmailPage />
+              element: <BrandEmailSettingsRoute />
             },
             {
               path: '/settings/brandtemplate',

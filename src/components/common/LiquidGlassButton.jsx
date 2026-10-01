@@ -1,23 +1,12 @@
 import React, { useCallback, useState } from 'react';
 
 const LiquidGlassButton = React.forwardRef(
-  (
-    {
-      className = '',
-      onClick,
-      type = 'button',
-      variant = 'default',
-      disabled = false,
-      children,
-      ...props
-    },
-    ref
-  ) => {
+  ({ className = '', onClick, type = 'button', variant = 'default', disabled = false, loading = false, children, ...props }, ref) => {
     const [ripples, setRipples] = useState([]);
 
     const handleClick = useCallback(
       (e) => {
-        if (disabled) return;
+        if (disabled || loading) return;
 
         try {
           const rect = e.currentTarget.getBoundingClientRect();
@@ -36,7 +25,7 @@ const LiquidGlassButton = React.forwardRef(
 
         onClick?.(e);
       },
-      [disabled, onClick]
+      [disabled, loading, onClick]
     );
 
     const variantClass = variant === 'danger' ? 'liquid-glass-btn--danger' : '';
@@ -46,7 +35,8 @@ const LiquidGlassButton = React.forwardRef(
       <button
         ref={ref}
         type={type}
-        disabled={disabled}
+        disabled={disabled || loading}
+        aria-busy={loading || undefined}
         onClick={handleClick}
         className={combinedClassName}
         {...props}
@@ -56,15 +46,18 @@ const LiquidGlassButton = React.forwardRef(
         <span className="liquid-glass-btn__shimmer" aria-hidden="true" />
 
         {ripples.map((r) => (
-          <span
-            key={r.id}
-            className="liquid-glass-btn__ripple"
-            style={{ left: r.x, top: r.y }}
-            aria-hidden="true"
-          />
+          <span key={r.id} className="liquid-glass-btn__ripple" style={{ left: r.x, top: r.y }} aria-hidden="true" />
         ))}
 
-        <span className="liquid-glass-btn__content">{children}</span>
+        <span className="liquid-glass-btn__content">
+          {loading && (
+            <span
+              aria-hidden="true"
+              className="inline-block h-3 w-3 mr-2 rounded-full border-2 border-current border-t-transparent animate-spin"
+            />
+          )}
+          {children}
+        </span>
         <span className="liquid-glass-btn__inner-glow" aria-hidden="true" />
       </button>
     );
