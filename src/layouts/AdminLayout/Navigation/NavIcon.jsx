@@ -27,7 +27,6 @@ import {
   List,
   HelpCircle,
   Layers,
-  Circle,
   Contact,
   ClipboardCheck,
   Boxes,
@@ -132,6 +131,11 @@ export default function NavIcon({ items }) {
     return null;
   }
 
+  const hasIcon = Boolean(items.iconname || items.icon);
+  if (!hasIcon) {
+    return <span className="pc-submenu-bullet" aria-hidden="true" />;
+  }
+
   const iconKey = (items.iconname || items.icon || '').toLowerCase();
   const IconComponent = LUCIDE_ICON_MAP[iconKey] || Folder;
   const iconColor = ICON_COLOR_MAP[iconKey] || '#64748b';
@@ -142,7 +146,7 @@ export default function NavIcon({ items }) {
       style={{ '--nav-icon-color': iconColor }}
       aria-hidden="true"
     >
-      {items.iconname || items.icon ? <IconComponent size={18} /> : <Circle size={6} className="pc-submenu-dot" />}
+      <IconComponent size={18} />
     </span>
   );
 }

@@ -64,9 +64,9 @@ export default function NavContent({ navigation }) {
         {navContentNode}
       </div>
       <div className="sidebar-account-actions" aria-label="Account actions">
-        <Link to="/MyProfile" className="pc-link sidebar-account-link">
+        <Link to="/MyProfile" className="pc-link sidebar-account-link" title="Profile">
           <span className="pc-micon">
-            <UserCircle size={22} />
+            <UserCircle size={20} />
           </span>
           <span className="pc-mtext">Profile</span>
         </Link>
@@ -77,9 +77,10 @@ export default function NavContent({ navigation }) {
             authService.logout();
             navigate('/login', { replace: true });
           }}
+          title="Logout"
         >
           <span className="pc-micon">
-            <LogOut size={22} />
+            <LogOut size={20} />
           </span>
           <span className="pc-mtext">Logout</span>
         </button>
