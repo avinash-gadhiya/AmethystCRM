@@ -361,6 +361,38 @@ export const userService = {
     return response.data;
   },
 
+  // PUT /api/User/ChangeProfile or fallback to PUT /api/User
+  async changeProfile({ firstName, lastName, email }) {
+    const API_URL = getApiBaseUrl();
+    const user = authService.getUser() || {};
+    const userId = Number(user.userId || localStorage.getItem('userId')) || 0;
+
+    try {
+      const response = await axios.put(
+        `${API_URL}/User/ChangeProfile`,
+        { firstName, lastName, email },
+        { headers: getAuthHeaders() }
+      );
+      return response.data;
+    } catch {
+      let existingUser = null;
+      if (userId > 0) {
+        try {
+          existingUser = await this.getUserById(userId);
+        } catch {
+          // ignore
+        }
+      }
+      return this.updateUser({
+        ...(existingUser || user),
+        userId,
+        firstName,
+        lastName,
+        email
+      });
+    }
+  },
+
   // PUT /api/User/ChangePassword
   async changePassword({ oldPassword, newPassword }) {
     const API_URL = getApiBaseUrl();

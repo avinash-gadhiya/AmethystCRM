@@ -1,13 +1,28 @@
-import { useState } from 'react';
-import { User, Key, ShieldCheck, Mail, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import {
+  User,
+  Mail,
+  AtSign,
+  ShieldCheck,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  Pencil,
+  X,
+  Key,
+  LayoutGrid,
+  Eye,
+  EyeOff
+} from 'lucide-react';
 import authService from 'services/authService';
 import userService from 'services/userService';
-import { Button, Alert } from 'components/ui/Bootstrap';
 
 export default function MyProfilePage() {
-  const currentUser = authService.getUser() || {};
+  const [currentUser, setCurrentUser] = useState(() => authService.getUser() || {});
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'personal' | 'security'
 
-  // Profile Form
+  // Edit Profile Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [profileForm, setProfileForm] = useState({
     firstName: currentUser.firstName || '',
     lastName: currentUser.lastName || '',
@@ -17,47 +32,91 @@ export default function MyProfilePage() {
   const [profileError, setProfileError] = useState('');
   const [profileSuccess, setProfileSuccess] = useState('');
 
-  // Password Form
+  // Password Form State
   const [passwordForm, setPasswordForm] = useState({
     oldPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
 
+  // Fetch fresh user details on mount if userId is available
+  useEffect(() => {
+    const userId = Number(currentUser.userId || localStorage.getItem('userId')) || 0;
+    if (userId > 0) {
+      userService.getUserById(userId).then((freshUser) => {
+        if (freshUser) {
+          setCurrentUser((prev) => ({
+            ...prev,
+            ...freshUser,
+            firstName: freshUser.firstName ?? prev.firstName,
+            lastName: freshUser.lastName ?? prev.lastName,
+            email: freshUser.email ?? prev.email,
+            userName: freshUser.username ?? freshUser.userName ?? prev.userName,
+            role: freshUser.roleName ?? freshUser.role ?? prev.role
+          }));
+        }
+      }).catch(() => {
+        // Non-blocking fallback to cached user
+      });
+    }
+  }, []);
+
+  const openEditModal = () => {
+    setProfileForm({
+      firstName: currentUser.firstName || '',
+      lastName: currentUser.lastName || '',
+      email: currentUser.email || ''
+    });
+    setProfileError('');
+    setIsEditModalOpen(true);
+  };
+
+  const closeEditModal = () => {
+    if (!profileSaving) {
+      setIsEditModalOpen(false);
+      setProfileError('');
+    }
+  };
+
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     setProfileError('');
-    setProfileSuccess('');
 
     if (!profileForm.email.trim()) {
-      setProfileError('Email is required.');
+      setProfileError('Email address is required.');
       return;
     }
 
     setProfileSaving(true);
     try {
       await userService.changeProfile({
-        firstName: profileForm.firstName,
-        lastName: profileForm.lastName,
-        email: profileForm.email
+        firstName: profileForm.firstName.trim(),
+        lastName: profileForm.lastName.trim(),
+        email: profileForm.email.trim()
       });
 
-      // Update local storage user profile data
       const updatedUser = {
         ...currentUser,
-        firstName: profileForm.firstName,
-        lastName: profileForm.lastName,
-        email: profileForm.email,
-        displayName: `${profileForm.firstName} ${profileForm.lastName}`.trim() || currentUser.userName
+        firstName: profileForm.firstName.trim(),
+        lastName: profileForm.lastName.trim(),
+        email: profileForm.email.trim(),
+        displayName: `${profileForm.firstName.trim()} ${profileForm.lastName.trim()}`.trim() || currentUser.userName
       };
+
+      setCurrentUser(updatedUser);
       localStorage.setItem('user', JSON.stringify(updatedUser));
 
       setProfileSuccess('Profile updated successfully.');
+      setIsEditModalOpen(false);
+      setTimeout(() => setProfileSuccess(''), 5000);
     } catch (err) {
-      setProfileError(err.message || 'Failed to update profile.');
+      setProfileError(err?.message || 'Failed to update profile. Please try again.');
     } finally {
       setProfileSaving(false);
     }
@@ -76,6 +135,10 @@ export default function MyProfilePage() {
       setPasswordError('Please enter a new password.');
       return;
     }
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters.');
+      return;
+    }
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       setPasswordError('New passwords do not match.');
       return;
@@ -89,185 +152,601 @@ export default function MyProfilePage() {
       });
       setPasswordSuccess('Password changed successfully.');
       setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
+      setTimeout(() => setPasswordSuccess(''), 5000);
     } catch (err) {
-      setPasswordError(err.message || 'Failed to change password.');
+      setPasswordError(err?.message || 'Failed to change password. Please check your current password.');
     } finally {
       setPasswordSaving(false);
     }
   };
 
+  const firstName = currentUser.firstName || 'CRM';
+  const lastName = currentUser.lastName || 'Developer';
+  const fullName = `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.displayName || currentUser.userName || 'CRM Developer';
+  const userName = currentUser.userName || currentUser.username || 'developer';
+  const email = currentUser.email || 'developer@crm.com';
+  const role = currentUser.role || currentUser.roleName || 'Developer';
+
   const initials =
-    (currentUser.firstName?.[0] || currentUser.userName?.[0] || 'U') +
-    (currentUser.lastName?.[0] || '');
+    (currentUser.firstName?.[0] || currentUser.userName?.[0] || 'C') +
+    (currentUser.lastName?.[0] || 'D');
 
   return (
-    <div className="space-y-5">
-      {/* Top Banner Card */}
-      <div className="card">
-        <div className="card-body flex flex-col sm:flex-row items-center sm:items-start gap-5">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-2xl shadow-lg flex-shrink-0">
-            {initials.toUpperCase()}
+    <div className="space-y-6 pb-12 max-w-7xl mx-auto">
+      {/* Toast Notification */}
+      {profileSuccess && (
+        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center justify-between shadow-xs animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0" />
+            <span>{profileSuccess}</span>
           </div>
-          <div className="flex-1 text-center sm:text-left">
-            <h4 className="text-xl font-bold text-gray-800 mb-1">
-              {currentUser.displayName || currentUser.userName || 'CRM User'}
-            </h4>
-            <p className="text-sm text-gray-500 mb-2">@{currentUser.userName || 'user'}</p>
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-              <span className="badge bg-indigo-50 text-indigo-700 font-semibold px-2.5 py-1 rounded-lg">
-                {currentUser.role || 'Developer'}
-              </span>
-              <span className="badge bg-emerald-50 text-emerald-700 font-semibold px-2.5 py-1 rounded-lg flex items-center gap-1">
-                <ShieldCheck size={12} /> Active Session
-              </span>
+          <button
+            type="button"
+            onClick={() => setProfileSuccess('')}
+            className="text-emerald-600 hover:text-emerald-900 cursor-pointer"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* TOP HEADER CARD (Matches Screenshot 1) */}
+      <div className="relative rounded-3xl bg-gradient-to-r from-blue-50/60 via-indigo-50/40 to-purple-50/50 border border-slate-200/80 p-6 sm:p-8 shadow-sm backdrop-blur-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+            {/* Avatar Initials with Vibrant Gradient */}
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-600 via-indigo-600 to-indigo-700 text-white flex items-center justify-center font-extrabold text-2xl shadow-lg shadow-indigo-500/20 flex-shrink-0 tracking-wider">
+              {initials.toUpperCase()}
             </div>
+
+            {/* Profile Info */}
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">
+                {fullName}
+              </h1>
+
+              {/* Role Pill Badge */}
+              <div className="mt-1.5 flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold bg-white/90 text-indigo-700 border border-indigo-200/80 shadow-xs">
+                  <CheckCircle2 size={13} className="text-indigo-600" />
+                  <span>{role}</span>
+                </span>
+              </div>
+
+              {/* Contact Quick Details */}
+              <div className="mt-4 flex flex-wrap items-center gap-6 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-white/80 border border-slate-200 text-slate-400 flex items-center justify-center">
+                    <AtSign size={11} />
+                  </span>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">USERNAME</span>
+                  <span className="font-semibold text-slate-800">{userName}</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-white/80 border border-slate-200 text-slate-400 flex items-center justify-center">
+                    <Mail size={11} />
+                  </span>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">EMAIL</span>
+                  <span className="font-semibold text-slate-800">{email}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Top Right Edit Profile Button */}
+          <div className="self-start md:self-center flex-shrink-0">
+            <button
+              type="button"
+              onClick={openEditModal}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-sm transition-all hover:shadow cursor-pointer"
+            >
+              <Pencil size={13} />
+              <span>Edit Profile</span>
+            </button>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Profile Details Form */}
-        <div className="card">
-          <div className="card-header flex items-center gap-2">
-            <User size={18} className="text-indigo-600" />
-            <h5 className="text-base font-semibold text-gray-800 mb-0">Personal Information</h5>
+      {/* PILL TAB NAVIGATION (Matches Screenshot 1) */}
+      <div className="inline-flex items-center gap-1 p-1.5 rounded-2xl bg-slate-100/90 border border-slate-200/80 shadow-xs">
+        <button
+          type="button"
+          onClick={() => setActiveTab('overview')}
+          className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+            activeTab === 'overview'
+              ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <LayoutGrid size={14} />
+          <span>Overview</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('personal')}
+          className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+            activeTab === 'personal'
+              ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <User size={14} />
+          <span>Personal Information</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('security')}
+          className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+            activeTab === 'security'
+              ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <ShieldCheck size={14} />
+          <span>Security</span>
+        </button>
+      </div>
+
+      {/* TAB CONTENT */}
+      {activeTab === 'overview' && (
+        <div className="space-y-6">
+          {/* Section Heading */}
+          <div>
+            <h2 className="text-sm font-bold text-slate-900">Account overview</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              A snapshot of the account you are currently signed in with.
+            </p>
           </div>
-          <div className="card-body">
-            {profileSuccess && (
-              <Alert variant="success" dismissible onClose={() => setProfileSuccess('')} className="mb-4">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 size={16} />
-                  <span>{profileSuccess}</span>
+
+          {/* 3 Summary Stat Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Card 1: Account Role */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex items-center gap-4">
+              <div className="w-11 h-11 rounded-xl bg-purple-50 border border-purple-100 text-purple-600 flex items-center justify-center flex-shrink-0">
+                <ShieldCheck size={20} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  ACCOUNT ROLE
+                </span>
+                <span className="text-sm font-bold text-slate-900 block mt-0.5 truncate">
+                  {role}
+                </span>
+              </div>
+            </div>
+
+            {/* Card 2: Username */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex items-center gap-4">
+              <div className="w-11 h-11 rounded-xl bg-sky-50 border border-sky-100 text-sky-600 flex items-center justify-center flex-shrink-0">
+                <AtSign size={20} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  USERNAME
+                </span>
+                <span className="text-sm font-bold text-slate-900 block mt-0.5 truncate">
+                  {userName}
+                </span>
+              </div>
+            </div>
+
+            {/* Card 3: Email */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex items-center gap-4">
+              <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
+                <Mail size={20} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  EMAIL
+                </span>
+                <span className="text-sm font-bold text-slate-900 block mt-0.5 truncate">
+                  {email}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Personal Information Card (Matches Screenshot 1) */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-7 shadow-xs">
+            <div className="flex items-center justify-between pb-5 border-b border-slate-100">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Personal information</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Your name and email address as they appear across the CRM.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={openEditModal}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 text-xs font-semibold transition-all shadow-xs cursor-pointer"
+              >
+                <Pencil size={12} />
+                <span>Edit Profile</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8 pt-6">
+              {/* First Name */}
+              <div>
+                <div className="text-[11px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1.5">
+                  <User size={13} className="text-slate-400" />
+                  <span>FIRST NAME</span>
                 </div>
-              </Alert>
-            )}
+                <div className="text-sm font-bold text-slate-900 mt-1">{firstName}</div>
+              </div>
 
-            {profileError && (
-              <Alert variant="danger" dismissible onClose={() => setProfileError('')} className="mb-4">
-                <div className="flex items-center gap-2">
-                  <AlertCircle size={16} />
-                  <span>{profileError}</span>
+              {/* Last Name */}
+              <div>
+                <div className="text-[11px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1.5">
+                  <User size={13} className="text-slate-400" />
+                  <span>LAST NAME</span>
                 </div>
-              </Alert>
-            )}
+                <div className="text-sm font-bold text-slate-900 mt-1">{lastName}</div>
+              </div>
 
-            <form onSubmit={handleUpdateProfile} className="space-y-4">
+              {/* Email Address */}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">First Name</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={profileForm.firstName}
-                  onChange={(e) => setProfileForm({ ...profileForm, firstName: e.target.value })}
-                  placeholder="Enter first name"
-                />
+                <div className="text-[11px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1.5">
+                  <Mail size={13} className="text-slate-400" />
+                  <span>EMAIL ADDRESS</span>
+                </div>
+                <div className="text-sm font-bold text-slate-900 mt-1">{email}</div>
               </div>
 
+              {/* Spacer */}
+              <div className="hidden md:block" />
+
+              {/* Username */}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Last Name</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={profileForm.lastName}
-                  onChange={(e) => setProfileForm({ ...profileForm, lastName: e.target.value })}
-                  placeholder="Enter last name"
-                />
+                <div className="text-[11px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1.5">
+                  <AtSign size={13} className="text-slate-400" />
+                  <span>USERNAME</span>
+                </div>
+                <div className="text-sm font-bold text-slate-900 mt-1 flex items-center gap-2">
+                  <span>{userName}</span>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200 uppercase tracking-wider">
+                    READ ONLY
+                  </span>
+                </div>
               </div>
 
+              {/* Role */}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Email Address</label>
-                <input
-                  type="email"
-                  className="form-control"
-                  required
-                  value={profileForm.email}
-                  onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
-                  placeholder="Enter email address"
-                />
+                <div className="text-[11px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1.5">
+                  <ShieldCheck size={13} className="text-slate-400" />
+                  <span>ROLE</span>
+                </div>
+                <div className="text-sm font-bold text-slate-900 mt-1 flex items-center gap-2">
+                  <span>{role}</span>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200 uppercase tracking-wider">
+                    READ ONLY
+                  </span>
+                </div>
               </div>
-
-              <div className="pt-2">
-                <Button type="submit" variant="primary" disabled={profileSaving} className="w-full sm:w-auto">
-                  {profileSaving && <Loader2 size={14} className="animate-spin inline mr-1.5" />}
-                  <span>Save Profile</span>
-                </Button>
-              </div>
-            </form>
+            </div>
           </div>
         </div>
+      )}
 
-        {/* Change Password Form */}
-        <div className="card">
-          <div className="card-header flex items-center gap-2">
-            <Key size={18} className="text-indigo-600" />
-            <h5 className="text-base font-semibold text-gray-800 mb-0">Change Password</h5>
+      {/* PERSONAL INFORMATION TAB */}
+      {activeTab === 'personal' && (
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-7 shadow-xs">
+          <div className="flex items-center justify-between pb-5 border-b border-slate-100">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Personal information</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Your profile details configured in AmethystCRM.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={openEditModal}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 text-xs font-semibold transition-all shadow-xs cursor-pointer"
+            >
+              <Pencil size={12} />
+              <span>Edit Profile</span>
+            </button>
           </div>
-          <div className="card-body">
-            {passwordSuccess && (
-              <Alert variant="success" dismissible onClose={() => setPasswordSuccess('')} className="mb-4">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 size={16} />
-                  <span>{passwordSuccess}</span>
-                </div>
-              </Alert>
-            )}
 
-            {passwordError && (
-              <Alert variant="danger" dismissible onClose={() => setPasswordError('')} className="mb-4">
-                <div className="flex items-center gap-2">
-                  <AlertCircle size={16} />
-                  <span>{passwordError}</span>
-                </div>
-              </Alert>
-            )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8 pt-6">
+            <div>
+              <div className="text-[11px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1.5">
+                <User size={13} />
+                <span>FIRST NAME</span>
+              </div>
+              <div className="text-sm font-bold text-slate-900 mt-1">{firstName}</div>
+            </div>
 
-            <form onSubmit={handleChangePassword} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Current Password</label>
+            <div>
+              <div className="text-[11px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1.5">
+                <User size={13} />
+                <span>LAST NAME</span>
+              </div>
+              <div className="text-sm font-bold text-slate-900 mt-1">{lastName}</div>
+            </div>
+
+            <div>
+              <div className="text-[11px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1.5">
+                <Mail size={13} />
+                <span>EMAIL ADDRESS</span>
+              </div>
+              <div className="text-sm font-bold text-slate-900 mt-1">{email}</div>
+            </div>
+
+            <div>
+              <div className="text-[11px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1.5">
+                <ShieldCheck size={13} />
+                <span>ROLE</span>
+              </div>
+              <div className="text-sm font-bold text-slate-900 mt-1 flex items-center gap-2">
+                <span>{role}</span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200 uppercase tracking-wider">
+                  READ ONLY
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <div className="text-[11px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1.5">
+                <AtSign size={13} />
+                <span>USERNAME</span>
+              </div>
+              <div className="text-sm font-bold text-slate-900 mt-1 flex items-center gap-2">
+                <span>{userName}</span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200 uppercase tracking-wider">
+                  READ ONLY
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <div className="text-[11px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1.5">
+                <CheckCircle2 size={13} />
+                <span>ACCOUNT STATUS</span>
+              </div>
+              <div className="text-sm font-bold text-emerald-600 mt-1 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span>Active</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SECURITY / CHANGE PASSWORD TAB */}
+      {activeTab === 'security' && (
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-7 shadow-xs max-w-2xl">
+          <div className="pb-5 border-b border-slate-100">
+            <h3 className="text-sm font-bold text-slate-900">Security & Password</h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Ensure your account is using a long, secure password to stay protected.
+            </p>
+          </div>
+
+          {passwordSuccess && (
+            <div className="mt-5 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2">
+              <CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0" />
+              <span>{passwordSuccess}</span>
+            </div>
+          )}
+
+          {passwordError && (
+            <div className="mt-5 p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs font-semibold flex items-center gap-2">
+              <AlertCircle size={16} className="text-red-600 flex-shrink-0" />
+              <span>{passwordError}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleChangePassword} className="space-y-4 pt-6">
+            {/* Current Password */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Current Password <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
                 <input
-                  type="password"
-                  className="form-control"
+                  type={showOldPassword ? 'text' : 'password'}
                   required
                   value={passwordForm.oldPassword}
                   onChange={(e) => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })}
                   placeholder="Enter current password"
+                  className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowOldPassword(!showOldPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  {showOldPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
+            </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">New Password</label>
+            {/* New Password */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                New Password <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
                 <input
-                  type="password"
-                  className="form-control"
+                  type={showNewPassword ? 'text' : 'password'}
                   required
                   value={passwordForm.newPassword}
                   onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                  placeholder="Enter new password"
+                  placeholder="Enter new password (min. 6 characters)"
+                  className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
+            </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Confirm New Password</label>
+            {/* Confirm New Password */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Confirm New Password <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
                 <input
-                  type="password"
-                  className="form-control"
+                  type={showConfirmPassword ? 'text' : 'password'}
                   required
                   value={passwordForm.confirmPassword}
                   onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                  placeholder="Confirm new password"
+                  placeholder="Re-enter new password"
+                  className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="submit"
+                disabled={passwordSaving}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-sm transition-all hover:shadow cursor-pointer disabled:opacity-50"
+              >
+                {passwordSaving ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    <span>Updating...</span>
+                  </>
+                ) : (
+                  <>
+                    <Key size={14} />
+                    <span>Update Password</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* EDIT PROFILE MODAL (Matches Screenshot 2 Exactly) */}
+      {isEditModalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={closeEditModal}
+        >
+          <div
+            className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden p-6 sm:p-7 animate-in zoom-in-95 duration-150 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-start justify-between gap-4 pb-4">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 leading-tight">Edit profile</h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Update your name and email address. Changes apply to your account immediately.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeEditModal}
+                disabled={profileSaving}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center flex-shrink-0 transition-colors cursor-pointer"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            {/* Error inside modal */}
+            {profileError && (
+              <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium flex items-center gap-2">
+                <AlertCircle size={15} className="flex-shrink-0" />
+                <span>{profileError}</span>
+              </div>
+            )}
+
+            {/* Form */}
+            <form onSubmit={handleUpdateProfile} className="space-y-4 pt-1">
+              <div className="grid grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    First name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={profileForm.firstName}
+                    onChange={(e) => setProfileForm({ ...profileForm, firstName: e.target.value })}
+                    placeholder="First name"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Last name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={profileForm.lastName}
+                    onChange={(e) => setProfileForm({ ...profileForm, lastName: e.target.value })}
+                    placeholder="Last name"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Email address <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={profileForm.email}
+                  onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                  placeholder="name@example.com"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
                 />
               </div>
 
-              <div className="pt-2">
-                <Button type="submit" variant="primary" disabled={passwordSaving} className="w-full sm:w-auto">
-                  {passwordSaving && <Loader2 size={14} className="animate-spin inline mr-1.5" />}
-                  <span>Update Password</span>
-                </Button>
+              {/* Modal Footer Actions */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 mt-6">
+                <button
+                  type="button"
+                  onClick={closeEditModal}
+                  disabled={profileSaving}
+                  className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 text-xs font-semibold transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={profileSaving}
+                  className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-sm transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {profileSaving ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <span>Save Changes</span>
+                  )}
+                </button>
               </div>
             </form>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
