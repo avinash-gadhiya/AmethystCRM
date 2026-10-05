@@ -254,7 +254,7 @@ export default function MyProfilePage() {
             <button
               type="button"
               onClick={openEditModal}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-sm transition-all hover:shadow cursor-pointer"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-indigo-700 hover:from-purple-700 hover:via-indigo-700 hover:to-indigo-800 text-white text-xs font-semibold shadow-md shadow-purple-500/25 transition-all hover:shadow-lg hover:shadow-purple-500/30 cursor-pointer active:scale-[0.98]"
             >
               <Pencil size={13} />
               <span>Edit Profile</span>
@@ -270,7 +270,7 @@ export default function MyProfilePage() {
           onClick={() => setActiveTab('overview')}
           className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
             activeTab === 'overview'
-              ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60'
+              ? 'bg-white text-purple-700 shadow-xs border border-purple-200/70'
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
@@ -283,7 +283,7 @@ export default function MyProfilePage() {
           onClick={() => setActiveTab('personal')}
           className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
             activeTab === 'personal'
-              ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60'
+              ? 'bg-white text-purple-700 shadow-xs border border-purple-200/70'
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
@@ -296,7 +296,7 @@ export default function MyProfilePage() {
           onClick={() => setActiveTab('security')}
           className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
             activeTab === 'security'
-              ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60'
+              ? 'bg-white text-purple-700 shadow-xs border border-purple-200/70'
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
@@ -376,7 +376,7 @@ export default function MyProfilePage() {
               <button
                 type="button"
                 onClick={openEditModal}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 text-xs font-semibold transition-all shadow-xs cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-purple-200 text-purple-700 bg-purple-50/80 hover:bg-purple-100/90 text-xs font-semibold transition-all shadow-xs cursor-pointer active:scale-[0.98]"
               >
                 <Pencil size={12} />
                 <span>Edit Profile</span>
@@ -459,7 +459,7 @@ export default function MyProfilePage() {
             <button
               type="button"
               onClick={openEditModal}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 text-xs font-semibold transition-all shadow-xs cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-purple-200 text-purple-700 bg-purple-50/80 hover:bg-purple-100/90 text-xs font-semibold transition-all shadow-xs cursor-pointer active:scale-[0.98]"
             >
               <Pencil size={12} />
               <span>Edit Profile</span>
@@ -763,7 +763,7 @@ export default function MyProfilePage() {
                 <button
                   type="submit"
                   disabled={passwordSaving}
-                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-sm transition-all hover:shadow cursor-pointer disabled:opacity-50"
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-indigo-700 hover:from-purple-700 hover:via-indigo-700 hover:to-indigo-800 text-white text-xs font-semibold shadow-md shadow-purple-500/25 transition-all hover:shadow-lg hover:shadow-purple-500/30 cursor-pointer disabled:opacity-50 active:scale-[0.98]"
                 >
                   {passwordSaving ? (
                     <>
@@ -875,7 +875,7 @@ export default function MyProfilePage() {
                 <button
                   type="submit"
                   disabled={profileSaving}
-                  className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-sm transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-indigo-700 hover:from-purple-700 hover:via-indigo-700 hover:to-indigo-800 text-white text-xs font-semibold shadow-md shadow-purple-500/25 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 active:scale-[0.98]"
                 >
                   {profileSaving ? (
                     <>
