@@ -5,7 +5,6 @@ import { Outlet } from 'react-router-dom';
 import MobileHeader from './MobileHeader';
 import Navigation from './Navigation';
 import NavBar from './NavBar';
-import Breadcrumb from './Breadcrumb';
 import useWindowSize from 'hooks/useWindowSize';
 import { ConfigContext } from 'contexts/ConfigContext';
 import Loader from 'components/Loader/Loader';
@@ -33,7 +32,6 @@ export default function AdminLayout() {
       <NavBar />
       <Navigation />
       <div className={containerClass.join(' ')}>
-        <Breadcrumb />
         <div className="pcoded-content">
           <Suspense fallback={<Loader />}>
             <Outlet />

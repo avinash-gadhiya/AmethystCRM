@@ -20,11 +20,11 @@ export default function NavBar() {
 
   return (
     <header className={headerClass}>
-      <div className="header-wrapper">
-        <div className={`me-auto pc-mob-drp${collapseTabMenu ? ' mob-drp-active' : ''}`}>
+      <div className="header-wrapper flex items-center justify-between gap-4">
+        <div className={`flex-1 min-w-0 pc-mob-drp${collapseTabMenu ? ' mob-drp-active' : ''}`}>
           <NavLeft />
         </div>
-        <div className="ms-auto">
+        <div className="flex-shrink-0 flex items-center">
           <NavRight />
         </div>
       </div>

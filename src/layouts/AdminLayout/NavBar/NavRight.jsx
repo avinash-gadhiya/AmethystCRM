@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 // third party - Lucide icons
-import { Bell, User, LogOut, CheckCircle2, ChevronDown } from 'lucide-react';
+import { Bell, User, LogOut, CheckCircle2, ChevronDown, Search } from 'lucide-react';
 
 // project imports
 import authService from 'services/authService';
@@ -27,6 +27,39 @@ function useClickOutside(ref, handler) {
 export default function NavRight() {
   const navigate = useNavigate();
   const currentUser = authService.getUser();
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef(null);
+
+  // Global Ctrl+K / Cmd+K search focus shortcut
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return;
+
+    if (query.includes('ticket')) {
+      navigate('/Tickets');
+    } else if (query.includes('customer')) {
+      navigate('/Customers');
+    } else if (query.includes('profile')) {
+      navigate('/MyProfile');
+    } else if (query.includes('sale') || query.includes('report') || query.includes('perform')) {
+      navigate('/Performance/Dashboard');
+    } else {
+      navigate(`/Performance/Dashboard?search=${encodeURIComponent(query)}`);
+    }
+  };
 
   const [notifications, setNotifications] = useState([
     { id: 1, title: 'New ticket #1042 assigned', time: '5m ago', read: false },
@@ -65,6 +98,25 @@ export default function NavRight() {
 
   return (
     <div className="flex items-center gap-2 h-full">
+
+      {/* Global Header Search Bar (Blue Box) */}
+      <form
+        onSubmit={handleSearchSubmit}
+        className="relative hidden sm:flex items-center bg-slate-50 hover:bg-slate-100/70 focus-within:bg-white border border-slate-200/90 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 rounded-xl px-3 py-1.5 transition-all w-48 md:w-60 lg:w-72 shadow-2xs mr-1"
+      >
+        <Search size={14} className="text-slate-400 mr-2 flex-shrink-0" />
+        <input
+          ref={searchInputRef}
+          type="search"
+          className="w-full bg-transparent border-0 outline-none text-xs text-slate-800 placeholder-slate-400 p-0"
+          placeholder="Search records, tickets..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+        <kbd className="hidden md:inline-flex items-center text-[10px] font-semibold text-slate-400 bg-white border border-slate-200 px-1.5 py-0.5 rounded shadow-2xs ml-1.5 select-none flex-shrink-0">
+          Ctrl K
+        </kbd>
+      </form>
 
       {/* Notifications Dropdown */}
       <div className="relative" ref={notifRef}>

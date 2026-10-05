@@ -3,79 +3,101 @@ import { Link, useLocation } from 'react-router-dom';
 import { Home, ChevronRight } from 'lucide-react';
 
 // project imports
-import navigation from 'menu-items';
+import permissionService from 'services/permissionService';
 import { BASE_TITLE } from 'config/constant';
 
-// -----------------------|| BREADCRUMB ||-----------------------//
+// -----------------------|| HEADER BREADCRUMB ||-----------------------//
 
 export default function Breadcrumb() {
-  const [main, setMain] = useState({});
-  const [item, setItem] = useState({});
+  const [main, setMain] = useState(null);
+  const [item, setItem] = useState(null);
   const location = useLocation();
 
   useEffect(() => {
-    navigation.items.forEach((navItem) => {
-      if (navItem.type === 'group') {
-        getCollapse(navItem);
-      }
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname]);
+    const nav = permissionService.getNavigation() || { items: [] };
+    let matchedItem = null;
+    let matchedMain = null;
 
-  const getCollapse = (items) => {
-    if (items.children) {
-      items.children.forEach((collapse) => {
-        if (collapse.type === 'collapse') {
-          getCollapse(collapse);
-        } else if (collapse.type === 'item') {
-          if (document.location.pathname === (import.meta.env.VITE_APP_BASE_NAME || '') + collapse.url) {
-            setMain(items);
-            setItem(collapse);
+    const findMatch = (items, parent = null) => {
+      if (!items || !Array.isArray(items)) return;
+      for (const entry of items) {
+        if (entry.children && Array.isArray(entry.children)) {
+          findMatch(entry.children, entry);
+          if (matchedItem) break;
+        } else if (entry.url) {
+          const currentPath = location.pathname.toLowerCase().replace(/\/$/, '');
+          const entryPath = ((import.meta.env.VITE_APP_BASE_NAME || '') + entry.url).toLowerCase().replace(/\/$/, '');
+          if (currentPath === entryPath || (entryPath !== '' && entryPath !== '/' && currentPath.startsWith(entryPath))) {
+            matchedItem = entry;
+            matchedMain = parent;
+            break;
           }
         }
-      });
+      }
+    };
+
+    if (Array.isArray(nav.items)) {
+      findMatch(nav.items);
     }
-  };
 
-  let title = '';
+    if (matchedItem) {
+      setItem(matchedItem);
+      setMain(matchedMain);
+    } else {
+      // Fallback for custom routes like /MyProfile, /Tickets, etc.
+      const pathParts = location.pathname.split('/').filter(Boolean);
+      const lastPart = pathParts[pathParts.length - 1] || 'Dashboard';
+      const formattedTitle = lastPart
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/[-_]/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase())
+        .trim();
 
-  if (item && item.type === 'item' && item.breadcrumbs !== false) {
-    title = item.title;
-    document.title = title + BASE_TITLE;
+      setItem({ title: formattedTitle, type: 'item' });
+      setMain(pathParts.length > 1 ? { title: pathParts[0].charAt(0).toUpperCase() + pathParts[0].slice(1) } : null);
+    }
+  }, [location.pathname]);
 
-    return (
-      <div className="page-header mb-2">
-        <div className="page-block py-1.5 px-3">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-2.5">
-              <h5 className="text-xs font-bold text-gray-800 mb-0 leading-none">{title}</h5>
-              <span className="text-gray-300 text-xs">/</span>
-              <nav aria-label="breadcrumb">
-                <ol className="breadcrumb mb-0">
-                  <li className="breadcrumb-item">
-                    <Link to="/" className="flex items-center gap-1 text-gray-400 hover:text-indigo-500 text-xs">
-                      <Home size={11} />
-                      Home
-                    </Link>
-                  </li>
-                  {main && main.type === 'collapse' && main.title && main.title !== title && (
-                    <li className="breadcrumb-item flex items-center gap-1 text-xs">
-                      <ChevronRight size={10} className="text-gray-300" />
-                      <Link to="#" className="text-gray-400 hover:text-indigo-500">{main.title}</Link>
-                    </li>
-                  )}
-                  <li className="breadcrumb-item flex items-center gap-1 text-xs">
-                    <ChevronRight size={10} className="text-gray-300" />
-                    <span className="text-gray-600 font-medium">{title}</span>
-                  </li>
-                </ol>
-              </nav>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+  const title = item?.title || 'Dashboard';
+  if (title) {
+    document.title = `${title} ${BASE_TITLE || ''}`.trim();
   }
 
-  return null;
+  return (
+    <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+      {/* Primary Page Title (Bold) */}
+      <h1 className="text-xs sm:text-sm font-bold text-slate-800 tracking-tight leading-none mb-0 truncate">
+        {title}
+      </h1>
+
+      <span className="text-slate-300 text-xs font-light select-none">/</span>
+
+      {/* Breadcrumb Trail */}
+      <nav aria-label="breadcrumb" className="flex items-center min-w-0">
+        <ol className="flex items-center gap-1.5 mb-0 p-0 list-none text-xs">
+          <li className="flex items-center">
+            <Link
+              to="/Performance/Dashboard"
+              className="inline-flex items-center gap-1 text-slate-400 hover:text-indigo-600 transition-colors no-underline"
+            >
+              <Home size={12} className="text-slate-400 flex-shrink-0" />
+              <span className="font-medium hidden sm:inline">Home</span>
+            </Link>
+          </li>
+
+          {main && main.title && main.title !== title && (
+            <li className="flex items-center gap-1 text-slate-400">
+              <ChevronRight size={11} className="text-slate-300 flex-shrink-0" />
+              <span className="hidden md:inline font-normal truncate max-w-[120px]">{main.title}</span>
+            </li>
+          )}
+
+          <li className="flex items-center gap-1">
+            <ChevronRight size={11} className="text-slate-300 flex-shrink-0" />
+            <span className="text-slate-600 font-semibold truncate max-w-[160px]">{title}</span>
+          </li>
+        </ol>
+      </nav>
+    </div>
+  );
 }
