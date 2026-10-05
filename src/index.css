@@ -1760,3 +1760,15 @@ input[type="checkbox"]:checked {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* =====================================================
+   GLOBAL MODALS & DIALOGS OVERLAY STACKING
+   ===================================================== */
+div[role="dialog"],
+.fixed.inset-0.z-50,
+.fixed.inset-0.z-\[2000\],
+.settings-modal,
+.roles-modal {
+  z-index: 2000 !important;
+}
+

@@ -97,14 +97,7 @@ export const locationService = {
     const id = Number(locationId);
     if (!Number.isFinite(id) || id <= 0) throw new Error('A valid location ID is required.');
 
-    let response;
-    try {
-      response = await apiClient.delete(`/Location/${encodeURIComponent(id)}`);
-    } catch (error) {
-      if (![400, 404, 405].includes(error?.status)) throw error;
-      response = await apiClient.delete('/Location', { id });
-    }
-
+    const response = await apiClient.delete('/Location', { id });
     clearLocationCache();
     return response;
   },

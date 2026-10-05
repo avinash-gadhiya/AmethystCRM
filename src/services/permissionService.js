@@ -230,6 +230,31 @@ const moveGatewayPageToSettings = (menus = []) => {
     return !url.includes('gateway') && name !== 'gateway' && name !== 'gateways';
   });
 
+  // Ensure Email (Brand Email) option is completely removed from Settings sidebar navigation
+  const isEmailNavPage = (page) => {
+    const url = normalizeRoute(page?.pageUrl).toLowerCase();
+    const name = String(page?.pageName || page?.pageDisplayName || '')
+      .trim()
+      .toLowerCase();
+    if (name.includes('group') || url.includes('group')) return false;
+    return (
+      url === '/settings/email' ||
+      url === '/settings/brandemail' ||
+      url === '/settings/brand-emails' ||
+      url.includes('brandemail') ||
+      url.includes('brand-email') ||
+      name === 'email' ||
+      name === 'emails' ||
+      name === 'brand email' ||
+      name === 'brand emails'
+    );
+  };
+
+  clonedMenus.forEach((menu) => {
+    menu.menuPermissionPageDTOs = menu.menuPermissionPageDTOs.filter((page) => !isEmailNavPage(page));
+  });
+  settingsMenu.menuPermissionPageDTOs = settingsMenu.menuPermissionPageDTOs.filter((page) => !isEmailNavPage(page));
+
   // Preserve a backend-provided Settings Location URL; add the conventional URL only as a fallback.
   let locationPage = null;
   clonedMenus.forEach((menu) => {
@@ -262,34 +287,19 @@ const moveGatewayPageToSettings = (menus = []) => {
     }
   );
 
-  // Keep Brand Template as a direct Settings page and preserve a backend-provided custom URL.
-  let brandTemplatePage = null;
+  // Filter out Brand Template from sidebar navigation (accessible via Brands tab)
   clonedMenus.forEach((menu) => {
     menu.menuPermissionPageDTOs = menu.menuPermissionPageDTOs.filter((page) => {
       const url = normalizeRoute(page?.pageUrl).toLowerCase().replace(/[^a-z0-9]/g, '');
       const name = String(page?.pageName || page?.pageDisplayName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-      const isBrandTemplate = name === 'brandtemplate' || name === 'brandtemplates' || url.includes('brandtemplate');
-      if (isBrandTemplate && !brandTemplatePage) brandTemplatePage = page;
-      return !isBrandTemplate;
+      return !(name === 'brandtemplate' || name === 'brandtemplates' || url.includes('brandtemplate'));
     });
   });
-
-  settingsMenu.menuPermissionPageDTOs.push(
-    brandTemplatePage || {
-      pageId: 'settings-brand-template',
-      pageName: 'Brand Template',
-      pageDisplayName: 'Brand Template',
-      pageUrl: '/settings/brand-template',
-      pageOrder: 94,
-      isActive: true,
-      menuPagePermissionDTOs: [
-        { permissionName: 'View', permissionCode: 'brandtemplate_view', isActive: true, hasPermission: true },
-        { permissionName: 'Add', permissionCode: 'brandtemplate_add', isActive: true, hasPermission: true },
-        { permissionName: 'Edit', permissionCode: 'brandtemplate_edit', isActive: true, hasPermission: true },
-        { permissionName: 'Delete', permissionCode: 'brandtemplate_delete', isActive: true, hasPermission: true }
-      ]
-    }
-  );
+  settingsMenu.menuPermissionPageDTOs = settingsMenu.menuPermissionPageDTOs.filter((page) => {
+    const url = normalizeRoute(page?.pageUrl).toLowerCase().replace(/[^a-z0-9]/g, '');
+    const name = String(page?.pageName || page?.pageDisplayName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    return !(name === 'brandtemplate' || name === 'brandtemplates' || url.includes('brandtemplate'));
+  });
 
   // Ensure Blocked IP page is registered under Settings navigation
   const hasBlockedIpPage = settingsMenu.menuPermissionPageDTOs.some((page) => {
@@ -384,28 +394,6 @@ const moveGatewayPageToSettings = (menus = []) => {
     });
   }
 
-  const hasBrandEmailPage = settingsMenu.menuPermissionPageDTOs.some((page) => {
-    const url = normalizeRoute(page?.pageUrl).toLowerCase();
-    const name = String(page?.pageName || page?.pageDisplayName || '').trim().toLowerCase();
-    return url === '/settings/brandemail' || url === '/settings/brand-emails' || url === '/settings/email' || name === 'brand email' || name === 'brand emails';
-  });
-
-  if (!hasBrandEmailPage) {
-    settingsMenu.menuPermissionPageDTOs.push({
-      pageId: 'settings-brand-email',
-      pageName: 'Brand Emails',
-      pageDisplayName: 'Brand Emails',
-      pageUrl: '/settings/brandemail',
-      pageOrder: 89,
-      isActive: true,
-      menuPagePermissionDTOs: [
-        { permissionName: 'View', permissionCode: 'brandemail_view', isActive: true, hasPermission: true },
-        { permissionName: 'Add', permissionCode: 'brandemail_add', isActive: true, hasPermission: true },
-        { permissionName: 'Edit', permissionCode: 'brandemail_edit', isActive: true, hasPermission: true },
-        { permissionName: 'Delete', permissionCode: 'brandemail_delete', isActive: true, hasPermission: true }
-      ]
-    });
-  }
 
   // Ensure Sales Target is available in Settings even when the permission API omits a navigation record.
   const hasSalesTargetPage = settingsMenu.menuPermissionPageDTOs.some((page) => {
@@ -522,29 +510,19 @@ const moveGatewayPageToSettings = (menus = []) => {
     });
   }
 
-  // Ensure Group Email management page is registered under Settings navigation as direct item
-  const hasGroupEmailPage = settingsMenu.menuPermissionPageDTOs.some((page) => {
-    const u = normalizeRoute(page?.pageUrl).toLowerCase();
-    const name = String(page?.pageName || page?.pageDisplayName || '').trim().toLowerCase();
-    return u === '/settings/group-email' || u === '/settings/groupemail' || name === 'group email' || name === 'group emails';
-  });
-
-  if (!hasGroupEmailPage) {
-    settingsMenu.menuPermissionPageDTOs.push({
-      pageId: 'settings-group-email',
-      pageName: 'Group Email',
-      pageDisplayName: 'Group Email',
-      pageUrl: '/settings/group-email',
-      pageOrder: 90,
-      isActive: true,
-      menuPagePermissionDTOs: [
-        { permissionName: 'View', permissionCode: 'groupemail_view', isActive: true, hasPermission: true },
-        { permissionName: 'Add', permissionCode: 'groupemail_add', isActive: true, hasPermission: true },
-        { permissionName: 'Edit', permissionCode: 'groupemail_edit', isActive: true, hasPermission: true },
-        { permissionName: 'Delete', permissionCode: 'groupemail_delete', isActive: true, hasPermission: true }
-      ]
+  // Filter out Group Email from sidebar navigation (accessible via Groups tab)
+  clonedMenus.forEach((menu) => {
+    menu.menuPermissionPageDTOs = menu.menuPermissionPageDTOs.filter((page) => {
+      const url = normalizeRoute(page?.pageUrl).toLowerCase().replace(/[^a-z0-9]/g, '');
+      const name = String(page?.pageName || page?.pageDisplayName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      return !(name === 'groupemail' || name === 'groupemails' || url.includes('groupemail') || url.includes('group-email'));
     });
-  }
+  });
+  settingsMenu.menuPermissionPageDTOs = settingsMenu.menuPermissionPageDTOs.filter((page) => {
+    const url = normalizeRoute(page?.pageUrl).toLowerCase().replace(/[^a-z0-9]/g, '');
+    const name = String(page?.pageName || page?.pageDisplayName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    return !(name === 'groupemail' || name === 'groupemails' || url.includes('groupemail') || url.includes('group-email'));
+  });
 
   // Ensure Locations management page is registered under Settings navigation
   const hasLocationsPage = settingsMenu.menuPermissionPageDTOs.some((page) => {
@@ -643,6 +621,20 @@ export const permissionService = {
       return url === '/myprofile' || url === '/profile' || name === 'myprofile' || name === 'profile';
     };
 
+    const isSidebarExcludedPage = (page) => {
+      const url = normalizeRoute(page?.pageUrl).toLowerCase().replace(/[^a-z0-9]/g, '');
+      const name = String(page?.pageName || page?.pageDisplayName || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+      return (
+        name === 'brandtemplate' ||
+        name === 'brandtemplates' ||
+        url.includes('brandtemplate') ||
+        name === 'groupemail' ||
+        name === 'groupemails' ||
+        url.includes('groupemail') ||
+        url.includes('group-email')
+      );
+    };
+
     const grantedCodes = getStoredPermissionCodes();
     const menuItems = sortByOrder(
       moveGatewayPageToSettings(permissionMenuDTOs).filter(
@@ -653,7 +645,7 @@ export const permissionService = {
       .map((menu, menuIndex) => {
         const pages = sortByOrder(
           (Array.isArray(menu.menuPermissionPageDTOs) ? menu.menuPermissionPageDTOs : []).filter(
-            (page) => canDisplayPage(page, grantedCodes) && !isProfilePage(page)
+            (page) => canDisplayPage(page, grantedCodes) && !isProfilePage(page) && !isSidebarExcludedPage(page)
           ),
           'pageOrder'
         );
@@ -750,7 +742,17 @@ export const permissionService = {
 
   hasPath(path, navigation = this.getNavigation()) {
     const normalized = normalizeRoute(path).toLowerCase();
-    if (normalized === '/myprofile' || normalized === '/profile') return true;
+    if (
+      normalized === '/myprofile' ||
+      normalized === '/profile' ||
+      normalized === '/settings/brand-template' ||
+      normalized === '/settings/group-email' ||
+      normalized === '/settings/groupemail' ||
+      normalized.includes('brandtemplate') ||
+      normalized.includes('groupemail')
+    ) {
+      return true;
+    }
     return containsUrl(navigation?.items || [], path);
   },
 

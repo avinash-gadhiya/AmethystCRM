@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Menu as MenuIcon, AlertCircle, Sparkles } from 'lucide-react';
+import { Menu as MenuIcon, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 import menuService from '@/services/menuService';
@@ -103,10 +103,10 @@ const MenuModal = ({ open, menu = null, onClose, onSuccess }) => {
 
       if (isEditing) {
         await menuService.updateMenu(payload);
-        toast.success('Menu updated successfully');
+        toast.success(`Menu "${payload.menuDisplayName}" updated successfully.`);
       } else {
         await menuService.createMenu(payload);
-        toast.success('Menu created successfully');
+        toast.success(`Menu "${payload.menuDisplayName}" created successfully.`);
       }
 
       onSuccess?.();
@@ -119,213 +119,200 @@ const MenuModal = ({ open, menu = null, onClose, onSuccess }) => {
     }
   };
 
-  return createPortal(
+  const modalContent = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !saving) onClose?.();
-      }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="menu-modal-title"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 overflow-y-auto bg-black/60 animate-in fade-in duration-200"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !saving) onClose?.();
+      }}
     >
-      <div className="relative w-full max-w-lg max-h-[90vh] bg-white dark:bg-[#17132a] border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-scaleUp">
-        {/* Modal Header */}
-        <div className="flex items-center justify-between gap-4 px-5 sm:px-6 py-4 border-b border-gray-100 dark:border-white/10 bg-gray-50/70 dark:bg-white/[0.02] shrink-0">
+      <div
+        className="w-full max-w-xl bg-white dark:bg-[#17132a] border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] my-auto animate-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between gap-4 px-5 sm:px-6 py-4 border-b border-gray-200 dark:border-white/10 bg-gray-50/70 dark:bg-white/[0.02] shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center border border-purple-200/50 dark:border-purple-800/30 shadow-xs">
+            <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center border border-purple-200/50 dark:border-purple-800/40">
               <MenuIcon size={20} />
             </div>
             <div>
-              <h2 id="menu-modal-title" className="text-lg font-bold text-gray-900 dark:text-white leading-tight">
-                {isEditing ? 'Edit Menu' : 'Add Menu'}
-              </h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                {isEditing ? `Modify menu #${menu.menuId}` : 'Define a top-level system navigation menu'}
+              <h3 id="menu-modal-title" className="text-lg font-bold text-gray-900 dark:text-white">
+                {isEditing ? 'Edit Menu' : 'Add New Menu'}
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {isEditing
+                  ? `Update configuration for menu ID #${menu.menuId}`
+                  : 'Configure a new application menu, route, and navigation placement'}
               </p>
             </div>
           </div>
-
           <GlassCloseButton onClick={onClose} disabled={saving} />
         </div>
 
-        {/* Modal Body: Scrollable */}
-        <form id="menu-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
-          {/* Menu Name */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-              Menu Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. Sales, Settings, Operations"
-              value={formData.menuName}
-              onChange={(e) => handleChange('menuName', e.target.value)}
-              disabled={saving}
-              className={`w-full px-3.5 py-2.5 text-sm rounded-xl border bg-gray-50/50 dark:bg-[#0f1322] text-gray-900 dark:text-white placeholder-gray-400 outline-none transition-all ${
-                validationErrors.menuName
-                  ? 'border-red-400 focus:ring-2 focus:ring-red-400/20'
-                  : 'border-gray-200 dark:border-white/10 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20'
-              }`}
-            />
-            {validationErrors.menuName && (
-              <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                <AlertCircle size={12} /> {validationErrors.menuName}
-              </p>
-            )}
-          </div>
-
-          {/* Display Name */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-              Display Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. Sales Management"
-              value={formData.menuDisplayName}
-              onChange={(e) => handleChange('menuDisplayName', e.target.value)}
-              disabled={saving}
-              className={`w-full px-3.5 py-2.5 text-sm rounded-xl border bg-gray-50/50 dark:bg-[#0f1322] text-gray-900 dark:text-white placeholder-gray-400 outline-none transition-all ${
-                validationErrors.menuDisplayName
-                  ? 'border-red-400 focus:ring-2 focus:ring-red-400/20'
-                  : 'border-gray-200 dark:border-white/10 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20'
-              }`}
-            />
-            {validationErrors.menuDisplayName && (
-              <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                <AlertCircle size={12} /> {validationErrors.menuDisplayName}
-              </p>
-            )}
-          </div>
-
-          {/* URL */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-              URL <span className="text-red-500">*</span>
-            </label>
-            <input
-                type="text"
-                placeholder="e.g. /sales or #"
-                value={formData.menuUrl}
-                onChange={(e) => handleChange('menuUrl', e.target.value)}
-                disabled={saving}
-                className={`w-full px-3.5 py-2.5 text-sm font-mono rounded-xl border bg-gray-50/50 dark:bg-[#0f1322] text-gray-900 dark:text-white placeholder-gray-400 outline-none transition-all ${
-                  validationErrors.menuUrl
-                    ? 'border-red-400 focus:ring-2 focus:ring-red-400/20'
-                    : 'border-gray-200 dark:border-white/10 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20'
-                }`}
-            />
-            {validationErrors.menuUrl && (
-              <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                <AlertCircle size={12} /> {validationErrors.menuUrl}
-              </p>
-            )}
-          </div>
-
-          {/* Icon (CSS class) & Menu Order */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Icon */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                Icon (CSS Class / Lucide)
-              </label>
-              <input
+        {/* Form Body */}
+        <form id="menu-form" onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col">
+          <div className="flex-1 overflow-y-auto p-5 sm:p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Menu Name */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
+                  Menu Name <span className="text-red-500">*</span>
+                </label>
+                <input
                   type="text"
-                  placeholder="e.g. feather icon-home"
-                  value={formData.menuIcon}
-                  onChange={(e) => handleChange('menuIcon', e.target.value)}
+                  value={formData.menuName}
+                  onChange={(e) => handleChange('menuName', e.target.value)}
+                  placeholder="e.g. Lead Access, Settings, Operations"
                   disabled={saving}
-                  className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50/50 dark:bg-[#0f1322] text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                  className={`w-full px-3.5 py-2.5 rounded-xl border ${
+                    validationErrors.menuName
+                      ? 'border-red-500 ring-1 ring-red-500'
+                      : 'border-gray-200 dark:border-white/10'
+                  } bg-gray-50/50 dark:bg-white/5 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500 transition-all`}
+                  autoFocus
                 />
-            </div>
+                {validationErrors.menuName && (
+                  <span className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <AlertCircle size={12} /> {validationErrors.menuName}
+                  </span>
+                )}
+              </div>
 
-            {/* Menu Order */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                Order <span className="text-red-500">*</span>
-              </label>
-              <input
+              {/* Display Name */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
+                  Display Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.menuDisplayName}
+                  onChange={(e) => handleChange('menuDisplayName', e.target.value)}
+                  placeholder="e.g. Lead Access"
+                  disabled={saving}
+                  className={`w-full px-3.5 py-2.5 rounded-xl border ${
+                    validationErrors.menuDisplayName
+                      ? 'border-red-500 ring-1 ring-red-500'
+                      : 'border-gray-200 dark:border-white/10'
+                  } bg-gray-50/50 dark:bg-white/5 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500 transition-all`}
+                />
+                {validationErrors.menuDisplayName && (
+                  <span className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <AlertCircle size={12} /> {validationErrors.menuDisplayName}
+                  </span>
+                )}
+              </div>
+
+              {/* URL */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
+                  URL <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.menuUrl}
+                  onChange={(e) => handleChange('menuUrl', e.target.value)}
+                  placeholder="e.g. /Lead-Access or #"
+                  disabled={saving}
+                  className={`w-full px-3.5 py-2.5 rounded-xl border ${
+                    validationErrors.menuUrl
+                      ? 'border-red-500 ring-1 ring-red-500'
+                      : 'border-gray-200 dark:border-white/10'
+                  } bg-gray-50/50 dark:bg-white/5 text-sm font-mono text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500 transition-all`}
+                />
+                {validationErrors.menuUrl && (
+                  <span className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <AlertCircle size={12} /> {validationErrors.menuUrl}
+                  </span>
+                )}
+              </div>
+
+              {/* Order */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
+                  Order <span className="text-red-500">*</span>
+                </label>
+                <input
                   type="number"
                   min="0"
-                  step="1"
-                  placeholder="0"
                   value={formData.menuOrder}
                   onChange={(e) => handleChange('menuOrder', e.target.value)}
                   disabled={saving}
-                  className={`w-full px-3.5 py-2.5 text-sm rounded-xl border bg-gray-50/50 dark:bg-[#0f1322] text-gray-900 dark:text-white placeholder-gray-400 outline-none transition-all ${
+                  className={`w-full px-3.5 py-2.5 rounded-xl border ${
                     validationErrors.menuOrder
-                      ? 'border-red-400 focus:ring-2 focus:ring-red-400/20'
-                      : 'border-gray-200 dark:border-white/10 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20'
-                  }`}
-              />
-              {validationErrors.menuOrder && (
-                <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                  <AlertCircle size={12} /> {validationErrors.menuOrder}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Status Toggle */}
-          <div className="pt-2">
-            <div className="flex items-center justify-between p-3.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50/50 dark:bg-white/5">
-              <div>
-                <label htmlFor="menu-active-toggle" className="text-xs font-semibold text-gray-800 dark:text-gray-200 block cursor-pointer">
-                  Status
-                </label>
-                <span className="text-[11px] text-gray-500 dark:text-gray-400">
-                  {formData.isActive ? 'Active and visible in navigation' : 'Inactive (hidden from navigation)'}
-                </span>
+                      ? 'border-red-500 ring-1 ring-red-500'
+                      : 'border-gray-200 dark:border-white/10'
+                  } bg-gray-50/50 dark:bg-white/5 text-sm font-mono text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500 transition-all`}
+                />
+                {validationErrors.menuOrder && (
+                  <span className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <AlertCircle size={12} /> {validationErrors.menuOrder}
+                  </span>
+                )}
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold font-mono text-gray-700 dark:text-gray-300">
-                  {formData.isActive ? 'ON' : 'OFF'}
-                </span>
+
+              {/* Icon (CSS Class / Lucide) */}
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
+                  Icon (CSS Class / Lucide) <span className="text-xs font-normal text-gray-400">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.menuIcon}
+                  onChange={(e) => handleChange('menuIcon', e.target.value)}
+                  placeholder="e.g. feather icon-home, home, layout"
+                  disabled={saving}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50/50 dark:bg-white/5 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500 transition-all"
+                />
+              </div>
+
+              {/* Status Toggle Card */}
+              <div className="sm:col-span-2 flex items-center justify-between p-3.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50/30 dark:bg-white/[0.02]">
+                <div>
+                  <span className="block text-xs font-semibold text-gray-700 dark:text-gray-200">
+                    Status
+                  </span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    {formData.isActive ? 'Menu is active and available in navigation' : 'Menu is disabled and hidden'}
+                  </span>
+                </div>
                 <IosToggle
-                  id="menu-active-toggle"
-                  checked={formData.isActive}
-                  onCheckedChange={(val) => handleChange('isActive', val)}
+                  checked={Boolean(formData.isActive)}
+                  onCheckedChange={(next) => handleChange('isActive', next)}
                   disabled={saving}
                   title={formData.isActive ? 'Active' : 'Inactive'}
                 />
               </div>
             </div>
           </div>
+
+          {/* Fixed Footer */}
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 px-5 sm:px-6 py-4 border-t border-gray-200 dark:border-white/10 bg-gray-50/70 dark:bg-white/[0.02] shrink-0">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="px-4 py-2.5 rounded-xl border border-gray-300 dark:border-white/15 bg-white dark:bg-transparent text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Cancel
+            </button>
+            <LiquidGlassButton
+              type="submit"
+              disabled={saving}
+              className="min-w-[132px] justify-center text-sm"
+            >
+              {saving ? 'Saving...' : isEditing ? 'Update Menu' : 'Create Menu'}
+            </LiquidGlassButton>
+          </div>
         </form>
-
-        {/* Modal Footer: Fixed */}
-        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 px-5 sm:px-6 py-4 border-t border-gray-100 dark:border-white/10 bg-gray-50/70 dark:bg-white/[0.02] shrink-0">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="px-4 py-2.5 text-sm font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-transparent border border-gray-300 dark:border-white/15 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Cancel
-          </button>
-
-          <LiquidGlassButton
-            type="submit"
-            form="menu-form"
-            disabled={saving}
-            className="text-sm font-semibold min-w-[132px] justify-center shadow-md"
-          >
-            {saving ? (
-              <span className="flex items-center gap-1.5">
-                <Sparkles size={14} className="animate-spin" /> Saving...
-              </span>
-            ) : isEditing ? (
-              'Update Menu'
-            ) : (
-              'Create Menu'
-            )}
-          </LiquidGlassButton>
-        </div>
       </div>
-    </div>,
-    document.body
+    </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : null;
 };
 
 export default MenuModal;

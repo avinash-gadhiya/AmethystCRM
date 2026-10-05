@@ -5,31 +5,43 @@ import GlassCloseButton from './GlassCloseButton';
 
 const DeleteConfirmModal = ({
   open,
+  isOpen,
   title = 'Delete Role',
   description = 'Are you sure you want to delete',
   itemName,
   details = [],
+  message,
   confirmText = 'Delete',
   cancelText = 'Cancel',
   loading = false,
+  isDeleting = false,
   loadingText = 'Deleting...',
   onCancel,
+  onClose,
   onConfirm
 }) => {
-  if (!open) return null;
+  const isVisible = open ?? isOpen ?? false;
+  const isLoading = loading || isDeleting;
+  const handleCancel = onCancel || onClose;
+
+  if (!isVisible) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="bg-white dark:bg-[#17132a] rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-white/10">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 bg-white/95 dark:bg-[#1d1733] backdrop-blur">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
-          <GlassCloseButton onClick={onCancel} disabled={loading} />
+          <GlassCloseButton onClick={handleCancel} disabled={isLoading} />
         </div>
 
         <div className="p-6">
-          <p className="text-sm text-gray-700 dark:text-gray-200">
-            {description} {itemName ? <span className="font-semibold text-gray-900 dark:text-white">&ldquo;{itemName}&rdquo;</span> : null}?
-          </p>
+          {message ? (
+            <div className="text-sm text-gray-700 dark:text-gray-200">{message}</div>
+          ) : (
+            <p className="text-sm text-gray-700 dark:text-gray-200">
+              {description} {itemName ? <span className="font-semibold text-gray-900 dark:text-white">&ldquo;{itemName}&rdquo;</span> : null}?
+            </p>
+          )}
 
           {Array.isArray(details) && details.length > 0 && (
             <div className="mt-3 rounded-lg border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 p-3 space-y-1.5">
@@ -49,8 +61,8 @@ const DeleteConfirmModal = ({
           <div className="mt-6 flex items-center justify-end gap-3">
             <button
               type="button"
-              onClick={onCancel}
-              disabled={loading}
+              onClick={handleCancel}
+              disabled={isLoading}
               className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg border border-gray-300 dark:border-white/15 transition-colors disabled:opacity-50"
             >
               {cancelText}
@@ -58,10 +70,10 @@ const DeleteConfirmModal = ({
             <LiquidGlassButton
               variant="danger"
               onClick={onConfirm}
-              disabled={loading}
+              disabled={isLoading}
               className="text-center"
             >
-              {loading ? loadingText : confirmText}
+              {isLoading ? loadingText : confirmText}
             </LiquidGlassButton>
           </div>
         </div>

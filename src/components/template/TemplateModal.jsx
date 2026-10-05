@@ -55,6 +55,18 @@ const TemplateModal = ({
     }
   }, [open, template, emailTypes]);
 
+  // Close on Escape key press
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && !saving) {
+        onClose?.();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [open, saving, onClose]);
+
   if (!open) return null;
 
   const handleChange = (field, value) => {
@@ -134,19 +146,28 @@ const TemplateModal = ({
       aria-modal="true"
       aria-labelledby="template-modal-title"
     >
-      <div className="relative w-full max-w-4xl max-h-[95vh] bg-white dark:bg-[#17132a] border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-scaleUp">
+      <div className="relative w-full max-w-5xl max-h-[92vh] bg-white dark:bg-[#151828] border border-gray-200/80 dark:border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-scaleUp">
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4.5 border-b border-gray-100 dark:border-white/10 shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-white/10 bg-white dark:bg-[#151828] shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center border border-purple-200/50 dark:border-purple-800/30 shadow-xs">
+            <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center border border-purple-200/60 dark:border-purple-800/40 shadow-xs">
               <FileText size={20} />
             </div>
             <div>
-              <h2 id="template-modal-title" className="text-lg font-bold text-gray-900 dark:text-white leading-tight">
-                {isEditing ? 'Edit Template' : 'Add Template'}
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 id="template-modal-title" className="text-lg font-bold text-gray-900 dark:text-white leading-tight">
+                  {isEditing ? 'Edit Template' : 'Add Template'}
+                </h2>
+                {isEditing && (
+                  <span className="px-2 py-0.5 text-[11px] font-mono font-semibold rounded-md bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/40">
+                    #{template.templateId}
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                {isEditing ? `Modify template #${template.templateId}` : 'Create a reusable email notification or message template'}
+                {isEditing
+                  ? `Modify template content and delivery configuration`
+                  : 'Create a reusable email notification or message template'}
               </p>
             </div>
           </div>
@@ -155,21 +176,21 @@ const TemplateModal = ({
         </div>
 
         {/* Modal Body: Scrollable */}
-        <form id="template-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
-          {/* Top Form Row: Name & Email Type */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form id="template-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4.5 min-h-0">
+          {/* Top Form Row: Name, Email Type, Status aligned in one neat row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3.5 items-start">
             {/* Template Name */}
-            <div>
+            <div className="lg:col-span-5">
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                 Template Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                placeholder="e.g. Order Confirmation, Welcome Email"
+                placeholder="e.g. Order Confirmation, Partial Refund"
                 value={formData.templateName}
                 onChange={(e) => handleChange('templateName', e.target.value)}
                 disabled={saving}
-                className={`w-full px-3.5 py-2 text-sm rounded-xl border bg-gray-50/50 dark:bg-[#0f1322] text-gray-900 dark:text-white placeholder-gray-400 outline-none transition-all ${
+                className={`w-full h-10 px-3.5 text-sm rounded-xl border bg-gray-50/60 dark:bg-[#0d111d] text-gray-900 dark:text-white placeholder-gray-400 outline-none transition-all ${
                   validationErrors.templateName
                     ? 'border-red-400 focus:ring-2 focus:ring-red-400/20'
                     : 'border-gray-200 dark:border-white/10 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20'
@@ -183,7 +204,7 @@ const TemplateModal = ({
             </div>
 
             {/* Email Type ID */}
-            <div>
+            <div className="lg:col-span-4">
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                 Email Type
               </label>
@@ -192,7 +213,7 @@ const TemplateModal = ({
                   value={formData.emailTypeId}
                   onChange={(e) => handleChange('emailTypeId', e.target.value)}
                   disabled={saving}
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50/50 dark:bg-[#0f1322] text-gray-900 dark:text-white outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all appearance-none cursor-pointer"
+                  className="w-full h-10 px-3.5 pr-8 text-sm rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50/60 dark:bg-[#0d111d] text-gray-900 dark:text-white outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all appearance-none cursor-pointer"
                 >
                   <option value="">Select Email Type (Optional)</option>
                   {emailTypes.map((et) => (
@@ -206,74 +227,91 @@ const TemplateModal = ({
                 </span>
               </div>
             </div>
-          </div>
 
-          {/* Status Toggle Row */}
-          <div className="flex items-center justify-between p-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50/50 dark:bg-white/5">
-            <div>
-              <label htmlFor="tpl-active-toggle" className="text-xs font-semibold text-gray-800 dark:text-gray-200 block cursor-pointer">
+            {/* Status Toggle Card */}
+            <div className="sm:col-span-2 lg:col-span-3">
+              <label htmlFor="tpl-active-toggle" className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer">
                 Status
               </label>
-              <span className="text-[11px] text-gray-500 dark:text-gray-400">
-                {formData.isActive ? 'Active and available for delivery' : 'Inactive (disabled)'}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold font-mono text-gray-700 dark:text-gray-300">
-                {formData.isActive ? 'ON' : 'OFF'}
-              </span>
-              <IosToggle
-                id="tpl-active-toggle"
-                checked={formData.isActive}
-                onCheckedChange={(val) => handleChange('isActive', val)}
-                disabled={saving}
-                title={formData.isActive ? 'Active' : 'Inactive'}
-              />
+              <div className="flex items-center justify-between h-10 px-3.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50/60 dark:bg-[#0d111d] transition-all">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`inline-block w-2 h-2 rounded-full ${
+                      formData.isActive ? 'bg-emerald-500 shadow-xs shadow-emerald-500/50' : 'bg-gray-400'
+                    }`}
+                  />
+                  <span
+                    className={`text-xs font-semibold ${
+                      formData.isActive ? 'text-gray-800 dark:text-gray-200' : 'text-gray-500 dark:text-gray-400'
+                    }`}
+                  >
+                    {formData.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+                <IosToggle
+                  id="tpl-active-toggle"
+                  checked={formData.isActive}
+                  onCheckedChange={(val) => handleChange('isActive', val)}
+                  disabled={saving}
+                  title={formData.isActive ? 'Active' : 'Inactive'}
+                />
+              </div>
             </div>
           </div>
 
           {/* Body Rich Text Editor */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-              Template Body Content
-            </label>
+          <div className="pt-0.5">
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                Template Body Content <span className="text-red-500">*</span>
+              </label>
+              <span className="text-[11px] text-gray-400 dark:text-gray-500">
+                HTML & Rich formatting supported
+              </span>
+            </div>
             <RichTextEditor
               ref={editorRef}
               value={formData.body}
               onChange={(html) => handleChange('body', html)}
               placeholders={placeholders}
-              height={430}
+              height={360}
             />
           </div>
         </form>
 
         {/* Modal Footer: Fixed */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 dark:border-white/10 bg-gray-50/50 dark:bg-white/5 shrink-0">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 rounded-xl transition-all"
-          >
-            Cancel
-          </button>
+        <div className="flex items-center justify-between px-6 py-3.5 border-t border-gray-100 dark:border-white/10 bg-gray-50/70 dark:bg-white/5 shrink-0">
+          <div className="text-xs text-gray-400 dark:text-gray-500 hidden sm:block">
+            Press <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-gray-200/70 dark:bg-white/10 text-gray-600 dark:text-gray-300 rounded">Esc</kbd> to close
+          </div>
 
-          <LiquidGlassButton
-            type="submit"
-            form="template-form"
-            disabled={saving}
-            className="text-xs font-semibold min-w-[130px] shadow-md"
-          >
-            {saving ? (
-              <span className="flex items-center gap-1.5">
-                <Sparkles size={14} className="animate-spin" /> Saving...
-              </span>
-            ) : isEditing ? (
-              'Update Template'
-            ) : (
-              'Create Template'
-            )}
-          </LiquidGlassButton>
+          <div className="flex items-center gap-2.5 ml-auto">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="px-4 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200/60 dark:hover:bg-white/10 rounded-xl transition-all disabled:opacity-50"
+            >
+              Cancel
+            </button>
+
+            <LiquidGlassButton
+              type="submit"
+              form="template-form"
+              disabled={saving}
+              className="text-xs font-semibold min-w-[135px] shadow-sm"
+            >
+              {saving ? (
+                <span className="flex items-center gap-1.5">
+                  <Sparkles size={14} className="animate-spin" /> Saving...
+                </span>
+              ) : isEditing ? (
+                'Update Template'
+              ) : (
+                'Create Template'
+              )}
+            </LiquidGlassButton>
+          </div>
         </div>
       </div>
     </div>,

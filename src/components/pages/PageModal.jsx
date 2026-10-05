@@ -131,7 +131,7 @@ const PageModal = ({ open, page = null, onClose, onSuccess, menus = [] }) => {
       role="dialog"
       aria-modal="true"
       aria-labelledby="page-modal-title"
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 overflow-y-auto bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 overflow-y-auto bg-black/60 animate-in fade-in duration-200"
       onClick={(e) => {
         if (e.target === e.currentTarget && !saving) onClose?.();
       }}

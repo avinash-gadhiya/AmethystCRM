@@ -42,8 +42,8 @@ const toTargetValue = (value) => {
 // Day-wise column colours: hit the day's target vs missed it. Deeper than the
 // summary-card bars (.kpi-progress-bar--met / --low), which need light tints to
 // read on the gradient cards; these sit on a plain chart plot area instead.
-const TARGET_MET_COLOR = '#0F9D58';
-const TARGET_MISSED_COLOR = '#DC2626';
+const TARGET_MET_COLOR = '#10B981';
+const TARGET_MISSED_COLOR = '#F43F5E';
 
 const formatDayLabel = (date) => String(date.getDate());
 
@@ -1057,22 +1057,20 @@ const DashboardPage = () => {
           name: 'Total Sales',
           type: 'column',
           yAxis: 0,
-          // Fallback only: each point sets its own colour once a target exists.
-          color: chartTheme.salesColumn,
+          color: isDarkMode ? '#818cf8' : '#6366f1',
+          borderRadius: 6,
           borderWidth: 0,
-          zIndex: 1,
+          zIndex: 2,
           data: dailyActualSalesPoints,
         },
         {
           name: 'Total Sales (Trend)',
           type: 'spline',
           yAxis: 0,
-          color: '#38ca75',
-          lineWidth: 2,
-          marker: { enabled: false, radius: 3 },
-          zIndex: 5,
-          // Draws the same values as the Total Sales columns, so keep the line
-          // but leave it out of the shared tooltip instead of repeating the row.
+          color: '#10B981',
+          lineWidth: 2.5,
+          marker: { enabled: false, radius: 3.5 },
+          zIndex: 6,
           enableMouseTracking: false,
           data: dailyActualSales,
         },
@@ -1080,9 +1078,10 @@ const DashboardPage = () => {
           name: 'Total Sales (Forecast)',
           type: 'column',
           yAxis: 0,
-          color: chartTheme.forecastFill,
-          borderColor: chartTheme.forecastBorder,
-          borderWidth: 1,
+          color: isDarkMode ? 'rgba(168, 85, 247, 0.32)' : 'rgba(168, 85, 247, 0.20)',
+          borderColor: isDarkMode ? 'rgba(192, 132, 252, 0.75)' : 'rgba(168, 85, 247, 0.65)',
+          borderWidth: 1.5,
+          borderRadius: 6,
           zIndex: 1,
           data: dailyForecastBars,
         },
@@ -1090,13 +1089,11 @@ const DashboardPage = () => {
           name: 'Total Sales (Forecast Trend)',
           type: 'spline',
           yAxis: 0,
-          color: chartTheme.forecastTrend,
+          color: isDarkMode ? '#c084fc' : '#8b5cf6',
           dashStyle: 'Dash',
-          lineWidth: 2,
+          lineWidth: 2.5,
           marker: { enabled: false, radius: 3 },
           zIndex: 5,
-          // Draws the same values as the forecast columns, so keep the line but
-          // leave it out of the shared tooltip instead of repeating the row.
           enableMouseTracking: false,
           data: forecastTrend,
         },
@@ -1104,7 +1101,7 @@ const DashboardPage = () => {
           name: 'Daily Target',
           type: 'spline',
           yAxis: 0,
-          color: '#a855f7',
+          color: isDarkMode ? '#e879f9' : '#a855f7',
           dashStyle: 'ShortDot',
           lineWidth: 2,
           marker: { enabled: false },
@@ -1116,9 +1113,9 @@ const DashboardPage = () => {
           type: 'spline',
           yAxis: 1,
           color: '#F59E0B',
-          lineWidth: 2,
-          marker: { enabled: false, radius: 3 },
-          zIndex: 4,
+          lineWidth: 2.5,
+          marker: { enabled: false, radius: 3.5 },
+          zIndex: 5,
           data: runningRpl,
         },
         (hasForecast && hasRplTarget) && {
@@ -1129,7 +1126,7 @@ const DashboardPage = () => {
           dashStyle: 'Dash',
           lineWidth: 2,
           marker: { enabled: false },
-          zIndex: 3,
+          zIndex: 4,
           data: forecastRpl,
         },
         hasRplTarget && {
@@ -1140,7 +1137,7 @@ const DashboardPage = () => {
           dashStyle: 'ShortDot',
           lineWidth: 2,
           marker: { enabled: false },
-          zIndex: 2,
+          zIndex: 3,
           data: rplTargetLine,
         },
       ].filter(Boolean);
@@ -1151,30 +1148,47 @@ const DashboardPage = () => {
           backgroundColor: chartTheme.chartBg,
           plotBackgroundColor: chartTheme.plotBg,
           plotBorderWidth: 0,
-          height: isSmallScreen ? 320 : 400,
-          scrollablePlotArea: isSmallScreen ? { minWidth: Math.max(680, categories.length * 42), scrollPositionX: 0 } : undefined,
+          height: isSmallScreen ? 340 : 420,
+          spacing: [16, 12, 16, 12],
+          scrollablePlotArea: isSmallScreen ? { minWidth: Math.max(700, categories.length * 42), scrollPositionX: 0 } : undefined,
+          style: {
+            fontFamily: 'inherit',
+          },
         },
         credits: { enabled: false },
         title: { text: null },
         xAxis: {
           categories,
           labels: {
-            style: { color: chartTheme.tickColor, fontSize: isSmallScreen ? '10px' : '12px', textOutline: 'none' },
-            rotation: isSmallScreen ? -40 : -25,
+            style: {
+              color: chartTheme.tickColor,
+              fontSize: isSmallScreen ? '10px' : '11px',
+              fontWeight: '500',
+              textOutline: 'none'
+            },
+            rotation: isSmallScreen ? -45 : -20,
+            y: 20,
           },
           lineColor: chartTheme.axisStroke,
+          tickColor: chartTheme.axisStroke,
           plotLines: (hasForecast && todayIndex >= 0)
             ? [{
-              color: chartTheme.legendMuted,
+              color: isDarkMode ? '#818cf8' : '#6366f1',
               dashStyle: 'Dash',
-              width: 1,
+              width: 2,
               value: todayIndex,
-              zIndex: 5,
+              zIndex: 6,
               label: {
                 text: 'Today',
                 rotation: 0,
-                y: 12,
-                style: { color: chartTheme.legendMuted, fontSize: '10px', fontWeight: '600' },
+                y: -8,
+                style: {
+                  color: isDarkMode ? '#c7d2fe' : '#4338ca',
+                  fontSize: '10px',
+                  fontWeight: '700',
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                },
               },
             }]
             : [],
@@ -1182,60 +1196,139 @@ const DashboardPage = () => {
         yAxis: [
           {
             min: 0,
-            title: { text: 'Sales', style: { color: chartTheme.labelColor, fontSize: '11px' } },
+            title: {
+              text: 'Sales ($)',
+              style: { color: chartTheme.labelColor, fontSize: '11px', fontWeight: '600' }
+            },
             gridLineColor: chartTheme.gridStroke,
-            labels: { style: { color: chartTheme.tickColor, textOutline: 'none' } },
+            gridLineDashStyle: 'Dash',
+            labels: {
+              style: { color: chartTheme.tickColor, textOutline: 'none', fontSize: '11px' },
+              formatter() {
+                return formatPieValue(this.value);
+              }
+            },
           },
           {
             min: 0,
-            title: { text: 'RPL', style: { color: '#F59E0B', fontSize: '11px' } },
-            labels: { style: { color: '#F59E0B', textOutline: 'none' } },
+            title: {
+              text: 'RPL',
+              style: { color: '#F59E0B', fontSize: '11px', fontWeight: '600' }
+            },
+            labels: {
+              style: { color: '#F59E0B', textOutline: 'none', fontSize: '11px', fontWeight: '500' },
+              formatter() {
+                return Number(this.value).toFixed(1);
+              }
+            },
             opposite: true,
             gridLineWidth: 0,
           },
         ],
         legend: {
-          itemStyle: { color: chartTheme.legendColor, fontSize: '12px', fontWeight: '600' },
-          itemHoverStyle: { color: chartTheme.tooltipText },
-          itemHiddenStyle: { color: chartTheme.legendMuted },
+          enabled: true,
+          align: 'center',
+          verticalAlign: 'bottom',
+          layout: 'horizontal',
+          itemDistance: 14,
+          itemMarginTop: 12,
+          itemMarginBottom: 4,
+          symbolRadius: 4,
+          itemStyle: {
+            color: chartTheme.legendColor,
+            fontSize: isSmallScreen ? '10px' : '11px',
+            fontWeight: '600'
+          },
+          itemHoverStyle: {
+            color: isDarkMode ? '#ffffff' : '#4f46e5'
+          },
+          itemHiddenStyle: {
+            color: chartTheme.legendMuted
+          },
         },
         tooltip: {
           shared: true,
           useHTML: true,
-          backgroundColor: chartTheme.tooltipBg,
-          borderColor: chartTheme.tooltipBorder,
-          borderRadius: 8,
-          style: { color: chartTheme.tooltipText },
+          backgroundColor: isDarkMode ? '#0f172a' : '#ffffff',
+          borderColor: isDarkMode ? '#1e293b' : '#e2e8f0',
+          borderRadius: 14,
+          padding: 12,
+          shadow: {
+            color: isDarkMode ? 'rgba(0,0,0,0.6)' : 'rgba(15,23,42,0.12)',
+            offsetX: 0,
+            offsetY: 8,
+            opacity: 1,
+            width: 16
+          },
+          style: {
+            color: chartTheme.tooltipText,
+            fontFamily: 'inherit'
+          },
           formatter() {
-            // On a category axis `this.x` is the 0-based point index, so the raw
-            // value would head the box "Day 0" for the 1st. Read the day off the
-            // categories instead, which keeps it in step with the axis labels.
             const dayLabel = typeof this.x === 'number'
               ? (categories[this.x] ?? this.x + 1)
               : this.x;
+            const isToday = todayIndex >= 0 && this.x === todayIndex;
+            const isFuture = todayIndex >= 0 && this.x > todayIndex;
+
+            const badge = isToday
+              ? `<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:9999px;background:#e0e7ff;color:#4338ca;">Today</span>`
+              : isFuture
+                ? `<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:9999px;background:#f3e8ff;color:#7e22ce;">Forecast</span>`
+                : `<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:9999px;background:#f1f5f9;color:#64748b;">Actual</span>`;
 
             const rows = (this.points || [])
-              .map((point) => `<div style="display:flex;justify-content:space-between;gap:16px;font-size:12px;line-height:1.5;"><span><span style="color:${point.color}">●</span> ${point.series.name}</span><b>${formatPieValue(point.y)}</b></div>`)
+              .map((point) => {
+                const isRpl = point.series.name.includes('RPL');
+                const val = isRpl ? Number(point.y).toFixed(2) : formatPieValue(point.y);
+                return `
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;padding:3.5px 0;font-size:12px;line-height:1.4;">
+                    <div style="display:flex;align-items:center;gap:7px;">
+                      <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background-color:${point.color};flex-shrink:0;"></span>
+                      <span style="color:${isDarkMode ? '#94a3b8' : '#64748b'};font-weight:500;">${point.series.name}</span>
+                    </div>
+                    <span style="font-weight:700;color:${isDarkMode ? '#f8fafc' : '#0f172a'};">${val}</span>
+                  </div>
+                `;
+              })
               .join('');
-            return `<div style="min-width:190px;"><div style="font-weight:700;margin-bottom:4px;">Day ${dayLabel}</div>${rows}</div>`;
+
+            return `
+              <div style="min-width:210px;font-family:inherit;">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:8px;margin-bottom:8px;border-bottom:1px solid ${isDarkMode ? '#334155' : '#f1f5f9'};">
+                  <span style="font-size:13px;font-weight:800;color:${isDarkMode ? '#f8fafc' : '#0f172a'};">Day ${dayLabel}</span>
+                  ${badge}
+                </div>
+                <div>${rows}</div>
+              </div>
+            `;
           },
         },
         plotOptions: {
           column: {
             grouping: false,
             borderWidth: 0,
-            pointPadding: 0.12,
-            groupPadding: 0.08,
-            borderRadius: 4,
+            pointPadding: 0.1,
+            groupPadding: 0.05,
+            borderRadius: 6,
+          },
+          spline: {
+            lineWidth: 2.5,
+            states: {
+              hover: { lineWidth: 3 }
+            }
           },
           series: {
             connectNulls: false,
+            animation: {
+              duration: 600
+            }
           },
         },
         series,
       };
     },
-    [dayWiseForecast, isSmallScreen, chartTheme, formatPieValue],
+    [dayWiseForecast, isSmallScreen, chartTheme, isDarkMode, formatPieValue],
   );
 
   const userWiseOptions = useMemo(
@@ -1905,25 +1998,56 @@ const DashboardPage = () => {
           <div className="flex flex-col gap-4 sm:gap-5">
 
             {/* Day-wise bar chart */}
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-200 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 sm:p-5">
-              <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-5">
-                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-indigo-600 flex items-center justify-center shadow-sm shrink-0">
-                  <BarChart2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs transition-all duration-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 mb-5 pb-4 border-b border-slate-100 dark:border-slate-800/80">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 via-indigo-600 to-indigo-700 flex items-center justify-center shadow-md shadow-indigo-500/20 shrink-0 text-white">
+                    <BarChart2 className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white tracking-tight truncate">
+                        Day-wise Sales &amp; Leads Forecast
+                      </h2>
+                      {dayWiseForecast.hasForecast && (
+                        <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200/80 dark:bg-purple-950/50 dark:border-purple-800 dark:text-purple-300 uppercase tracking-wider">
+                          <span className="w-1.5 h-1.5 rounded-full bg-purple-600 animate-pulse" />
+                          Forecast Active
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      Daily total sales &amp; RPL forecast against the target base line
+                    </p>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <h2 className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-white truncate">Day-wise Sales &amp; Leads Forecast</h2>
-                  <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">Daily total sales &amp; RPL forecast against the target base line</p>
+
+                {/* Quick Target KPI Summary Pills */}
+                <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
+                  {dayWiseForecast.hasSalesTarget && (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50/80 border border-purple-200/70 text-purple-700 text-xs font-semibold dark:bg-purple-950/40 dark:border-purple-800/60 dark:text-purple-300 shadow-2xs">
+                      <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                      <span>Daily Target: <b className="font-bold text-purple-900 dark:text-purple-200">{formatPieValue(dayWiseForecast.salesTargetLine.find((v) => v > 0) || 0)}</b></span>
+                    </div>
+                  )}
+                  {dayWiseForecast.hasRplTarget && (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50/80 border border-amber-200/70 text-amber-700 text-xs font-semibold dark:bg-amber-950/40 dark:border-amber-800/60 dark:text-amber-300 shadow-2xs">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                      <span>RPL Target: <b className="font-bold text-amber-900 dark:text-amber-200">{dayWiseForecast.rplTargetLine.find((v) => v > 0) || 0}</b></span>
+                    </div>
+                  )}
                 </div>
               </div>
+
               <div className="w-full">
                 {loading ? (
-                  renderSectionLoader('h-[320px] sm:h-[400px]', [44, 68, 54, 82, 60, 91, 72, 48, 76, 64, 88, 58])
+                  renderSectionLoader('h-[340px] sm:h-[420px]', [44, 68, 54, 82, 60, 91, 72, 48, 76, 64, 88, 58])
                 ) : dayWiseSalesAndRpl.length === 0 ? (
                   <ChartEmptyState
                     icon={BarChart2}
                     title="No daily performance data"
                     description="Try another date range or sales person to view the daily forecast."
-                    className="h-[320px] sm:h-[400px]"
+                    className="h-[340px] sm:h-[420px]"
                   />
                 ) : (
                   <HighchartsReact highcharts={Highcharts} options={dayWiseOptions} />

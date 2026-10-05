@@ -55,9 +55,9 @@ const GroupPage = () => {
   // Shared Group Dropdown Options
   const [groupOptions, setGroupOptions] = useState([]);
 
-  const loadGroupDropdownOptions = useCallback(async () => {
+  const loadGroupDropdownOptions = useCallback(async (forceFresh = false) => {
     try {
-      const opts = await groupService.getGroupDropdownOptions();
+      const opts = await groupService.getGroupDropdownOptions(undefined, forceFresh);
       setGroupOptions(opts);
     } catch (err) {
       console.warn('Failed to load group options:', err);
@@ -85,7 +85,7 @@ const GroupPage = () => {
   const [groupModalOpen, setGroupModalOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState(null);
 
-  const fetchGroups = useCallback(async () => {
+  const fetchGroups = useCallback(async (forceFresh = false) => {
     if (!groupPerms.canView) {
       setGroups([]);
       setGroupTotal(0);
@@ -95,13 +95,17 @@ const GroupPage = () => {
 
     try {
       setGroupLoading(true);
-      const res = await groupService.getGroups({
-        Text: groupSearch.trim(),
-        PageNumber: groupPage,
-        PageSize: groupPageSize,
-        SortProperty: groupSortProp,
-        IsDescending: groupSortDesc
-      });
+      const res = await groupService.getGroups(
+        {
+          Text: groupSearch.trim(),
+          PageNumber: groupPage,
+          PageSize: groupPageSize,
+          SortProperty: groupSortProp,
+          IsDescending: groupSortDesc
+        },
+        undefined,
+        forceFresh
+      );
       setGroups(res.data || []);
       setGroupTotal(res.totalCount || 0);
     } catch (err) {
@@ -172,7 +176,7 @@ const GroupPage = () => {
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [editingEmail, setEditingEmail] = useState(null);
 
-  const fetchGroupEmails = useCallback(async () => {
+  const fetchGroupEmails = useCallback(async (forceFresh = false) => {
     if (!emailPerms.canView) {
       setGroupEmails([]);
       setEmailTotal(0);
@@ -182,13 +186,17 @@ const GroupPage = () => {
 
     try {
       setEmailLoading(true);
-      const res = await groupService.getGroupEmails({
-        Text: emailSearch.trim(),
-        PageNumber: emailPage,
-        PageSize: emailPageSize,
-        SortProperty: emailSortProp,
-        IsDescending: emailSortDesc
-      });
+      const res = await groupService.getGroupEmails(
+        {
+          Text: emailSearch.trim(),
+          PageNumber: emailPage,
+          PageSize: emailPageSize,
+          SortProperty: emailSortProp,
+          IsDescending: emailSortDesc
+        },
+        undefined,
+        forceFresh
+      );
       setGroupEmails(res.data || []);
       setEmailTotal(res.totalCount || 0);
     } catch (err) {
@@ -278,15 +286,30 @@ const GroupPage = () => {
     setIsDeleting(true);
 
     try {
+      const deletedId = deleteTarget.id;
       if (deleteTarget.type === 'group') {
-        await groupService.deleteGroup(deleteTarget.id);
+        await groupService.deleteGroup(deletedId);
+        // Optimistically remove from state so UI updates immediately
+        setGroups((prev) => prev.filter((g) => g.groupId !== deletedId));
+        setGroupTotal((prev) => Math.max(0, prev - 1));
         toast.success(`Group "${deleteTarget.name}" deleted successfully.`);
-        fetchGroups();
-        loadGroupDropdownOptions();
+        if (groups.length <= 1 && groupPage > 1) {
+          setGroupPage((p) => Math.max(1, p - 1));
+        } else {
+          fetchGroups(true);
+        }
+        loadGroupDropdownOptions(true);
       } else if (deleteTarget.type === 'groupEmail') {
-        await groupService.deleteGroupEmail(deleteTarget.id);
+        await groupService.deleteGroupEmail(deletedId);
+        // Optimistically remove from state so UI updates immediately
+        setGroupEmails((prev) => prev.filter((e) => e.groupEmailId !== deletedId));
+        setEmailTotal((prev) => Math.max(0, prev - 1));
         toast.success(`Group email "${deleteTarget.email}" deleted successfully.`);
-        fetchGroupEmails();
+        if (groupEmails.length <= 1 && emailPage > 1) {
+          setEmailPage((p) => Math.max(1, p - 1));
+        } else {
+          fetchGroupEmails(true);
+        }
       }
       setDeleteModalOpen(false);
       setDeleteTarget(null);
@@ -465,7 +488,7 @@ const GroupPage = () => {
                     </div>
 
                     {/* Refresh Button */}
-                    <TableRefreshButton onClick={fetchGroups} className="shrink-0" />
+                    <TableRefreshButton onClick={() => fetchGroups(true)} className="shrink-0" />
                   </div>
                 </div>
               </div>
@@ -750,7 +773,7 @@ const GroupPage = () => {
                     </div>
 
                     {/* Refresh Button */}
-                    <TableRefreshButton onClick={fetchGroupEmails} className="shrink-0" />
+                    <TableRefreshButton onClick={() => fetchGroupEmails(true)} className="shrink-0" />
                   </div>
                 </div>
               </div>
@@ -1028,7 +1051,14 @@ const GroupPage = () => {
 
       {/* Shared Delete Confirmation Modal */}
       <DeleteConfirmModal
+        open={deleteModalOpen}
         isOpen={deleteModalOpen}
+        onCancel={() => {
+          if (!isDeleting) {
+            setDeleteModalOpen(false);
+            setDeleteTarget(null);
+          }
+        }}
         onClose={() => {
           if (!isDeleting) {
             setDeleteModalOpen(false);
@@ -1037,31 +1067,26 @@ const GroupPage = () => {
         }}
         onConfirm={handleConfirmDelete}
         title={deleteTarget?.type === 'group' ? 'Delete Group' : 'Delete Group Email'}
-        message={
-          deleteTarget?.type === 'group' ? (
-            <span>
-              Are you sure you want to delete group{' '}
-              <strong className="text-gray-900 dark:text-white">
-                &quot;{deleteTarget.name}&quot;
-              </strong>{' '}
-              (Group ID: {deleteTarget.id})? This action cannot be undone and may affect associated group emails.
-            </span>
-          ) : deleteTarget?.type === 'groupEmail' ? (
-            <span>
-              Are you sure you want to delete group email{' '}
-              <strong className="text-gray-900 dark:text-white">
-                &quot;{deleteTarget.email}&quot;
-              </strong>{' '}
-              associated with group{' '}
-              <strong className="text-gray-900 dark:text-white">
-                &quot;{deleteTarget.groupName}&quot;
-              </strong>?
-            </span>
-          ) : (
-            'Are you sure you want to delete this record?'
-          )
+        description="Are you sure you want to delete"
+        itemName={deleteTarget?.type === 'group' ? deleteTarget?.name : deleteTarget?.email}
+        details={
+          deleteTarget?.type === 'group'
+            ? [
+                { label: 'Group ID', value: `#${deleteTarget?.id}` },
+                { label: 'Group Name', value: deleteTarget?.name }
+              ]
+            : deleteTarget?.type === 'groupEmail'
+            ? [
+                { label: 'Email', value: deleteTarget?.email },
+                { label: 'Group', value: deleteTarget?.groupName || '-' }
+              ]
+            : []
         }
+        loading={isDeleting}
         isDeleting={isDeleting}
+        confirmText="Delete"
+        loadingText="Deleting..."
+        cancelText="Cancel"
       />
     </div>
   );
