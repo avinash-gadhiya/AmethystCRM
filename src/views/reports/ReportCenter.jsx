@@ -16,6 +16,7 @@ import { useLocation } from 'react-router-dom';
 
 import reportService from 'services/reportService';
 import userService from 'services/userService';
+import AnchorPagination from '@/components/common/AnchorPagination';
 
 const PAGE_SIZES = [10, 25, 50];
 const SERVER_PAGED_REPORTS = new Set(['sales', 'service', 'renewal']);
@@ -781,15 +782,12 @@ export default function ReportCenter() {
                 </option>
               ))}
             </Form.Select>
-            <Button size="sm" variant="outline-secondary" className="neu-btn-secondary" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>
-              Previous
-            </Button>
-            <span className="small text-nowrap px-2 fw-medium">
-              {page} / {totalPages}
-            </span>
-            <Button size="sm" variant="outline-secondary" className="neu-btn-secondary" disabled={page >= totalPages} onClick={() => setPage((value) => value + 1)}>
-              Next
-            </Button>
+            <AnchorPagination
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={(value) => setPage(value)}
+              disabled={loading}
+            />
           </div>
         </Card.Footer>
       </Card>

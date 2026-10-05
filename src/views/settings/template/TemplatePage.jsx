@@ -9,8 +9,6 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  ChevronLeft,
-  ChevronRight,
   ShieldAlert,
   Mail
 } from 'lucide-react';
@@ -24,6 +22,7 @@ import LiquidGlassButton from '@/components/common/LiquidGlassButton';
 import ActionIconButton from '@/components/common/ActionIconButton';
 import TableRefreshButton from '@/components/common/TableRefreshButton';
 import DeleteConfirmModal from '@/components/common/DeleteConfirmModal';
+import AnchorPagination from '@/components/common/AnchorPagination';
 import IosToggle from '@/components/common/IosToggle';
 
 import TemplateModal from '@/components/template/TemplateModal';
@@ -538,31 +537,12 @@ const TemplatePage = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1 self-end sm:self-auto">
-                  <button
-                    type="button"
-                    disabled={currentPage <= 1}
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    className="p-1 rounded-lg border border-gray-300 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    aria-label="Previous Page"
-                  >
-                    <ChevronLeft size={16} />
-                  </button>
-
-                  <span className="px-2 font-medium text-gray-700 dark:text-gray-300">
-                    Page {currentPage} of {totalPages}
-                  </span>
-
-                  <button
-                    type="button"
-                    disabled={currentPage >= totalPages}
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    className="p-1 rounded-lg border border-gray-300 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    aria-label="Next Page"
-                  >
-                    <ChevronRight size={16} />
-                  </button>
-                </div>
+                <AnchorPagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={(p) => setCurrentPage(p)}
+                  disabled={loading}
+                />
               </div>
             )}
           </div>

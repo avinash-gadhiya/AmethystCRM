@@ -109,7 +109,7 @@ export function LiquidGlassDatePicker({
       {/* Prev period button */}
       <button
         type="button"
-        className="liquid-glass-icon-btn shrink-0"
+        className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 shadow-sm transition-colors shrink-0"
         onClick={() => handleStepClick(-1)}
         title="Previous period"
         aria-label="Previous period"
@@ -121,12 +121,12 @@ export function LiquidGlassDatePicker({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`liquid-glass-pill-btn min-w-0 max-w-full flex-1 flex items-center justify-between gap-2 ${
+        className={`inline-flex items-center justify-between gap-2 px-3 py-1.5 h-8 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 shadow-sm transition-colors min-w-0 max-w-full flex-1 ${
           stretch ? 'justify-start' : 'justify-center sm:flex-none'
         }`}
       >
-        <CalendarIcon className="h-4 w-4 shrink-0 opacity-75" />
-        <span className={`truncate text-xs font-semibold ${stretch ? 'flex-1 text-left' : 'sm:max-w-[190px]'}`}>
+        <CalendarIcon className="h-4 w-4 shrink-0 text-slate-500" />
+        <span className={`truncate text-xs font-semibold text-slate-800 ${stretch ? 'flex-1 text-left' : 'sm:max-w-[190px]'}`}>
           {formatDateLabel()}
         </span>
         <svg
@@ -139,7 +139,7 @@ export function LiquidGlassDatePicker({
           strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className={`shrink-0 opacity-60 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+          className={`shrink-0 text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
         >
           <polyline points="6 9 12 15 18 9" />
         </svg>
@@ -148,7 +148,7 @@ export function LiquidGlassDatePicker({
       {/* Next period button */}
       <button
         type="button"
-        className="liquid-glass-icon-btn shrink-0"
+        className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 shadow-sm transition-colors shrink-0"
         onClick={() => handleStepClick(1)}
         title="Next period"
         aria-label="Next period"
@@ -160,7 +160,7 @@ export function LiquidGlassDatePicker({
       {showClearButton && (
         <button
           type="button"
-          className="liquid-glass-icon-btn shrink-0"
+          className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 shadow-sm transition-colors shrink-0"
           onClick={onClear}
           title="Reset dates"
           aria-label="Reset dates"
@@ -171,38 +171,38 @@ export function LiquidGlassDatePicker({
 
       {/* Date Picker Popover */}
       {isOpen && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-2xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xl backdrop-blur-xl">
-          <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-3">Custom Date Range</div>
+        <div className="absolute right-0 top-full z-50 mt-1.5 w-72 rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
+          <div className="text-xs font-semibold text-slate-800 mb-3">Custom Date Range</div>
           <form onSubmit={handleApply} className="space-y-3">
             <div>
-              <label className="block text-[11px] font-medium text-gray-500 dark:text-slate-400 mb-1">From Date</label>
+              <label className="block text-[11px] font-medium text-slate-500 mb-1">From Date</label>
               <input
                 type="date"
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
-                className="w-full h-8 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 px-2.5 text-xs text-gray-800 dark:text-white outline-none focus:border-purple-500"
+                className="w-full h-8 rounded-lg border border-slate-300 bg-white px-2.5 text-xs text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
               />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-gray-500 dark:text-slate-400 mb-1">To Date</label>
+              <label className="block text-[11px] font-medium text-slate-500 mb-1">To Date</label>
               <input
                 type="date"
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
-                className="w-full h-8 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 px-2.5 text-xs text-gray-800 dark:text-white outline-none focus:border-purple-500"
+                className="w-full h-8 rounded-lg border border-slate-300 bg-white px-2.5 text-xs text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
               />
             </div>
-            <div className="flex items-center justify-end gap-2 pt-1 border-t border-gray-100 dark:border-slate-800">
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white shadow-sm"
+                className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white shadow-sm transition-colors"
               >
                 Apply
               </button>

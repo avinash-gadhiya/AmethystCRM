@@ -3,6 +3,7 @@ import { Badge, Button, Card, Col, Form, InputGroup, Row, Spinner, Table } from 
 import { CalendarDays, Clock3, RefreshCw, Search, UserCheck, UserX } from 'lucide-react';
 
 import attendanceService from 'services/attendanceService';
+import AnchorPagination from '@/components/common/AnchorPagination';
 
 const PAGE_SIZES = [10, 25, 50];
 
@@ -412,20 +413,12 @@ export default function AttendanceReport() {
             </Form.Select>
             <span>{totalCount} users</span>
           </div>
-          <div className="d-flex align-items-center gap-2">
-            <Button size="sm" variant="outline-secondary" disabled={loading || page <= 1} onClick={() => setPage((value) => value - 1)}>
-              Previous
-            </Button>
-            <span className="small text-muted">Page {page} of {totalPages}</span>
-            <Button
-              size="sm"
-              variant="outline-secondary"
-              disabled={loading || page >= totalPages}
-              onClick={() => setPage((value) => value + 1)}
-            >
-              Next
-            </Button>
-          </div>
+          <AnchorPagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={(val) => setPage(val)}
+            disabled={loading}
+          />
         </Card.Footer>
       </Card>
     </div>

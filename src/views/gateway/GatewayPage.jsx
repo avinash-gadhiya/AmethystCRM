@@ -4,6 +4,7 @@ import { CreditCard, History, Link2, Pencil, Plus, RefreshCw, Search, Server, Tr
 import { useLocation } from 'react-router-dom';
 
 import gatewayService from 'services/gatewayService';
+import AnchorPagination from '@/components/common/AnchorPagination';
 
 const PAGE_SIZES = [10, 25, 50];
 const GATEWAY_TYPES = [
@@ -96,10 +97,8 @@ const Pagination = ({ page, pageSize, total, setPage, setPageSize }) => {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   return (
     <Card.Footer className="bg-transparent d-flex flex-wrap justify-content-between align-items-center gap-3">
-      <span className="small text-muted">
-        Showing {total ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, total)} of {total}
-      </span>
-      <div className="d-flex align-items-center gap-2">
+      <div className="d-flex align-items-center gap-2 small text-muted">
+        <span>Rows</span>
         <Form.Select
           size="sm"
           value={pageSize}
@@ -110,17 +109,18 @@ const Pagination = ({ page, pageSize, total, setPage, setPageSize }) => {
           style={{ width: 85 }}
         >
           {PAGE_SIZES.map((size) => (
-            <option key={size}>{size}</option>
+            <option key={size} value={size}>{size}</option>
           ))}
         </Form.Select>
-        <Button size="sm" variant="outline-secondary" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-          Previous
-        </Button>
-        <span className="small text-nowrap">{page} / {totalPages}</span>
-        <Button size="sm" variant="outline-secondary" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
-          Next
-        </Button>
+        <span className="ms-2">
+          Showing {total ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, total)} of {total}
+        </span>
       </div>
+      <AnchorPagination
+        currentPage={page}
+        totalPages={totalPages}
+        onPageChange={(val) => setPage(val)}
+      />
     </Card.Footer>
   );
 };

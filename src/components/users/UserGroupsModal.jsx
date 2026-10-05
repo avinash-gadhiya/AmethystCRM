@@ -37,11 +37,33 @@ const UserGroupsModal = ({ open, user, onClose, onSuccess }) => {
           // Extract assigned group IDs
           const ids = new Set();
           if (Array.isArray(userGroups)) {
+            const hasActiveFlag = userGroups.some((g) => g.isActive !== undefined);
             userGroups.forEach((g) => {
-              const id = g.groupId ?? g.id ?? g.userGroupId;
-              if (id) ids.add(Number(id));
+              const isAssigned = hasActiveFlag
+                ? Boolean(g.isActive || (g.userGroupId && g.userGroupId > 0))
+                : true;
+              if (isAssigned) {
+                const id = g.groupId ?? g.id;
+                if (id) ids.add(Number(id));
+              }
             });
           }
+
+          // If no active groups found from endpoint, check user.groupName or user.groups
+          if (ids.size === 0 && user) {
+            const userGroupNames = Array.isArray(user.groupName)
+              ? user.groupName
+              : typeof user.groupName === 'string'
+              ? user.groupName.split(',').map((s) => s.trim())
+              : [];
+            (available || []).forEach((g) => {
+              const name = g.groupName || g.name;
+              if (userGroupNames.includes(name)) {
+                ids.add(Number(g.groupId ?? g.id));
+              }
+            });
+          }
+
           setSelectedIds(ids);
         } catch (err) {
           console.warn('Could not load assigned user groups:', err);
@@ -89,15 +111,21 @@ const UserGroupsModal = ({ open, user, onClose, onSuccess }) => {
   };
 
   const handleSave = async () => {
+    const groupIds = Array.from(selectedIds);
+    if (groupIds.length === 0) {
+      toast.error('Please select at least one group to assign.');
+      return;
+    }
+
     setSaving(true);
     try {
-      const groupIds = Array.from(selectedIds);
       await userService.updateUserGroup({
-        userId: user.userId,
-        groupIds
+        userId: user.userId || user.id,
+        groupId: groupIds,
+        GroupId: groupIds
       });
 
-      toast.success(`Groups updated for ${user.username}`);
+      toast.success(`Groups updated for ${user.username || user.userName || 'user'}`);
       onSuccess?.();
       onClose?.();
     } catch (err) {

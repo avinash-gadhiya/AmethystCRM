@@ -3,8 +3,6 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
-  ChevronLeft,
-  ChevronRight,
   Edit,
   Search,
   Target,
@@ -16,6 +14,7 @@ import salesTargetService from '@/services/salesTargetService';
 import { getApiErrorMessage } from '@/lib/apiError';
 import ActionIconButton from '@/components/common/ActionIconButton';
 import TableRefreshButton from '@/components/common/TableRefreshButton';
+import AnchorPagination from '@/components/common/AnchorPagination';
 import SalesTargetModal from '@/components/sales-target/SalesTargetModal';
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
@@ -282,27 +281,12 @@ const SalesTargetPage = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-1 self-end sm:self-auto">
-              <button
-                type="button"
-                disabled={currentPage <= 1}
-                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                className="p-1 rounded-lg border border-gray-300 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed"
-                aria-label="Previous Page"
-              >
-                <ChevronLeft size={16} />
-              </button>
-              <span className="px-2 font-medium text-gray-700 dark:text-gray-300">Page {currentPage} of {totalPages}</span>
-              <button
-                type="button"
-                disabled={currentPage >= totalPages}
-                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-                className="p-1 rounded-lg border border-gray-300 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed"
-                aria-label="Next Page"
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
+            <AnchorPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={(page) => setCurrentPage(page)}
+              disabled={loading}
+            />
           </div>
         )}
       </div>

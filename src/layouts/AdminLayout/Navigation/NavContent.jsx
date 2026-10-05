@@ -48,7 +48,7 @@ export default function NavContent({ navigation }) {
           <span className="sidebar-brand-mark" aria-hidden="true">
             <Blocks size={23} strokeWidth={2.2} />
           </span>
-          <span className="sidebar-brand-name">CRM Workspace</span>
+          <span className="sidebar-brand-name">DashboardKit CRM</span>
         </Link>
         <button
           type="button"

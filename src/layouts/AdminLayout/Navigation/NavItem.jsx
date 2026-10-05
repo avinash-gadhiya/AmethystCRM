@@ -2,9 +2,6 @@ import PropTypes from 'prop-types';
 import { useContext } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 
-// third party - Lucide icons
-import { ChevronRight } from 'lucide-react';
-
 // project imports
 import NavIcon from './NavIcon';
 import { ConfigContext } from 'contexts/ConfigContext';
@@ -20,13 +17,9 @@ export default function NavItem({ item }) {
   const location = useLocation();
 
   const currentPath = (location.pathname || window.location.pathname).toLowerCase();
-  const isItemActive = item.url && currentPath === item.url.toLowerCase();
-  const currentIndex = document.location.pathname
-    .toString()
-    .split('/')
-    .findIndex((id) => id === item.id);
+  const isItemActive = item.url && (currentPath === item.url.toLowerCase() || (item.url !== '/' && currentPath.startsWith(item.url.toLowerCase())));
 
-  const navItemClass = ['pc-item', currentIndex > -1 || isItemActive ? 'active' : '']
+  const navItemClass = ['pc-item', isItemActive ? 'active' : '']
     .filter(Boolean)
     .join(' ');
 
@@ -36,23 +29,17 @@ export default function NavItem({ item }) {
       <Link to={item.url} target="_blank" rel="noopener noreferrer" className="pc-link" title={item.title}>
         <NavIcon items={item} />
         <span className="pc-mtext">{item.title}</span>
-        {item.type === 'collapse' && (
-          <span className="pc-arrow">
-            <ChevronRight size={14} />
-          </span>
-        )}
       </Link>
     );
   } else {
     subContent = (
-      <NavLink to={item.url} className="pc-link" title={item.title}>
+      <NavLink
+        to={item.url}
+        className={({ isActive }) => ['pc-link', (isActive || isItemActive) ? 'active' : ''].filter(Boolean).join(' ')}
+        title={item.title}
+      >
         <NavIcon items={item} />
         <span className="pc-mtext">{item.title}</span>
-        {item.type === 'collapse' && (
-          <span className="pc-arrow">
-            <ChevronRight size={14} />
-          </span>
-        )}
       </NavLink>
     );
   }

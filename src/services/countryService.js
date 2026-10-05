@@ -8,6 +8,7 @@ const getApiBaseUrl = () => {
 // In-flight deduplication and state caching maps
 const inFlightRequests = new Map();
 const stateCache = new Map();
+const countryNameCache = new Map();
 
 const normalizeCountryList = (payload) => {
   if (!payload) return { data: [], totalCount: 0 };
@@ -73,6 +74,15 @@ export const countryService = {
           params: queryParams
         });
         const parsed = normalizeCountryList(response.data);
+        if (Array.isArray(parsed.data)) {
+          parsed.data.forEach((c) => {
+            const id = Number(c?.countryId || c?.CountryId);
+            const name = c?.countryName || c?.CountryName || c?.name || c?.Name;
+            if (id && name) {
+              countryNameCache.set(id, String(name).trim());
+            }
+          });
+        }
         return {
           ...parsed,
           raw: response.data
@@ -89,32 +99,46 @@ export const countryService = {
   // POST /Country
   async createCountry({ countryId = 0, countryName }) {
     const API_URL = getApiBaseUrl();
+    const trimmedName = String(countryName || '').trim();
     const payload = {
       countryId: 0,
-      countryName: String(countryName || '').trim()
+      countryName: trimmedName
     };
     const response = await axios.post(`${API_URL}/Country`, payload, {
       headers: getAuthHeaders()
     });
+    const createdId = Number(response.data?.data?.countryId || response.data?.countryId);
+    if (createdId && trimmedName) {
+      countryNameCache.set(createdId, trimmedName);
+    }
     return response.data;
   },
 
   // PUT /Country
   async updateCountry({ countryId, countryName }) {
     const API_URL = getApiBaseUrl();
+    const numId = Number(countryId);
+    const trimmedName = String(countryName || '').trim();
     const payload = {
-      countryId: Number(countryId),
-      countryName: String(countryName || '').trim()
+      countryId: numId,
+      countryName: trimmedName
     };
     const response = await axios.put(`${API_URL}/Country`, payload, {
       headers: getAuthHeaders()
     });
+    if (numId && trimmedName) {
+      countryNameCache.set(numId, trimmedName);
+    }
     return response.data;
   },
 
   // DELETE /Country/{countryId} (dual-strategy delete)
   async deleteCountry(countryId) {
     const API_URL = getApiBaseUrl();
+    const numId = Number(countryId);
+    if (numId) {
+      countryNameCache.delete(numId);
+    }
     this.clearStateCache(countryId);
     return deleteById(`${API_URL}/Country`, countryId);
   },
@@ -152,9 +176,25 @@ export const countryService = {
 
         const list = normalizeStateList(response.data);
         // Requirement: Filter returned states by countryId because the API may return extra records
-        const filtered = list.filter((s) => Number(s.countryId) === countryId);
-        stateCache.set(cacheKey, filtered);
-        return filtered;
+        const filtered = list.filter((s) => Number(s.countryId || s.CountryId) === countryId);
+
+        // Fallback countryName if database returned null for existing records
+        const fallbackCountryName =
+          params.countryName ||
+          params.CountryName ||
+          countryNameCache.get(countryId) ||
+          '';
+
+        const normalized = filtered.map((s) => ({
+          ...s,
+          stateId: Number(s.stateId || s.StateId),
+          stateName: s.stateName || s.StateName || '',
+          countryId: Number(s.countryId || s.CountryId),
+          countryName: s.countryName || s.CountryName || fallbackCountryName
+        }));
+
+        stateCache.set(cacheKey, normalized);
+        return normalized;
       } finally {
         inFlightRequests.delete(cacheKey);
       }
@@ -165,32 +205,42 @@ export const countryService = {
   },
 
   // POST /State
-  async createState({ stateId = 0, stateName, countryId }) {
+  async createState({ stateId = 0, stateName, countryId, countryName = '' }) {
     const API_URL = getApiBaseUrl();
+    const numCountryId = Number(countryId);
+    const resolvedCountryName =
+      String(countryName || countryNameCache.get(numCountryId) || '').trim();
+
     const payload = {
       stateId: 0,
       stateName: String(stateName || '').trim(),
-      countryId: Number(countryId)
+      countryId: numCountryId,
+      countryName: resolvedCountryName
     };
     const response = await axios.post(`${API_URL}/State`, payload, {
       headers: getAuthHeaders()
     });
-    this.clearStateCache(countryId);
+    this.clearStateCache(numCountryId);
     return response.data;
   },
 
   // PUT /State
-  async updateState({ stateId, stateName, countryId }) {
+  async updateState({ stateId, stateName, countryId, countryName = '' }) {
     const API_URL = getApiBaseUrl();
+    const numCountryId = Number(countryId);
+    const resolvedCountryName =
+      String(countryName || countryNameCache.get(numCountryId) || '').trim();
+
     const payload = {
       stateId: Number(stateId),
       stateName: String(stateName || '').trim(),
-      countryId: Number(countryId)
+      countryId: numCountryId,
+      countryName: resolvedCountryName
     };
     const response = await axios.put(`${API_URL}/State`, payload, {
       headers: getAuthHeaders()
     });
-    this.clearStateCache(countryId);
+    this.clearStateCache(numCountryId);
     return response.data;
   },
 

@@ -1,7 +1,7 @@
 import BrandTable from './BrandTable';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Award, Plus, Search, X, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ShieldAlert } from 'lucide-react';
+import { Award, Plus, Search, X, ArrowUpDown, ArrowUp, ArrowDown, ShieldAlert } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 
 import brandService from '@/services/brandService';
@@ -9,7 +9,7 @@ import { getApiErrorMessage } from '@/lib/apiError';
 import { resolveBrandPermissions } from '@/utils/brandPermissions';
 
 import LiquidGlassButton from '@/components/common/LiquidGlassButton';
-
+import AnchorPagination from '@/components/common/AnchorPagination';
 import TableRefreshButton from '@/components/common/TableRefreshButton';
 import DeleteConfirmModal from '@/components/common/DeleteConfirmModal';
 
@@ -330,31 +330,12 @@ const BrandPage = () => {
                 </div>
 
                 {/* Right: Page navigation */}
-                <div className="flex items-center gap-1 self-end sm:self-auto">
-                  <button
-                    type="button"
-                    disabled={pageNumber <= 1}
-                    onClick={() => setPageNumber((p) => Math.max(1, p - 1))}
-                    className="p-1 rounded-lg border border-gray-300 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    aria-label="Previous Page"
-                  >
-                    <ChevronLeft size={16} />
-                  </button>
-
-                  <span className="px-2 font-medium text-gray-700 dark:text-gray-300">
-                    Page {pageNumber} of {totalPages}
-                  </span>
-
-                  <button
-                    type="button"
-                    disabled={pageNumber >= totalPages}
-                    onClick={() => setPageNumber((p) => Math.min(totalPages, p + 1))}
-                    className="p-1 rounded-lg border border-gray-300 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    aria-label="Next Page"
-                  >
-                    <ChevronRight size={16} />
-                  </button>
-                </div>
+                <AnchorPagination
+                  currentPage={pageNumber}
+                  totalPages={totalPages}
+                  onPageChange={(p) => setPageNumber(p)}
+                  disabled={loading}
+                />
               </div>
             )}
           </div>

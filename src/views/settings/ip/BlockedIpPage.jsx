@@ -5,11 +5,6 @@ import {
   Search,
   X,
   Pencil,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-  ChevronLeft,
-  ChevronRight,
   Shield,
   Lock,
   Globe
@@ -24,9 +19,8 @@ import LiquidGlassButton from '@/components/common/LiquidGlassButton';
 import ActionIconButton from '@/components/common/ActionIconButton';
 import TableRefreshButton from '@/components/common/TableRefreshButton';
 import DeleteConfirmModal from '@/components/common/DeleteConfirmModal';
+import CommonTable from '@/components/common/CommonTable';
 import BlockIpModal from '@/components/blocked-ip/BlockIpModal';
-
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 // ---------------------------------------------------------------------------
 // Resolve CRUD permissions for the Blocked IP page (Fail-closed principle)
@@ -272,17 +266,84 @@ const BlockedIpPage = () => {
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
-  // Render Sort Icon
-  const renderSortIcon = (property) => {
-    if (sortProperty !== property) {
-      return <ArrowUpDown size={13} className="text-gray-400 opacity-60 inline ml-1" />;
-    }
-    return isDescending ? (
-      <ArrowDown size={13} className="text-purple-600 dark:text-purple-400 inline ml-1" />
-    ) : (
-      <ArrowUp size={13} className="text-purple-600 dark:text-purple-400 inline ml-1" />
-    );
-  };
+  // CommonTable columns definition
+  const columns = useMemo(
+    () => [
+      {
+        id: 'serial',
+        header: '#',
+        align: 'center',
+        width: 'w-14'
+      },
+      {
+        id: 'ip',
+        accessor: 'ip',
+        header: 'IP Address',
+        sortable: true,
+        sortKey: 'ip',
+        className: 'min-w-[220px]',
+        cell: (row) => {
+          const ipValue = row.ip || row.ipAddress || row.blockedIp || '—';
+          return (
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0">
+                <Globe size={14} />
+              </div>
+              <span className="font-mono text-sm font-semibold text-gray-900 dark:text-white tracking-wide">
+                {ipValue}
+              </span>
+            </div>
+          );
+        }
+      },
+      {
+        id: 'id',
+        accessor: 'id',
+        header: 'Record ID',
+        sortable: true,
+        sortKey: 'id',
+        className: 'min-w-[120px] font-mono text-xs text-gray-500 dark:text-gray-400',
+        cell: (row, idx) => `#${row.id ?? row.blockIpId ?? idx + 1}`
+      },
+      {
+        id: 'actions',
+        header: 'Actions',
+        align: 'right',
+        sticky: 'right',
+        className: 'min-w-[120px]',
+        cell: (row) => (
+          <div className="inline-flex items-center justify-end gap-1.5">
+            {permissions.canEdit && (
+              <ActionIconButton
+                label="Edit Blocked IP"
+                onClick={() => {
+                  setEditingRecord(row);
+                  setEditorModalOpen(true);
+                }}
+                className="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+              >
+                <Pencil size={15} />
+              </ActionIconButton>
+            )}
+            {permissions.canDelete && (
+              <ActionIconButton
+                label="Delete Blocked IP"
+                variant="delete"
+                onClick={() => {
+                  setDeleteTarget(row);
+                  setDeleteModalOpen(true);
+                }}
+              />
+            )}
+            {!permissions.canEdit && !permissions.canDelete && (
+              <span className="text-xs text-gray-400 dark:text-gray-500 italic">No actions</span>
+            )}
+          </div>
+        )
+      }
+    ],
+    [permissions]
+  );
 
   return (
     <div className="blocked-ip-page px-5 lg:px-10 py-5">
@@ -376,201 +437,36 @@ const BlockedIpPage = () => {
               </div>
             </div>
 
-            {/* Paginated Table Container */}
-            <div className="bg-white dark:bg-[#17132a] border border-gray-300 dark:border-white/10 rounded-2xl shadow-xs overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b border-gray-200 dark:border-white/10 bg-gray-50/80 dark:bg-[#1d1733] text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-300">
-                      <th className="py-3.5 px-4 text-center w-14">#</th>
-                      <th
-                        onClick={() => handleToggleSort('ip')}
-                        className="py-3.5 px-4 min-w-[220px] cursor-pointer hover:text-purple-600 dark:hover:text-purple-400 transition-colors select-none"
-                      >
-                        IP Address {renderSortIcon('ip')}
-                      </th>
-                      <th
-                        onClick={() => handleToggleSort('id')}
-                        className="py-3.5 px-4 min-w-[120px] cursor-pointer hover:text-purple-600 dark:hover:text-purple-400 transition-colors select-none"
-                      >
-                        Record ID {renderSortIcon('id')}
-                      </th>
-                      <th className="py-3.5 px-4 text-right min-w-[120px]">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-white/5 text-sm">
-                    {/* Loading State Skeleton */}
-                    {loading && (
-                      <>
-                        {Array.from({ length: pageSize > 6 ? 6 : pageSize }).map((_, i) => (
-                          <tr key={`skel-ip-${i}`} className="animate-pulse">
-                            <td className="py-4 px-4 text-center">
-                              <div className="h-4 w-5 bg-gray-200 dark:bg-white/10 rounded mx-auto" />
-                            </td>
-                            <td className="py-4 px-4">
-                              <div className="h-5 bg-gray-200 dark:bg-white/10 rounded w-44" />
-                            </td>
-                            <td className="py-4 px-4">
-                              <div className="h-4 bg-gray-200 dark:bg-white/10 rounded w-16" />
-                            </td>
-                            <td className="py-4 px-4 text-right">
-                              <div className="h-7 w-16 bg-gray-200 dark:bg-white/10 rounded-lg ml-auto" />
-                            </td>
-                          </tr>
-                        ))}
-                      </>
-                    )}
-
-                    {/* Empty State */}
-                    {!loading && items.length === 0 && (
-                      <tr>
-                        <td colSpan={4} className="py-16 px-4 text-center">
-                          <div className="max-w-sm mx-auto flex flex-col items-center">
-                            <div className="w-14 h-14 rounded-2xl bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-3">
-                              <ShieldAlert size={28} className="opacity-80" />
-                            </div>
-                            <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
-                              No blocked IP addresses found
-                            </h4>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
-                              {searchText
-                                ? 'No IP records match your search criteria. Try a different query.'
-                                : 'The blocklist is currently empty. Use "Block New IP" to add an address.'}
-                            </p>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-
-                    {/* Data Rows */}
-                    {!loading &&
-                      items.map((row, idx) => {
-                        const serialNumber = (pageNumber - 1) * pageSize + idx + 1;
-                        const ipValue = row.ip || row.ipAddress || row.blockedIp || '—';
-                        const idValue = row.id ?? row.blockIpId ?? idx + 1;
-
-                        return (
-                          <tr
-                            key={idValue}
-                            className="hover:bg-purple-50/30 dark:hover:bg-white/[0.02] transition-colors"
-                          >
-                            {/* Serial Number */}
-                            <td className="py-4 px-4 text-center text-xs font-medium text-gray-400 dark:text-gray-500">
-                              #{serialNumber}
-                            </td>
-
-                            {/* IP Address */}
-                            <td className="py-4 px-4">
-                              <div className="flex items-center gap-2.5">
-                                <div className="w-7 h-7 rounded-lg bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0">
-                                  <Globe size={14} />
-                                </div>
-                                <span className="font-mono text-sm font-semibold text-gray-900 dark:text-white tracking-wide">
-                                  {ipValue}
-                                </span>
-                              </div>
-                            </td>
-
-                            {/* Record ID */}
-                            <td className="py-4 px-4 text-xs font-mono text-gray-500 dark:text-gray-400">
-                              #{idValue}
-                            </td>
-
-                            {/* Actions (Edit & Delete based on permissions) */}
-                            <td className="py-4 px-4 text-right">
-                              <div className="inline-flex items-center justify-end gap-1.5">
-                                {permissions.canEdit && (
-                                  <ActionIconButton
-                                    label="Edit Blocked IP"
-                                    onClick={() => {
-                                      setEditingRecord(row);
-                                      setEditorModalOpen(true);
-                                    }}
-                                    className="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30"
-                                  >
-                                    <Pencil size={15} />
-                                  </ActionIconButton>
-                                )}
-
-                                {permissions.canDelete && (
-                                  <ActionIconButton
-                                    label="Delete Blocked IP"
-                                    variant="delete"
-                                    onClick={() => {
-                                      setDeleteTarget(row);
-                                      setDeleteModalOpen(true);
-                                    }}
-                                  />
-                                )}
-
-                                {!permissions.canEdit && !permissions.canDelete && (
-                                  <span className="text-xs text-gray-400 dark:text-gray-500 italic">
-                                    No actions
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Pagination Footer */}
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-3.5 border-t border-gray-200 dark:border-white/10 bg-gray-50/50 dark:bg-white/[0.02] text-xs text-gray-500 dark:text-gray-400">
-                <div>
-                  Showing <strong className="text-gray-800 dark:text-gray-200">{items.length}</strong> of{' '}
-                  <strong className="text-gray-800 dark:text-gray-200">{totalCount}</strong> Records
-                </div>
-
-                <div className="flex items-center gap-4">
-                  {/* Page Size Selector */}
-                  <div className="flex items-center gap-1.5">
-                    <span>Per page:</span>
-                    <select
-                      value={pageSize}
-                      onChange={(e) => {
-                        setPageSize(Number(e.target.value));
-                        setPageNumber(1);
-                      }}
-                      className="px-2 py-1 bg-white dark:bg-[#0f1322] border border-gray-300 dark:border-white/10 rounded-md text-gray-800 dark:text-gray-200 focus:outline-none"
-                    >
-                      {PAGE_SIZE_OPTIONS.map((sz) => (
-                        <option key={sz} value={sz}>
-                          {sz}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Page Controls */}
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      disabled={pageNumber <= 1 || loading}
-                      onClick={() => setPageNumber((p) => Math.max(1, p - 1))}
-                      className="px-2.5 py-1 rounded-md border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0f1322] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <ChevronLeft size={14} className="inline mr-0.5" />
-                      Prev
-                    </button>
-                    <span className="px-2 font-medium text-gray-800 dark:text-gray-200">
-                      {pageNumber} / {totalPages}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={pageNumber >= totalPages || loading}
-                      onClick={() => setPageNumber((p) => p + 1)}
-                      className="px-2.5 py-1 rounded-md border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0f1322] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    >
-                      Next
-                      <ChevronRight size={14} className="inline ml-0.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* CommonTable with CodePen AnchorPagination */}
+            <CommonTable
+              columns={columns}
+              data={items}
+              loading={loading}
+              sort={{
+                sortProperty,
+                isDescending,
+                onSort: handleToggleSort
+              }}
+              pagination={{
+                pageNumber,
+                pageSize,
+                totalCount,
+                totalPages,
+                onPageChange: (p) => setPageNumber(p),
+                onPageSizeChange: (sz) => {
+                  setPageSize(sz);
+                  setPageNumber(1);
+                },
+                itemName: 'Records'
+              }}
+              emptyState={{
+                icon: <ShieldAlert size={28} className="opacity-80" />,
+                title: 'No blocked IP addresses found',
+                description: searchText
+                  ? 'No IP records match your search criteria. Try a different query.'
+                  : 'The blocklist is currently empty. Use "Block New IP" to add an address.'
+              }}
+            />
           </>
         )}
       </div>

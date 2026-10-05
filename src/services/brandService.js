@@ -45,8 +45,28 @@ const unwrapList = (payload) => {
   let total = 0;
 
   if (payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data)) {
-    list = Array.isArray(payload.data.data) ? payload.data.data : [];
-    total = payload.data.totalCount ?? payload.data.totalRecords ?? payload.data.count ?? list.length;
+    const nestedArray =
+      (Array.isArray(payload.data.data) && payload.data.data) ||
+      (Array.isArray(payload.data.items) && payload.data.items) ||
+      (Array.isArray(payload.data.list) && payload.data.list) ||
+      (Array.isArray(payload.data.rows) && payload.data.rows) ||
+      (Array.isArray(payload.data.records) && payload.data.records);
+
+    if (nestedArray) {
+      list = nestedArray;
+      total = payload.data.totalCount ?? payload.data.totalRecords ?? payload.data.count ?? list.length;
+    } else if (
+      (payload.data.paymentTypeId && payload.data.paymentTypeId !== 0) ||
+      (payload.data.gatewayPaymentTypeId && payload.data.gatewayPaymentTypeId !== 0) ||
+      (payload.data.gatewayId && payload.data.gatewayId !== 0) ||
+      (payload.data.paymentTypeIds && payload.data.paymentTypeIds.length > 0)
+    ) {
+      list = [payload.data];
+      total = payload.totalCount ?? 1;
+    } else {
+      list = [];
+      total = payload.data.totalCount ?? payload.data.totalRecords ?? payload.data.count ?? 0;
+    }
   } else if (Array.isArray(payload.data)) {
     list = payload.data;
     total = payload.totalCount ?? payload.totalRecords ?? payload.count ?? list.length;
@@ -134,14 +154,14 @@ export const brandService = {
       brandName: String(brandData.brandName || '').trim(),
       brandDisplayName: String(brandData.brandDisplayName || '').trim(),
       isActive: Boolean(brandData.isActive ?? true),
-      docAPIKey: String(brandData.docAPIKey || '').trim(),
+      docAPIKey: String(brandData.docAPIKey || brandData.docApiKey || '').trim(),
       docTemplateId: String(brandData.docTemplateId || '').trim(),
       docRole: String(brandData.docRole || '').trim(),
-      isDocAPILive: Boolean(brandData.isDocAPILive ?? false),
+      isDocAPILive: Boolean(brandData.isDocAPILive ?? brandData.isDocApiLive ?? false),
       address: String(brandData.address || '').trim(),
       supportEmail: String(brandData.supportEmail || '').trim(),
-      tollfree: String(brandData.tollfree || '').trim(),
-      altTollFree: String(brandData.altTollFree || '').trim(),
+      tollfree: String(brandData.tollfree || brandData.tollFree || '').trim(),
+      altTollFree: String(brandData.altTollFree || brandData.altTollfree || '').trim(),
       logoUrl: String(brandData.logoUrl || '').trim(),
       refundPolicyUrl: String(brandData.refundPolicyUrl || '').trim()
     };
@@ -154,19 +174,19 @@ export const brandService = {
   async updateBrand(brandData) {
     const payload = {
       brandId: Number(brandData.brandId),
-      brandName: String(brandData.brandName || ''),
-      brandDisplayName: String(brandData.brandDisplayName || ''),
-      isActive: Boolean(brandData.isActive),
-      docAPIKey: String(brandData.docAPIKey || ''),
-      docTemplateId: String(brandData.docTemplateId || ''),
-      docRole: String(brandData.docRole || ''),
-      isDocAPILive: Boolean(brandData.isDocAPILive ?? false),
-      address: String(brandData.address || ''),
-      supportEmail: String(brandData.supportEmail || ''),
-      tollfree: String(brandData.tollfree || ''),
-      altTollFree: String(brandData.altTollFree || ''),
-      logoUrl: String(brandData.logoUrl || ''),
-      refundPolicyUrl: String(brandData.refundPolicyUrl || '')
+      brandName: String(brandData.brandName || '').trim(),
+      brandDisplayName: String(brandData.brandDisplayName || '').trim(),
+      isActive: Boolean(brandData.isActive ?? true),
+      docAPIKey: String(brandData.docAPIKey || brandData.docApiKey || '').trim(),
+      docTemplateId: String(brandData.docTemplateId || '').trim(),
+      docRole: String(brandData.docRole || '').trim(),
+      isDocAPILive: Boolean(brandData.isDocAPILive ?? brandData.isDocApiLive ?? false),
+      address: String(brandData.address || '').trim(),
+      supportEmail: String(brandData.supportEmail || '').trim(),
+      tollfree: String(brandData.tollfree || brandData.tollFree || '').trim(),
+      altTollFree: String(brandData.altTollFree || brandData.altTollfree || '').trim(),
+      logoUrl: String(brandData.logoUrl || '').trim(),
+      refundPolicyUrl: String(brandData.refundPolicyUrl || '').trim()
     };
 
     const response = await apiClient.put('/Brand', payload);
@@ -417,15 +437,43 @@ export const brandService = {
 
   // Gateway Payment Types
   async getGatewayPaymentTypes(params = {}) {
-    const response = await apiClient.get('/GatewayPaymentType', {
-      Text: '',
-      PageNumber: 1,
-      PageSize: 1000,
-      SortProperty: 'gatewayPaymentTypeId',
-      IsDescending: false,
-      ...params
-    });
-    return unwrapList(response);
+    const rawBrandId = params.brandId ?? params.BrandId;
+    const rawGatewayId = params.getwayId ?? params.gatewayId ?? params.GatewayId;
+    const rawPaymentTypeId = params.paymentTypeId ?? params.PaymentTypeId;
+
+    const queryParams = {
+      PageNumber: params.PageNumber || 1,
+      PageSize: params.PageSize || 100
+    };
+
+    if (params.Text && String(params.Text).trim()) {
+      queryParams.Text = String(params.Text).trim();
+    }
+    if (rawBrandId !== undefined && rawBrandId !== null && rawBrandId !== '') {
+      queryParams.brandId = Number(rawBrandId);
+    }
+    if (rawGatewayId !== undefined && rawGatewayId !== null && rawGatewayId !== '') {
+      queryParams.getwayId = Number(rawGatewayId);
+      queryParams.gatewayId = Number(rawGatewayId);
+    }
+    if (rawPaymentTypeId !== undefined && rawPaymentTypeId !== null && rawPaymentTypeId !== '') {
+      queryParams.paymentTypeId = Number(rawPaymentTypeId);
+    }
+    // Only pass SortProperty if caller explicitly asked for it and it's not the broken 'gatewayPaymentTypeId'
+    if (params.SortProperty && params.SortProperty !== 'gatewayPaymentTypeId') {
+      queryParams.SortProperty = params.SortProperty;
+    }
+    if (params.IsDescending !== undefined) {
+      queryParams.IsDescending = Boolean(params.IsDescending);
+    }
+
+    try {
+      const response = await apiClient.get('/GatewayPaymentType', queryParams);
+      return unwrapList(response);
+    } catch (error) {
+      console.warn('GatewayPaymentType fetch returned an error or empty set, falling back to empty list:', error);
+      return { success: true, data: [], totalCount: 0 };
+    }
   },
 
   async saveGatewayPaymentTypes(data) {
@@ -584,13 +632,48 @@ export const brandService = {
       }))
     );
   },
-  async getPaymentTypes() {
-    return cachedReference('paymentTypes', async () =>
-      (await this.getAllPages('/PaymentType')).map((p) => ({
-        paymentTypeId: Number(p.paymentTypeId ?? p.id),
-        paymentTypeName: p.paymentTypeName ?? p.name ?? ''
-      }))
-    );
+  async getPaymentTypes(params = {}) {
+    return cachedReference('paymentTypes', async () => {
+      const queryParams = {
+        PageNumber: params.PageNumber || 1,
+        PageSize: params.PageSize || 100,
+        ...params
+      };
+
+      if (!queryParams.SortProperty) {
+        delete queryParams.SortProperty;
+      }
+      if (queryParams.IsDescending === undefined || queryParams.IsDescending === null || queryParams.IsDescending === '') {
+        delete queryParams.IsDescending;
+      }
+      if (!queryParams.Text) {
+        delete queryParams.Text;
+      }
+
+      let rows = [];
+      try {
+        rows = await this.getAllPages('/PaymentType', queryParams);
+      } catch (firstErr) {
+        console.warn('Paged /PaymentType fetch failed, retrying direct call:', firstErr);
+        try {
+          const direct = unwrapList(await apiClient.get('/PaymentType'));
+          rows = direct.data || [];
+        } catch (secondErr) {
+          console.error('All /PaymentType attempts failed:', secondErr);
+          throw secondErr;
+        }
+      }
+
+      return rows.map((p) => {
+        const id = Number(p.paymentTypeId ?? p.id ?? p.paymentId ?? p.typeId);
+        const name = p.paymentTypeName ?? p.name ?? p.paymentType ?? p.typeName ?? p.title ?? p.text ?? '';
+        return {
+          ...p,
+          paymentTypeId: id,
+          paymentTypeName: name || (id ? `Payment Type #${id}` : '')
+        };
+      });
+    });
   },
   async getBrandDropdown() {
     return cachedReference('brandDropdown', async () =>
@@ -604,20 +687,45 @@ export const brandService = {
   async getAllPages(path, params = {}) {
     const rows = [];
     let result;
-    let page = 1;
+    let page = params.PageNumber || 1;
+    const pageSize = params.PageSize || 100;
+
+    // Safe defaults only for endpoints that require an explicit sort property
+    const defaultSort = path === '/Template' ? 'templateId' : path === '/BrandEmail' ? 'brandEmailId' : undefined;
+
     do {
-      result = unwrapList(
-        await apiClient.get(path, {
-          Text: '',
-          SortProperty: path === '/Template' ? 'templateId' : path === '/PaymentType' ? 'paymentTypeId' : 'brandEmailId',
-          IsDescending: false,
-          ...params,
-          PageNumber: page++,
-          PageSize: 100
-        })
-      );
-      rows.push(...result.data);
-    } while (result.data.length && rows.length < result.totalCount);
+      const query = {
+        ...params,
+        PageNumber: page++,
+        PageSize: pageSize
+      };
+
+      if (!('SortProperty' in params)) {
+        if (defaultSort) {
+          query.SortProperty = defaultSort;
+        }
+      }
+
+      if (!('IsDescending' in params)) {
+        if (query.SortProperty) {
+          query.IsDescending = false;
+        }
+      }
+
+      // If SortProperty is falsy, remove it so buildQuery doesn't serialize empty or invalid sort
+      if (!query.SortProperty) {
+        delete query.SortProperty;
+        delete query.IsDescending;
+      }
+
+      if (!query.Text) {
+        delete query.Text;
+      }
+
+      result = unwrapList(await apiClient.get(path, query));
+      const items = Array.isArray(result?.data) ? result.data : [];
+      rows.push(...items);
+    } while (result?.data?.length && rows.length < (result.totalCount || 0));
     return rows;
   },
   async getBrandEmailOptions(brandId) {
@@ -627,6 +735,7 @@ export const brandService = {
   clearBrandEmailCache: invalidate,
   clearGatewayCache: invalidate,
   clearTemplateCache: invalidate,
+  clearPaymentTypeCache: invalidate,
   clearAllCache: invalidate
 };
 

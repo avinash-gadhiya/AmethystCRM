@@ -1,0 +1,186 @@
+/* ==========================================================================
+   Anchor Pagination (Inspired by @jh3y - https://codepen.io/jh3y/pen/qEbVOMm)
+   Features:
+   - Dynamic sliding pill/circle indicator for Active and Hover states
+   - Perfect optical alignment and centering of numbers and icons
+   - Light & Dark mode support integrated with DashboardKit theme
+   - Smooth spring-like easing transition
+   ========================================================================== */
+
+:root {
+  --pagination-speed: 0.24s;
+  --pagination-ease: cubic-bezier(0.2, 0.9, 0.4, 1.1);
+  --pagination-size: 32px;
+  --pagination-active-bg: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);
+  --pagination-active-text: #ffffff;
+  --pagination-hover-bg: rgba(124, 58, 237, 0.08);
+  --pagination-track-bg: #f3f4f6;
+  --pagination-track-border: #e5e7eb;
+  --pagination-text: #4b5563;
+  --pagination-text-hover: #111827;
+}
+
+.dark {
+  --pagination-active-bg: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+  --pagination-active-text: #ffffff;
+  --pagination-hover-bg: rgba(255, 255, 255, 0.1);
+  --pagination-track-bg: #17132a;
+  --pagination-track-border: rgba(255, 255, 255, 0.12);
+  --pagination-text: #9ca3af;
+  --pagination-text-hover: #ffffff;
+}
+
+/* Nav container */
+.anchor-pagination {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  user-select: none;
+  max-width: 100%;
+}
+
+/* Track capsule holding buttons and sliding indicator */
+.anchor-pagination__track {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  background: var(--pagination-track-bg);
+  border: 1px solid var(--pagination-track-border);
+  border-radius: 9999px;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+}
+
+/* Base Sliding Indicator */
+.anchor-pagination__indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 9999px;
+  pointer-events: none;
+  transition:
+    transform var(--pagination-speed) var(--pagination-ease),
+    width var(--pagination-speed) var(--pagination-ease),
+    height var(--pagination-speed) var(--pagination-ease),
+    opacity 0.15s ease;
+  will-change: transform, width, height, opacity;
+  box-sizing: border-box;
+}
+
+/* Active indicator (Circle/pill directly matching active button) */
+.anchor-pagination__indicator--active {
+  background: var(--pagination-active-bg);
+  box-shadow: 0 2px 6px -1px rgba(124, 58, 237, 0.4);
+  z-index: 1;
+}
+
+/* Hover indicator (Subtle highlight that glides to hovered item) */
+.anchor-pagination__indicator--hover {
+  background: var(--pagination-hover-bg);
+  z-index: 0;
+}
+
+/* Buttons list */
+.anchor-pagination__list {
+  position: relative;
+  display: flex;
+  align-items: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 2px;
+  z-index: 2;
+}
+
+/* List item */
+.anchor-pagination__item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Individual pagination button */
+.anchor-pagination__button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  width: var(--pagination-size);
+  height: var(--pagination-size);
+  min-width: var(--pagination-size);
+  padding: 0;
+  margin: 0;
+  border-radius: 9999px;
+  border: none;
+  background: transparent;
+  color: var(--pagination-text);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  outline: none;
+  transition:
+    color 0.18s ease,
+    opacity 0.18s ease;
+  z-index: 2;
+  box-sizing: border-box;
+}
+
+.anchor-pagination__button:hover:not(:disabled) {
+  color: var(--pagination-text-hover);
+}
+
+.anchor-pagination__button[aria-current='page'] {
+  color: var(--pagination-active-text) !important;
+  font-weight: 600;
+}
+
+.anchor-pagination__button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.anchor-pagination__button:focus-visible {
+  outline: 2px solid #7c3aed;
+  outline-offset: 1px;
+}
+
+/* Chevron arrow buttons */
+.anchor-pagination__button--nav {
+  width: var(--pagination-size);
+  height: var(--pagination-size);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.anchor-pagination__button--nav svg {
+  display: block;
+  width: 15px;
+  height: 15px;
+  margin: auto;
+}
+
+/* Ellipsis gap indicator */
+.anchor-pagination__gap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: var(--pagination-size);
+  color: var(--pagination-text);
+  opacity: 0.55;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  user-select: none;
+  z-index: 2;
+}

@@ -21,26 +21,29 @@ const getSelectionState = (values, fallback = false) => {
 
 const getPageState = (page) =>
   getSelectionState(
-    getPermissions(page).map((permission) => Boolean(permission.hasPermission)),
-    page?.hasPermission
+    getPermissions(page).map((permission) => Boolean(permission.hasPermission ?? permission.isGranted)),
+    page?.hasPermission ?? page?.isGranted
   );
 
 const getMenuState = (menu) =>
   getSelectionState(
     getPages(menu).map((page) => getPageState(page).all),
-    menu?.hasPermission
+    menu?.hasPermission ?? menu?.isGranted
   );
 
 const updateAll = (tree, checked) =>
   tree.map((menu) => ({
     ...menu,
     hasPermission: checked,
+    isGranted: checked,
     menuPermissionPageDTOs: getPages(menu).map((page) => ({
       ...page,
       hasPermission: checked,
+      isGranted: checked,
       menuPagePermissionDTOs: getPermissions(page).map((permission) => ({
         ...permission,
-        hasPermission: checked
+        hasPermission: checked,
+        isGranted: checked
       }))
     }))
   }));
@@ -52,12 +55,15 @@ const updateMenu = (tree, menuIndex, checked) =>
       : {
           ...menu,
           hasPermission: checked,
+          isGranted: checked,
           menuPermissionPageDTOs: getPages(menu).map((page) => ({
             ...page,
             hasPermission: checked,
+            isGranted: checked,
             menuPagePermissionDTOs: getPermissions(page).map((permission) => ({
               ...permission,
-              hasPermission: checked
+              hasPermission: checked,
+              isGranted: checked
             }))
           }))
         }
@@ -73,9 +79,11 @@ const updatePage = (tree, menuIndex, pageIndex, checked) =>
         : {
             ...page,
             hasPermission: checked,
+            isGranted: checked,
             menuPagePermissionDTOs: getPermissions(page).map((permission) => ({
               ...permission,
-              hasPermission: checked
+              hasPermission: checked,
+              isGranted: checked
             }))
           }
     );
@@ -83,6 +91,7 @@ const updatePage = (tree, menuIndex, pageIndex, checked) =>
     return {
       ...menu,
       hasPermission: pages.length > 0 ? pages.every((page) => getPageState(page).all) : checked,
+      isGranted: pages.length > 0 ? pages.every((page) => getPageState(page).all) : checked,
       menuPermissionPageDTOs: pages
     };
   });
@@ -95,12 +104,15 @@ const updatePermission = (tree, menuIndex, pageIndex, permissionIndex, checked) 
       if (currentPageIndex !== pageIndex) return page;
 
       const permissions = getPermissions(page).map((permission, currentPermissionIndex) =>
-        currentPermissionIndex === permissionIndex ? { ...permission, hasPermission: checked } : permission
+        currentPermissionIndex === permissionIndex
+          ? { ...permission, hasPermission: checked, isGranted: checked }
+          : permission
       );
 
       return {
         ...page,
-        hasPermission: permissions.length > 0 && permissions.every((permission) => Boolean(permission.hasPermission)),
+        hasPermission: permissions.length > 0 && permissions.every((permission) => Boolean(permission.hasPermission ?? permission.isGranted)),
+        isGranted: permissions.length > 0 && permissions.every((permission) => Boolean(permission.hasPermission ?? permission.isGranted)),
         menuPagePermissionDTOs: permissions
       };
     });
@@ -108,6 +120,7 @@ const updatePermission = (tree, menuIndex, pageIndex, permissionIndex, checked) 
     return {
       ...menu,
       hasPermission: pages.length > 0 && pages.every((page) => getPageState(page).all),
+      isGranted: pages.length > 0 && pages.every((page) => getPageState(page).all),
       menuPermissionPageDTOs: pages
     };
   });
@@ -157,15 +170,15 @@ const PermissionCheckbox = ({ checked, disabled, label, onChange }) => {
   );
 };
 
-const ActiveBadge = ({ active }) => (
+const ActiveBadge = ({ active, activeText = 'Active', inactiveText = 'Deactive' }) => (
   <span
-    className={`shrink-0 rounded-md border px-2 py-0.5 text-[11px] font-medium ${
+    className={`shrink-0 rounded-md border px-2 py-0.5 text-[11px] font-medium transition-colors ${
       active
         ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300'
         : 'border-gray-200 bg-gray-100 text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400'
     }`}
   >
-    {active ? 'Active' : 'Inactive'}
+    {active ? activeText : inactiveText}
   </span>
 );
 
@@ -310,7 +323,11 @@ const PermissionModal = ({
                             <Arrow expanded={Boolean(menu.isExpanded)} />
                           </div>
                         ) : (
-                          <ActiveBadge active={menu.isActive !== false} />
+                          <ActiveBadge
+                            active={Boolean(menu.hasPermission ?? menu.isGranted)}
+                            activeText="Active"
+                            inactiveText="Deactive"
+                          />
                         )}
                       </div>
 
@@ -319,7 +336,7 @@ const PermissionModal = ({
                           {pages.map((page, pageIndex) => {
                             const pagePermissions = getPermissions(page);
                             const pageState = getPageState(page);
-                            const grantedPermissions = pagePermissions.filter((permission) => permission.hasPermission).length;
+                            const grantedPermissions = pagePermissions.filter((permission) => Boolean(permission.hasPermission ?? permission.isGranted)).length;
                             const pageKey = page.pageId ?? `${menuKey}-page-${pageIndex}`;
 
                             return (
@@ -345,35 +362,46 @@ const PermissionModal = ({
                                       <Arrow expanded={Boolean(page.isExpanded)} />
                                     </div>
                                   ) : (
-                                    <ActiveBadge active={page.isActive !== false} />
+                                    <ActiveBadge
+                                      active={Boolean(page.hasPermission ?? page.isGranted)}
+                                      activeText="Active"
+                                      inactiveText="Deactive"
+                                    />
                                   )}
                                 </div>
 
                                 {page.isExpanded && pagePermissions.length > 0 && (
                                   <div className="ml-4 space-y-1.5 border-l border-gray-200 pl-3 dark:border-white/10 sm:ml-8 sm:pl-4">
-                                    {pagePermissions.map((permission, permissionIndex) => (
-                                      <div
-                                        key={permission.pagePermissionId ?? `${pageKey}-permission-${permissionIndex}`}
-                                        className="flex min-h-11 items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 hover:bg-gray-100/80 dark:border-white/10 dark:bg-white/[0.03]"
-                                      >
-                                        <div className="flex min-w-0 items-center gap-2.5">
-                                          <PermissionCheckbox
-                                            checked={Boolean(permission.hasPermission)}
-                                            disabled={saving}
-                                            label={`Toggle ${permission.permissionName || permission.permissionCode || 'permission'}`}
-                                            onChange={(checked) =>
-                                              change((currentTree) =>
-                                                updatePermission(currentTree, menuIndex, pageIndex, permissionIndex, checked)
-                                              )
-                                            }
+                                    {pagePermissions.map((permission, permissionIndex) => {
+                                      const isAllocated = Boolean(permission.hasPermission ?? permission.isGranted);
+                                      return (
+                                        <div
+                                          key={permission.pagePermissionId ?? `${pageKey}-permission-${permissionIndex}`}
+                                          className="flex min-h-11 items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 hover:bg-gray-100/80 dark:border-white/10 dark:bg-white/[0.03]"
+                                        >
+                                          <div className="flex min-w-0 items-center gap-2.5">
+                                            <PermissionCheckbox
+                                              checked={isAllocated}
+                                              disabled={saving}
+                                              label={`Toggle ${permission.permissionName || permission.permissionCode || 'permission'}`}
+                                              onChange={(checked) =>
+                                                change((currentTree) =>
+                                                  updatePermission(currentTree, menuIndex, pageIndex, permissionIndex, checked)
+                                                )
+                                              }
+                                            />
+                                            <span className="truncate text-xs font-medium text-gray-700 dark:text-gray-300 sm:text-sm">
+                                              {permission.permissionName || permission.permissionCode || 'Unnamed permission'}
+                                            </span>
+                                          </div>
+                                          <ActiveBadge
+                                            active={isAllocated}
+                                            activeText="Active"
+                                            inactiveText="Deactive"
                                           />
-                                          <span className="truncate text-xs font-medium text-gray-700 dark:text-gray-300 sm:text-sm">
-                                            {permission.permissionName || permission.permissionCode || 'Unnamed permission'}
-                                          </span>
                                         </div>
-                                        <ActiveBadge active={permission.isActive !== false} />
-                                      </div>
-                                    ))}
+                                      );
+                                    })}
                                   </div>
                                 )}
                               </div>

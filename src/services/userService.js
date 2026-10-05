@@ -56,13 +56,46 @@ export const userService = {
     };
   },
 
-  // GET /api/User/{id}
+  // GET /api/User to fetch single user details (by id or username)
   async getUserById(userId) {
     const API_URL = getApiBaseUrl();
-    const response = await axios.get(`${API_URL}/User/${encodeURIComponent(userId)}`, {
-      headers: getAuthHeaders()
-    });
-    return response.data?.data || response.data;
+    if (!userId) return null;
+
+    // 1. Try querying GET /api/User with Text = userId
+    try {
+      const response = await axios.get(`${API_URL}/User`, {
+        headers: getAuthHeaders(),
+        params: {
+          Text: String(userId),
+          PageNumber: 1,
+          PageSize: 50
+        }
+      });
+      const list = normalizeList(response.data);
+      const matched = list.find((u) => Number(u.userId ?? u.id) === Number(userId));
+      if (matched) return matched;
+      if (list.length === 1 && (list[0].userId == userId || list[0].id == userId)) return list[0];
+    } catch (err) {
+      console.warn('Failed to fetch user with Text query:', err);
+    }
+
+    // 2. Fallback: query full list from GET /api/User
+    try {
+      const allRes = await axios.get(`${API_URL}/User`, {
+        headers: getAuthHeaders(),
+        params: {
+          PageNumber: 1,
+          PageSize: 5000,
+          SortProperty: 'userId',
+          IsDescending: false
+        }
+      });
+      const allList = normalizeList(allRes.data);
+      return allList.find((u) => Number(u.userId ?? u.id) === Number(userId)) || null;
+    } catch (err) {
+      console.error('Failed to load user details:', err);
+      return null;
+    }
   },
 
   // POST /api/User
@@ -92,12 +125,35 @@ export const userService = {
   // PUT /api/User
   async updateUser(userDTO) {
     const API_URL = getApiBaseUrl();
+    const userId = Number(userDTO.userId);
+
+    let passwordHash = String(
+      userDTO.passwordHash ||
+      userDTO.password ||
+      userDTO.existingPasswordHash ||
+      ''
+    ).trim();
+
+    // If passwordHash was not entered (e.g. left blank to keep unchanged),
+    // fetch the existing record from GET /api/User so PUT has the required PasswordHash field.
+    if (!passwordHash && userId > 0) {
+      try {
+        const existingUser = await this.getUserById(userId);
+        if (existingUser?.passwordHash) {
+          passwordHash = String(existingUser.passwordHash).trim();
+        }
+      } catch (err) {
+        console.warn('Could not auto-fetch existing passwordHash for user update:', err);
+      }
+    }
+
     const payload = {
-      userId: Number(userDTO.userId),
+      userId,
       username: String(userDTO.username || '').trim(),
       email: String(userDTO.email || '').trim(),
       firstName: String(userDTO.firstName || '').trim(),
       lastName: String(userDTO.lastName || '').trim(),
+      passwordHash: passwordHash || '',
       roleId: Number(userDTO.roleId) || 0,
       locationId: Number(userDTO.locationId) || 0,
       salesTarget: Number(userDTO.salesTarget) || 0,
@@ -105,10 +161,6 @@ export const userService = {
       isActive: userDTO.isActive !== false,
       isLeadOn: Boolean(userDTO.isLeadOn)
     };
-
-    if (userDTO.passwordHash || userDTO.password) {
-      payload.passwordHash = userDTO.passwordHash || userDTO.password;
-    }
 
     const response = await axios.put(`${API_URL}/User`, payload, {
       headers: getAuthHeaders()
@@ -125,8 +177,18 @@ export const userService = {
   // PUT /api/User to toggle status
   async toggleUserStatus(user, nextStatus) {
     const API_URL = getApiBaseUrl();
+    let passwordHash = user.passwordHash;
+    if (!passwordHash && user.userId) {
+      try {
+        const existing = await this.getUserById(user.userId);
+        passwordHash = existing?.passwordHash || '';
+      } catch {
+        // ignore
+      }
+    }
     const payload = {
       ...user,
+      passwordHash: passwordHash || '',
       isActive: nextStatus
     };
     const response = await axios.put(`${API_URL}/User`, payload, {
@@ -236,7 +298,21 @@ export const userService = {
   // PUT /api/UserGroup
   async updateUserGroup(data) {
     const API_URL = getApiBaseUrl();
-    const response = await axios.put(`${API_URL}/UserGroup`, data, {
+    const userId = Number(data.userId ?? data.id);
+    const rawGroups = data.groupId ?? data.GroupId ?? data.groupIds ?? data.groups ?? [];
+    const groupId = Array.isArray(rawGroups)
+      ? rawGroups.map(Number).filter((n) => Number.isFinite(n) && n > 0)
+      : [Number(rawGroups)].filter((n) => Number.isFinite(n) && n > 0);
+
+    const payload = {
+      userGroupId: Number(data.userGroupId || 0),
+      userId,
+      groupId,
+      GroupId: groupId,
+      isActive: data.isActive !== false
+    };
+
+    const response = await axios.put(`${API_URL}/UserGroup`, payload, {
       headers: getAuthHeaders()
     });
     return response.data;

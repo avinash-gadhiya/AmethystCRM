@@ -14,6 +14,7 @@ import {
 
 import authService from 'services/authService';
 import dashboardService from 'services/dashboardService';
+import AnchorPagination from '@/components/common/AnchorPagination';
 
 const toInputDate = (date) => {
   const year = date.getFullYear();
@@ -486,27 +487,11 @@ export default function DailyLocationWiseSales() {
               Showing {(currentPage - 1) * pageSize + 1} to{' '}
               {Math.min(currentPage * pageSize, filteredData.length)} of {filteredData.length} records
             </small>
-            <div className="d-flex gap-1">
-              <button
-                type="button"
-                className="btn btn-outline-secondary btn-sm px-2 py-1"
-                disabled={currentPage <= 1}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              >
-                Prev
-              </button>
-              <span className="btn btn-light btn-sm disabled px-2 py-1">
-                {currentPage} / {totalPages}
-              </span>
-              <button
-                type="button"
-                className="btn btn-outline-secondary btn-sm px-2 py-1"
-                disabled={currentPage >= totalPages}
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              >
-                Next
-              </button>
-            </div>
+            <AnchorPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={(p) => setCurrentPage(p)}
+            />
           </div>
         )}
       </div>

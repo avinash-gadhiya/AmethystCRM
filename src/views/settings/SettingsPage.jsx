@@ -45,6 +45,7 @@ import TemplatePage from './template/TemplatePage';
 import LocationPage from './location/LocationPage';
 import SalesTargetPage from './sales-target/SalesTargetPage';
 import BrandTemplatePage from './brand/BrandTemplatePage';
+import AnchorPagination from '@/components/common/AnchorPagination';
 
 const PAGE_SIZES = [10, 25, 50, 100];
 const SECTIONS = [
@@ -127,23 +128,22 @@ const Pagination = ({ page, pageSize, total, onPage, onPageSize }) => {
   const pages = Math.max(1, Math.ceil(total / pageSize));
   return (
     <Card.Footer className="bg-transparent d-flex flex-wrap justify-content-between align-items-center gap-3">
-      <span className="small text-muted">
-        Showing {total ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, total)} of {total}
-      </span>
-      <div className="d-flex align-items-center gap-2">
+      <div className="d-flex align-items-center gap-2 small text-muted">
+        <span>Rows</span>
         <Form.Select size="sm" value={pageSize} onChange={(event) => onPageSize(Number(event.target.value))} style={{ width: 85 }}>
           {PAGE_SIZES.map((size) => (
             <option key={size} value={size}>{size}</option>
           ))}
         </Form.Select>
-        <Button size="sm" variant="outline-secondary" disabled={page <= 1} onClick={() => onPage(page - 1)}>
-          Previous
-        </Button>
-        <span className="small text-nowrap">{page} / {pages}</span>
-        <Button size="sm" variant="outline-secondary" disabled={page >= pages} onClick={() => onPage(page + 1)}>
-          Next
-        </Button>
+        <span className="ms-2">
+          Showing {total ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, total)} of {total}
+        </span>
       </div>
+      <AnchorPagination
+        currentPage={page}
+        totalPages={pages}
+        onPageChange={(val) => onPage(val)}
+      />
     </Card.Footer>
   );
 };

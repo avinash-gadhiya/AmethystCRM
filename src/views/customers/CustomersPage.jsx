@@ -4,6 +4,8 @@ import { Database, Eye, History, Pencil, Plus, RefreshCw, Search, Trash2, UserRo
 
 import authService from 'services/authService';
 import customerService from 'services/customerService';
+import IosToggle from 'components/common/IosToggle';
+import AnchorPagination from '@/components/common/AnchorPagination';
 
 const PAGE_SIZES = [10, 25, 50];
 const SEARCH_FIELDS = [
@@ -284,14 +286,39 @@ export default function CustomersPage() {
               <td><div className="text-truncate" style={{ maxWidth: '250px' }} title={customerAddress(customer)}>{customerAddress(customer)}</div></td>
               <td>{customer.salesPersonName || (customer.salesPerson ? `User #${customer.salesPerson}` : '-')}</td>
               <td>{formatDateTime(customer.createdDate)}</td>
-              <td><Form.Check type="switch" checked={customer.isActive !== false} disabled={statusBusy[customer.customerId]} onChange={() => toggleStatus(customer)} label={customer.isActive !== false ? 'Active' : 'Inactive'} /></td>
+              <td>
+                <div className="d-flex align-items-center gap-2">
+                  <IosToggle
+                    checked={customer.isActive !== false}
+                    disabled={statusBusy[customer.customerId]}
+                    loading={statusBusy[customer.customerId]}
+                    onCheckedChange={() => toggleStatus(customer)}
+                    title={customer.isActive !== false ? 'Deactivate customer' : 'Activate customer'}
+                    aria-label={customer.isActive !== false ? 'Deactivate customer' : 'Activate customer'}
+                  />
+                  <span className="small fw-semibold">{customer.isActive !== false ? 'Active' : 'Inactive'}</span>
+                </div>
+              </td>
               <td className="text-end"><Button variant="link" size="sm" title="View" onClick={() => openDetails(customer)}><Eye size={16} /></Button><Button variant="link" size="sm" title="Edit" onClick={() => openEdit(customer)}><Pencil size={16} /></Button><Button variant="link" size="sm" className="text-danger" title="Delete" onClick={() => setDeleteCustomer(customer)}><Trash2 size={16} /></Button></td>
             </tr>)}
           </tbody>
         </Table></div>
         <Card.Footer className="bg-transparent d-flex flex-wrap justify-content-between align-items-center gap-3">
-          <div className="d-flex align-items-center gap-2 small text-muted"><span>Rows</span><Form.Select size="sm" value={pageSize} style={{ width: '76px' }} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}>{PAGE_SIZES.map((size) => <option value={size} key={size}>{size}</option>)}</Form.Select></div>
-          <div className="d-flex align-items-center gap-2"><Button size="sm" variant="outline-secondary" disabled={loading || page <= 1} onClick={() => setPage((value) => value - 1)}>Previous</Button><span className="small text-muted">Page {page} of {totalPages}</span><Button size="sm" variant="outline-secondary" disabled={loading || page >= totalPages} onClick={() => setPage((value) => value + 1)}>Next</Button></div>
+          <div className="d-flex align-items-center gap-2 small text-muted">
+            <span>Rows</span>
+            <Form.Select size="sm" value={pageSize} style={{ width: '76px' }} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}>
+              {PAGE_SIZES.map((size) => <option value={size} key={size}>{size}</option>)}
+            </Form.Select>
+            <span className="ms-2">
+              Showing {totalCount ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, totalCount)} of {totalCount}
+            </span>
+          </div>
+          <AnchorPagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={(val) => setPage(val)}
+            disabled={loading}
+          />
         </Card.Footer>
       </Card>
 

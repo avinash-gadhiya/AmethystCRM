@@ -84,9 +84,9 @@ export default function NavRight() {
             style={{ width: 310, right: 0 }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-300/50 bg-[#eef2f7]">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
               <div className="flex items-center gap-2">
-                <h6 className="text-sm font-bold text-gray-800 mb-0">Notifications</h6>
+                <h6 className="text-sm font-semibold text-slate-800 mb-0">Notifications</h6>
                 {unreadCount > 0 && (
                   <span className="badge bg-primary" style={{ fontSize: '0.68rem' }}>
                     {unreadCount} new
@@ -97,7 +97,7 @@ export default function NavRight() {
                 <button
                   type="button"
                   onClick={markAllAsRead}
-                  className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 bg-transparent border-0 cursor-pointer p-0"
+                  className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800 bg-transparent border-0 cursor-pointer p-0"
                 >
                   <CheckCircle2 size={13} /> Mark read
                 </button>
@@ -109,23 +109,23 @@ export default function NavRight() {
               {notifications.map((n) => (
                 <div
                   key={n.id}
-                  className={`flex items-center justify-between px-3 py-2.5 rounded-xl mb-1 text-xs cursor-pointer transition-all ${
+                  className={`flex items-center justify-between px-3 py-2.5 rounded-lg mb-1 text-xs cursor-pointer transition-colors ${
                     n.read
-                      ? 'text-gray-400'
-                      : 'bg-white/60 text-gray-700 font-semibold shadow-[2px_2px_5px_#cad3e0,-2px_-2px_5px_#ffffff]'
+                      ? 'text-slate-400 hover:bg-slate-50'
+                      : 'bg-indigo-50/50 hover:bg-indigo-50 text-slate-700 font-medium border border-indigo-100/60'
                   }`}
                 >
                   <span>{n.title}</span>
-                  <span className="text-gray-400 ml-2 flex-shrink-0">{n.time}</span>
+                  <span className="text-slate-400 ml-2 flex-shrink-0">{n.time}</span>
                 </div>
               ))}
             </div>
 
             {/* Footer */}
-            <div className="px-4 py-2.5 border-t border-gray-300/50 text-center bg-[#eef2f7]">
+            <div className="px-4 py-2.5 border-t border-slate-200 text-center bg-slate-50">
               <Link
                 to="/Performance/Dashboard"
-                className="text-xs text-indigo-600 font-bold hover:text-indigo-700"
+                className="text-xs text-indigo-600 font-semibold hover:text-indigo-700"
                 onClick={() => setNotifOpen(false)}
               >
                 View all activity
@@ -139,19 +139,19 @@ export default function NavRight() {
       <div className="relative" ref={profileRef}>
         <button
           type="button"
-          className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-[#eef2f7] border border-white/80 shadow-[3px_3px_7px_#cad3e0,-3px_-3px_7px_#ffffff] hover:shadow-[4px_4px_10px_#cad3e0,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_4px_#cad3e0,inset_-2px_-2px_4px_#ffffff] transition-all cursor-pointer"
+          className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 shadow-sm hover:bg-slate-50 active:bg-slate-100 transition-colors cursor-pointer"
           onClick={() => { setProfileOpen((o) => !o); setNotifOpen(false); }}
           aria-label="User profile"
         >
           {/* Avatar */}
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 shadow-[1px_1px_3px_rgba(0,0,0,0.2)]">
+          <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0 shadow-sm">
             {initials}
           </div>
           <span className="hidden md:flex flex-col items-start">
-            <span className="text-xs font-bold text-gray-800 leading-tight">{displayName}</span>
-            <span className="text-[11px] text-gray-400 leading-tight">{roleTitle}</span>
+            <span className="text-xs font-semibold text-slate-800 leading-tight">{displayName}</span>
+            <span className="text-[11px] text-slate-500 leading-tight">{roleTitle}</span>
           </span>
-          <ChevronDown size={14} className="hidden md:block text-gray-400 ml-0.5" />
+          <ChevronDown size={14} className="hidden md:block text-slate-400 ml-0.5" />
         </button>
 
         {profileOpen && (
@@ -160,12 +160,12 @@ export default function NavRight() {
             style={{ width: 220, right: 0 }}
           >
             {/* Profile Header */}
-            <div className="px-4 py-3 border-b border-gray-300/50 mb-1">
+            <div className="px-4 py-3 border-b border-slate-200 mb-1 bg-slate-50/50">
               <div className="flex items-center justify-between mb-0.5">
-                <span className="text-xs font-bold text-gray-800">{displayName}</span>
-                <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold shadow-[inset_1px_1px_2px_rgba(0,0,0,0.05)]">Online</span>
+                <span className="text-xs font-semibold text-slate-800">{displayName}</span>
+                <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-md font-semibold">Online</span>
               </div>
-              <span className="text-[11px] text-gray-500">{roleTitle}</span>
+              <span className="text-[11px] text-slate-500">{roleTitle}</span>
             </div>
 
             {/* Menu Items */}
@@ -175,20 +175,20 @@ export default function NavRight() {
                 className="dropdown-item"
                 onClick={() => setProfileOpen(false)}
               >
-                <User size={15} className="text-gray-400" /> My Profile
+                <User size={15} className="text-slate-400" /> My Profile
               </Link>
               <Link
                 to="/settings/setting"
                 className="dropdown-item"
                 onClick={() => setProfileOpen(false)}
               >
-                <Settings size={15} className="text-gray-400" /> Settings
+                <Settings size={15} className="text-slate-400" /> Settings
               </Link>
               <div className="dropdown-divider" />
               <button
                 type="button"
                 onClick={handleLogout}
-                className="dropdown-item text-red-600 font-semibold w-full"
+                className="dropdown-item text-red-600 font-medium w-full hover:bg-red-50 hover:text-red-700"
               >
                 <LogOut size={15} className="text-red-500" /> Logout
               </button>

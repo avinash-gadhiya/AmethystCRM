@@ -11,6 +11,7 @@ import GlassCloseButton from '@/components/common/GlassCloseButton';
 const StateModal = ({
   open,
   country = null,
+  countries = [],
   state = null,
   onClose,
   onSuccess
@@ -21,9 +22,25 @@ const StateModal = ({
   const [errorMsg, setErrorMsg] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const countryName =
-    country?.countryName || country?.name || `Country #${country?.countryId || ''}`;
-  const countryId = Number(country?.countryId || state?.countryId);
+  const countryId = Number(country?.countryId || country?.CountryId || state?.countryId || state?.CountryId);
+
+  const matchedCountry =
+    country ||
+    (Array.isArray(countries)
+      ? countries.find((c) => Number(c?.countryId || c?.CountryId) === Number(countryId))
+      : null);
+
+  const cleanCountryName =
+    matchedCountry?.countryName ||
+    matchedCountry?.CountryName ||
+    matchedCountry?.name ||
+    matchedCountry?.Name ||
+    state?.countryName ||
+    state?.CountryName ||
+    '';
+
+  const countryDisplayName =
+    cleanCountryName || (countryId ? `Country #${countryId}` : 'Unknown Country');
 
   useEffect(() => {
     if (!open) return;
@@ -58,16 +75,18 @@ const StateModal = ({
         await countryService.updateState({
           stateId: state.stateId,
           stateName: trimmed,
-          countryId
+          countryId,
+          countryName: cleanCountryName
         });
         toast.success(`State "${trimmed}" updated successfully`);
       } else {
         await countryService.createState({
           stateId: 0,
           stateName: trimmed,
-          countryId
+          countryId,
+          countryName: cleanCountryName
         });
-        toast.success(`State "${trimmed}" added to ${countryName}`);
+        toast.success(`State "${trimmed}" added to ${countryDisplayName}`);
       }
 
       onSuccess?.();
@@ -96,7 +115,7 @@ const StateModal = ({
                 {isEditing ? 'Edit State' : 'Add State'}
               </h3>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Country: <strong className="text-gray-700 dark:text-gray-200">{countryName}</strong>
+                Country: <strong className="text-gray-700 dark:text-gray-200">{countryDisplayName}</strong>
               </p>
             </div>
           </div>
@@ -116,7 +135,7 @@ const StateModal = ({
             {/* Parent Country Information Banner */}
             <div className="p-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50/70 dark:bg-white/[0.02] flex items-center justify-between">
               <span className="text-xs text-gray-500 dark:text-gray-400">Target Country</span>
-              <span className="text-xs font-semibold text-gray-900 dark:text-white">{countryName}</span>
+              <span className="text-xs font-semibold text-gray-900 dark:text-white">{countryDisplayName}</span>
             </div>
 
             <div>

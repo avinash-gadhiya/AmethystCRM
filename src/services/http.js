@@ -52,40 +52,74 @@ export const getAuthHeaders = () => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
+const QUERY_PARAM_DELETE_ENDPOINTS = [
+  'blockip',
+  'user',
+  'role',
+  'group',
+  'groupemail',
+  'location',
+  'menu',
+  'page',
+  'product',
+  'setting',
+  'template'
+];
+
 export const deleteById = async (baseUrl, id, config = {}) => {
   if (id === undefined || id === null || id === '') {
     throw new Error('deleteById requires a valid id');
   }
 
   const url = stripTrailingSlash(baseUrl);
+  const endpointName = url.split('/').pop().toLowerCase();
+  const prefersQueryParam =
+    config?.strategy === 'query' ||
+    QUERY_PARAM_DELETE_ENDPOINTS.includes(endpointName);
+
   const headers = {
     ...getAuthHeaders(),
     ...(config?.headers || {})
   };
 
-  // 1. Attempt REST style: DELETE /Resource/{id}
-  try {
-    return await axios.delete(`${url}/${encodeURIComponent(id)}`, {
+  const doQueryDelete = () =>
+    axios.delete(url, {
+      ...config,
+      headers,
+      params: {
+        ...(config?.params || {}),
+        id
+      }
+    });
+
+  const doPathDelete = () =>
+    axios.delete(`${url}/${encodeURIComponent(id)}`, {
       ...config,
       headers,
       params: config?.params
     });
-  } catch (error) {
-    const status = error?.response?.status;
-    if (!status || !isFallbackWorthyStatus(status)) {
-      throw error;
+
+  if (prefersQueryParam) {
+    try {
+      return await doQueryDelete();
+    } catch (error) {
+      const status = error?.response?.status;
+      if (!status || !isFallbackWorthyStatus(status)) {
+        throw error;
+      }
+      return await doPathDelete();
+    }
+  } else {
+    try {
+      return await doPathDelete();
+    } catch (error) {
+      const status = error?.response?.status;
+      if (!status || !isFallbackWorthyStatus(status)) {
+        throw error;
+      }
+      return await doQueryDelete();
     }
   }
-
-  // 2. Only for HTTP 400, 404, or 405, retry: DELETE /Resource?id={id}
-  return axios.delete(url, {
-    ...config,
-    headers,
-    params: {
-      ...(config?.params || {}),
-      id
-    }
-  });
 };
 
 export default {

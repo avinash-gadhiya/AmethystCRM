@@ -45,7 +45,24 @@ const request = async (path, { method = 'GET', params, data, signal } = {}) => {
 };
 
 const unwrapList = (payload) => {
-  const source = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : [];
+  let source = [];
+  if (Array.isArray(payload?.data)) {
+    source = payload.data;
+  } else if (payload?.data && typeof payload.data === 'object') {
+    if (Array.isArray(payload.data.data)) {
+      source = payload.data.data;
+    } else if (
+      (payload.data.gatewayPaymentTypeId && payload.data.gatewayPaymentTypeId !== 0) ||
+      (payload.data.gatewayId && payload.data.gatewayId !== 0) ||
+      (payload.data.paymentTypeIds && payload.data.paymentTypeIds.length > 0)
+    ) {
+      source = [payload.data];
+    } else {
+      source = [];
+    }
+  } else if (Array.isArray(payload)) {
+    source = payload;
+  }
   return { data: source, totalCount: Number(payload?.totalCount) || source.length };
 };
 
@@ -103,7 +120,31 @@ export const gatewayService = {
   },
 
   async getGatewayPaymentTypes(params = {}, signal) {
-    return unwrapList(await request('/GatewayPaymentType', { params, signal }));
+    const rawBrandId = params.brandId ?? params.BrandId;
+    const rawGatewayId = params.getwayId ?? params.gatewayId ?? params.GatewayId;
+    const rawPaymentTypeId = params.paymentTypeId ?? params.PaymentTypeId;
+
+    const queryParams = { ...params };
+    if (rawBrandId !== undefined && rawBrandId !== null && rawBrandId !== '') {
+      queryParams.brandId = Number(rawBrandId);
+    }
+    if (rawGatewayId !== undefined && rawGatewayId !== null && rawGatewayId !== '') {
+      queryParams.getwayId = Number(rawGatewayId);
+      queryParams.gatewayId = Number(rawGatewayId);
+    }
+    if (rawPaymentTypeId !== undefined && rawPaymentTypeId !== null && rawPaymentTypeId !== '') {
+      queryParams.paymentTypeId = Number(rawPaymentTypeId);
+    }
+    if (queryParams.SortProperty === 'gatewayPaymentTypeId') {
+      delete queryParams.SortProperty;
+    }
+
+    try {
+      return unwrapList(await request('/GatewayPaymentType', { params: queryParams, signal }));
+    } catch (err) {
+      console.warn('Failed to load gateway payment types, returning empty list:', err);
+      return { data: [], totalCount: 0 };
+    }
   },
 
   async createGatewayPaymentType(mapping) {

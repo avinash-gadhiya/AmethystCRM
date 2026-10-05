@@ -15,6 +15,7 @@
 
 import axios from 'axios';
 import { serializeQueryParams } from '@/lib/queryParams';
+import { getAuthHeaders } from '@/services/http';
 
 // Sent verbatim as the `Text` search value, one request per name.
 export const SALES_PERSON_ROLE_SEARCH_TEXTS = ['Sales Agent', 'Sales Manager'];
@@ -156,6 +157,7 @@ const getRoleIdsByNames = (roleNames) => {
         SortProperty: 'roleId',
         IsDescending: false,
       })}`,
+      { headers: getAuthHeaders() },
     )
     .then((response) =>
       extractList(response)
@@ -188,35 +190,55 @@ export const clearRoleUserListCache = () => roleUserListCache.clear();
 
 // THE way to load a role's user list. Every such dropdown in the app goes
 // through this, so they all show the same people.
-//
-// `/User/UserDropDown` is called without `RoleIds`: the per-role `Text` search
-// is the filter, one request per role name, merged.
 const fetchRoleUserList = (searchTexts, roleNames, { pageSize, sortProperty, isActive = true }) => {
-  // `isActive` belongs in the key: without it a list cached under one setting
-  // would be handed back to a caller that asked for the other.
   const key = `${roleNames.join('|')}::${pageSize}::${sortProperty}::${isActive ?? 'any'}`;
   const cached = roleUserListCache.get(key);
   if (cached) return cached;
 
   const API_URL = import.meta.env.VITE_APP_API_URL;
 
-  const promise = fetchUsersByRoleNames(searchTexts, roleNames, async (roleName) => {
-    const response = await axios.get(
-      `${API_URL}/User/UserDropDown?${serializeQueryParams({
-        Text: roleName,
-        IsActive: isActive,
-        PageNumber: 1,
-        PageSize: pageSize,
-        SortProperty: sortProperty,
-        IsDescending: false,
-      })}`,
-    );
-    return extractUserList(response);
-  })
+  const promise = (async () => {
+    try {
+      const users = await fetchUsersByRoleNames(searchTexts, roleNames, async (roleName) => {
+        const response = await axios.get(
+          `${API_URL}/User/UserDropDown?${serializeQueryParams({
+            Text: roleName,
+            IsActive: isActive,
+            PageNumber: 1,
+            PageSize: pageSize,
+            SortProperty: sortProperty,
+            IsDescending: false,
+          })}`,
+          { headers: getAuthHeaders() },
+        );
+        return extractUserList(response);
+      });
+
+      if (users && users.length > 0) return users;
+    } catch (e) {
+      console.warn('Per-role /User/UserDropDown fetch failed:', e);
+    }
+
+    // Fallback: Query all users from /User/UserDropDown and filter by role
+    try {
+      const response = await axios.get(
+        `${API_URL}/User/UserDropDown?${serializeQueryParams({
+          IsActive: isActive,
+          PageNumber: 1,
+          PageSize: pageSize,
+          SortProperty: sortProperty,
+          IsDescending: false,
+        })}`,
+        { headers: getAuthHeaders() },
+      );
+      const list = extractUserList(response);
+      return list.filter((user) => isRoleUser(user, roleNames));
+    } catch (err) {
+      console.error('Failed to load role users from /User/UserDropDown:', err);
+      return [];
+    }
+  })()
     .then((users) => {
-      // Never cache an empty list. `fetchUsersByRoleNames` swallows per-role
-      // failures, so a transient outage returns [] - caching that would leave
-      // every dropdown in the app blank for the rest of the session.
       if (!users.length) roleUserListCache.delete(key);
       return users;
     })
@@ -242,11 +264,6 @@ export const fetchServicePersonList = ({ pageSize = 1000, sortProperty = 'userId
 
 // Server-side search over sales persons by typed text (name / email), for the
 // dropdowns that look users up as you type instead of listing them all.
-//
-// `Text` carries the query here rather than a role name, and `RoleIds` is not
-// sent, so `isSalesPersonUser` below is the only role filter left - and since
-// the payload now carries `roleName`, it is what keeps non-sales users whose
-// name matched the query out of the results.
 export const searchSalesPersonUsers = async (searchText, { pageSize = 200, isActive = true } = {}) => {
   const query = String(searchText || '').trim();
   if (!query) return [];
@@ -262,6 +279,7 @@ export const searchSalesPersonUsers = async (searchText, { pageSize = 200, isAct
       SortProperty: 'userId',
       IsDescending: false,
     })}`,
+    { headers: getAuthHeaders() },
   );
 
   return extractUserList(response).filter(isSalesPersonUser);

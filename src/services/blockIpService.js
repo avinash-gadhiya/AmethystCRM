@@ -89,10 +89,10 @@ export const blockIpService = {
     return response.data;
   },
 
-  // DELETE /BlockIp/{id} (with fallback to DELETE /BlockIp?id={id})
+  // DELETE /BlockIp?id={id}
   async deleteBlockedIp(id) {
     const API_URL = getApiBaseUrl();
-    return deleteById(`${API_URL}/BlockIp`, id);
+    return deleteById(`${API_URL}/BlockIp`, id, { strategy: 'query' });
   }
 };
 

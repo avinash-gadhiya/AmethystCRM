@@ -4,6 +4,7 @@ import { Activity, Eye, FileText, Paperclip, Pencil, Plus, RefreshCw, Search, Ti
 
 import authService from 'services/authService';
 import ticketService from 'services/ticketService';
+import AnchorPagination from '@/components/common/AnchorPagination';
 
 const PAGE_SIZES = [10, 25, 50];
 const SEARCH_FIELDS = [
@@ -336,12 +337,16 @@ export default function TicketsPage() {
             <Form.Select size="sm" value={pageSize} style={{ width: '76px' }} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}>
               {PAGE_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
             </Form.Select>
+            <span className="ms-2">
+              Showing {totalCount ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, totalCount)} of {totalCount}
+            </span>
           </div>
-          <div className="d-flex align-items-center gap-2">
-            <Button size="sm" variant="outline-secondary" disabled={loading || page <= 1} onClick={() => setPage((value) => value - 1)}>Previous</Button>
-            <span className="small text-muted">Page {page} of {totalPages}</span>
-            <Button size="sm" variant="outline-secondary" disabled={loading || page >= totalPages} onClick={() => setPage((value) => value + 1)}>Next</Button>
-          </div>
+          <AnchorPagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={(val) => setPage(val)}
+            disabled={loading}
+          />
         </Card.Footer>
       </Card>
 

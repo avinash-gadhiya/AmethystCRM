@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useRef, useEffect, useId } from 'react';
+import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown } from 'lucide-react';
 
 const SelectContext = createContext(null);
@@ -7,23 +8,34 @@ export function Select({ value, onValueChange, children, disabled = false }) {
   const [open, setOpen] = useState(false);
   const [itemLabels, setItemLabels] = useState({});
   const containerRef = useRef(null);
+  const triggerRef = useRef(null);
+  const contentRef = useRef(null);
 
   // Close on outside click
   useEffect(() => {
     if (!open) return;
     const handleOutsideClick = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target) &&
+        (!contentRef.current || !contentRef.current.contains(e.target))
+      ) {
         setOpen(false);
       }
     };
     const handleEscape = (e) => {
       if (e.key === 'Escape') setOpen(false);
     };
+    const handleViewportChange = () => setOpen(false);
     document.addEventListener('mousedown', handleOutsideClick);
     document.addEventListener('keydown', handleEscape);
+    window.addEventListener('resize', handleViewportChange);
+    window.addEventListener('scroll', handleViewportChange, true);
     return () => {
       document.removeEventListener('mousedown', handleOutsideClick);
       document.removeEventListener('keydown', handleEscape);
+      window.removeEventListener('resize', handleViewportChange);
+      window.removeEventListener('scroll', handleViewportChange, true);
     };
   }, [open]);
 
@@ -43,7 +55,9 @@ export function Select({ value, onValueChange, children, disabled = false }) {
         setOpen,
         itemLabels,
         registerItem,
-        disabled
+        disabled,
+        triggerRef,
+        contentRef
       }}
     >
       <div ref={containerRef} className="relative w-full">
@@ -56,11 +70,12 @@ export function Select({ value, onValueChange, children, disabled = false }) {
 export function SelectTrigger({ className = '', children, ...props }) {
   const context = useContext(SelectContext);
   if (!context) return null;
-  const { open, setOpen, disabled } = context;
+  const { open, setOpen, disabled, triggerRef } = context;
 
   return (
     <button
       type="button"
+      ref={triggerRef}
       disabled={disabled}
       onClick={() => !disabled && setOpen(!open)}
       className={`flex items-center justify-between gap-2 px-3 py-2 text-left font-medium transition-colors focus:outline-none ${className}`}
@@ -77,33 +92,45 @@ export function SelectValue({ placeholder = 'Select...' }) {
   if (!context) return null;
   const { value, itemLabels } = context;
 
-  const display = value !== undefined && value !== null && itemLabels[value] !== undefined
-    ? itemLabels[value]
-    : placeholder;
+  const display = value !== undefined && value !== null && itemLabels[value] !== undefined ? itemLabels[value] : placeholder;
 
   return <span className="truncate block">{display}</span>;
 }
 
-export function SelectContent({
-  className = '',
-  children,
-  search = null,
-  position = 'popper',
-  sideOffset = 4,
-  ...props
-}) {
+export function SelectContent({ className = '', children, search = null, position = 'popper', sideOffset = 4, ...props }) {
   const context = useContext(SelectContext);
-  if (!context || !context.open) return null;
+  if (!context) return null;
 
-  return (
+  // Keep options mounted while closed so their labels are registered and the
+  // trigger can display the selected value before the menu is opened once.
+  if (!context.open) {
+    return (
+      <div className="hidden" aria-hidden="true">
+        {children}
+      </div>
+    );
+  }
+
+  const triggerRect = context.triggerRef.current?.getBoundingClientRect();
+  const menuWidth = Math.max(200, triggerRect?.width || 200);
+  const availableBelow = window.innerHeight - (triggerRect?.bottom || 0);
+  const openAbove = availableBelow < 300 && (triggerRect?.top || 0) > availableBelow;
+  const left = Math.max(8, Math.min(triggerRect?.left || 8, window.innerWidth - menuWidth - 8));
+  const placementStyle = openAbove
+    ? { bottom: window.innerHeight - (triggerRect?.top || 0) + sideOffset }
+    : { top: (triggerRect?.bottom || 0) + sideOffset };
+
+  return createPortal(
     <div
-      className={`absolute z-50 mt-1 max-h-72 w-full min-w-[200px] overflow-hidden rounded-xl shadow-xl backdrop-blur-md transition-all ${className}`}
-      style={{ top: '100%' }}
+      ref={context.contentRef}
+      className={`fixed max-h-72 min-w-[200px] overflow-hidden rounded-xl shadow-xl backdrop-blur-md transition-all ${className}`}
+      style={{ ...placementStyle, left, width: menuWidth, zIndex: 10000 }}
       {...props}
     >
       {search && <div className="sticky top-0 z-10">{search}</div>}
       <div className="max-h-60 overflow-y-auto p-1 divide-y-0">{children}</div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -146,9 +173,7 @@ export function SelectItem({ value, children, className = '', meta = null, ...pr
     >
       <div className="flex items-center justify-between gap-2">
         <span className="truncate">{children}</span>
-        {isSelected && (
-          <span className="flex h-1.5 w-1.5 rounded-full bg-purple-600 dark:bg-purple-400 shrink-0" />
-        )}
+        {isSelected && <span className="flex h-1.5 w-1.5 rounded-full bg-purple-600 dark:bg-purple-400 shrink-0" />}
       </div>
       {meta && <div className="mt-1 flex flex-wrap items-center gap-1">{meta}</div>}
     </div>

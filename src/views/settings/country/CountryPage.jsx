@@ -11,7 +11,6 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  ChevronLeft,
   Lock,
   Layers
 } from 'lucide-react';
@@ -25,6 +24,7 @@ import LiquidGlassButton from '@/components/common/LiquidGlassButton';
 import ActionIconButton from '@/components/common/ActionIconButton';
 import TableRefreshButton from '@/components/common/TableRefreshButton';
 import DeleteConfirmModal from '@/components/common/DeleteConfirmModal';
+import AnchorPagination from '@/components/common/AnchorPagination';
 import CountryModal from '@/components/country/CountryModal';
 import StateModal from '@/components/country/StateModal';
 
@@ -225,7 +225,10 @@ const CountryPage = () => {
       if (!cId) return;
 
       try {
-        const loaded = await countryService.getStates({ CountryId: cId });
+        const loaded = await countryService.getStates({
+          CountryId: cId,
+          countryName: c.countryName
+        });
         setStatesByCountry((prev) => ({
           ...prev,
           [cId]: loaded || []
@@ -312,7 +315,11 @@ const CountryPage = () => {
     if (!statesByCountry[id]) {
       setLoadingStates((prev) => ({ ...prev, [id]: true }));
       try {
-        const loaded = await countryService.getStates({ CountryId: id });
+        const targetCountry = countries.find((c) => Number(c.countryId) === id);
+        const loaded = await countryService.getStates({
+          CountryId: id,
+          countryName: targetCountry?.countryName
+        });
         setStatesByCountry((prev) => ({
           ...prev,
           [id]: loaded || []
@@ -332,7 +339,11 @@ const CountryPage = () => {
     countryService.clearStateCache(id);
     setLoadingStates((prev) => ({ ...prev, [id]: true }));
     try {
-      const loaded = await countryService.getStates({ CountryId: id });
+      const targetCountry = countries.find((c) => Number(c.countryId) === id);
+      const loaded = await countryService.getStates({
+        CountryId: id,
+        countryName: targetCountry?.countryName
+      });
       setStatesByCountry((prev) => ({
         ...prev,
         [id]: loaded || []
@@ -371,7 +382,7 @@ const CountryPage = () => {
       type: 'state',
       item: state,
       countryId: country.countryId,
-      countryName: country.countryName
+      countryName: country.countryName || state.countryName
     });
     setDeleteModalOpen(true);
   };
@@ -825,30 +836,13 @@ const CountryPage = () => {
                     </select>
                   </div>
 
-                  {/* Page Controls */}
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      disabled={pageNumber <= 1 || loading}
-                      onClick={() => setPageNumber((p) => Math.max(1, p - 1))}
-                      className="px-2.5 py-1 rounded-md border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0f1322] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <ChevronLeft size={14} className="inline mr-0.5" />
-                      Prev
-                    </button>
-                    <span className="px-2 font-medium text-gray-800 dark:text-gray-200">
-                      {pageNumber} / {totalPages}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={pageNumber >= totalPages || loading}
-                      onClick={() => setPageNumber((p) => p + 1)}
-                      className="px-2.5 py-1 rounded-md border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0f1322] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    >
-                      Next
-                      <ChevronRight size={14} className="inline ml-0.5" />
-                    </button>
-                  </div>
+                  {/* Anchor Pagination from CodePen jh3y */}
+                  <AnchorPagination
+                    currentPage={pageNumber}
+                    totalPages={totalPages}
+                    onPageChange={(p) => setPageNumber(p)}
+                    disabled={loading}
+                  />
                 </div>
               </div>
             </div>
@@ -877,6 +871,7 @@ const CountryPage = () => {
       <StateModal
         open={stateModalOpen}
         country={stateModalTargetCountry}
+        countries={countries}
         state={editingState}
         onClose={() => {
           setStateModalOpen(false);

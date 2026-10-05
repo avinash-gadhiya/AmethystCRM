@@ -33,30 +33,52 @@ const GatewayPaymentTypeModal = ({
     setLoading(true);
 
     const loadData = async () => {
-      try {
-        // 1. Load system payment types
-        const types = await brandService.getPaymentTypes();
-        setAvailablePaymentTypes(types);
+      setErrorMsg('');
+      setLoading(true);
 
-        // 2. Load assigned payment types for this gateway & brand
+      // Force fresh fetch of payment types when modal opens
+      brandService.clearPaymentTypeCache();
+
+      let types = [];
+      try {
+        types = await brandService.getPaymentTypes();
+        setAvailablePaymentTypes(types || []);
+      } catch (typeErr) {
+        console.error('Failed to load system payment types:', typeErr);
+        setErrorMsg(getApiErrorMessage(typeErr, 'Failed to load payment types.'));
+      }
+
+      try {
         const assignedRes = await brandService.getGatewayPaymentTypes({
-          GatewayId: gatewayId,
-          BrandId: brandId
+          gatewayId: gatewayId,
+          getwayId: gatewayId,
+          brandId: brandId
         });
 
-        const list = assignedRes.data || [];
-        const matching = list.filter((m) => Number(m.gatewayId) === gatewayId && (!brandId || Number(m.brandId) === brandId));
+        const list = Array.isArray(assignedRes?.data) ? assignedRes.data : [];
+        const matching = list.filter(
+          (m) =>
+            Number(m.gatewayId || m.getwayId) === Number(gatewayId) &&
+            (!brandId || !m.brandId || Number(m.brandId) === Number(brandId))
+        );
         setExistingRecord(matching);
+        const parseIds = (item) => {
+          if (Array.isArray(item.paymentTypeIds)) return item.paymentTypeIds;
+          if (typeof item.paymentTypeIds === 'string' && item.paymentTypeIds.trim()) {
+            return item.paymentTypeIds.split(',').map((s) => s.trim());
+          }
+          return [item.paymentTypeId];
+        };
+
         const ids = new Set(
           matching
-            .flatMap((m) => m.paymentTypeIds || [m.paymentTypeId])
+            .flatMap(parseIds)
             .filter(Boolean)
             .map(Number)
         );
         setSelectedIds(ids);
-      } catch (err) {
-        console.error('Failed to load gateway payment types:', err);
-        setErrorMsg(getApiErrorMessage(err, 'Failed to load payment types.'));
+      } catch (assignedErr) {
+        console.warn('Failed to load gateway payment type assignments, defaulting to empty:', assignedErr);
       } finally {
         setLoading(false);
       }
@@ -98,9 +120,17 @@ const GatewayPaymentTypeModal = ({
 
     setSaving(true);
     try {
+      const parseIds = (item) => {
+        if (Array.isArray(item.paymentTypeIds)) return item.paymentTypeIds;
+        if (typeof item.paymentTypeIds === 'string' && item.paymentTypeIds.trim()) {
+          return item.paymentTypeIds.split(',').map((s) => s.trim());
+        }
+        return [item.paymentTypeId];
+      };
+
       const originalIds = new Set(
         existingRecord
-          .flatMap((m) => m.paymentTypeIds || [m.paymentTypeId])
+          .flatMap(parseIds)
           .filter(Boolean)
           .map(Number)
       );
@@ -109,9 +139,9 @@ const GatewayPaymentTypeModal = ({
       if (removed.length && !permissions.canDelete) throw new Error('You do not have permission to delete payment assignments.');
       if (added.length && !permissions.canAdd) throw new Error('You do not have permission to add payment assignments.');
       // Grouped backend records must be recreated with their retained assignments.
-      const affected = existingRecord.filter((m) => (m.paymentTypeIds || [m.paymentTypeId]).some((id) => removed.includes(Number(id))));
+      const affected = existingRecord.filter((m) => parseIds(m).some((id) => removed.includes(Number(id))));
       const retained = affected
-        .flatMap((m) => m.paymentTypeIds || [m.paymentTypeId])
+        .flatMap(parseIds)
         .map(Number)
         .filter((id) => selectedIds.has(id));
       if (retained.length && !permissions.canAdd) throw new Error('Updating grouped assignments also requires Add permission.');
@@ -218,7 +248,9 @@ const GatewayPaymentTypeModal = ({
                         >
                           {isChecked && <Check size={13} strokeWidth={3} />}
                         </div>
-                        <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{type.paymentTypeName}</span>
+                        <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                          {type.paymentTypeName || (id ? `Payment Type #${id}` : 'Payment Method')}
+                        </span>
                       </div>
                       <span className="text-xs font-mono text-gray-400">#{id}</span>
                     </button>

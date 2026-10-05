@@ -298,10 +298,9 @@ const SettingPage = () => {
   };
 
   // ---------------------------------------------------------------------------
-  // Optimistic Toggle for Setting Active Status
+  // Optimistic Toggle for Setting Active Status (PUT /api/Setting)
   // ---------------------------------------------------------------------------
-  const handleToggleSettingActive = async (setting, e) => {
-    e.stopPropagation();
+  const handleToggleSettingActive = async (setting, nextChecked) => {
     if (!permissions.canEdit) {
       toast.error('You do not have permission to edit settings.');
       return;
@@ -310,29 +309,56 @@ const SettingPage = () => {
     const sId = setting.settingId;
     if (togglingSettings[sId]) return;
 
-    const previousStatus = setting.isActive;
-    const newStatus = !previousStatus;
+    const previousStatus = Boolean(setting.isActive);
+    const newStatus = typeof nextChecked === 'boolean' ? nextChecked : !previousStatus;
 
-    // 1. Optimistic UI update
+    // 1. Optimistic UI update using map loop
     setSettings((prev) =>
       prev.map((s) => (s.settingId === sId ? { ...s, isActive: newStatus } : s))
     );
     setTogglingSettings((prev) => ({ ...prev, [sId]: true }));
 
     try {
-      await settingService.updateSetting({
-        settingId: sId,
+      const response = await settingService.updateSetting({
+        settingId: Number(sId),
         settingName: setting.settingName,
         settingKey: setting.settingKey,
         isActive: newStatus,
-        settingValueDTOs: setting.settingValueDTOs || []
+        settingValueDTOs: Array.isArray(setting.settingValueDTOs)
+          ? setting.settingValueDTOs.map((v) => ({
+              settingValueId: Number(v.settingValueId || 0),
+              settingId: Number(v.settingId || sId),
+              settingValueText: String(v.settingValueText || '').trim(),
+              isActive: Boolean(v.isActive)
+            }))
+          : []
       });
+
+      // Synchronize with API response or re-fetch in loop to reflect verified server output
+      const apiSetting = response?.data;
+      if (apiSetting && typeof apiSetting === 'object') {
+        setSettings((prev) =>
+          prev.map((s) =>
+            s.settingId === sId
+              ? {
+                  ...s,
+                  isActive: Boolean(apiSetting.isActive ?? newStatus),
+                  settingName: apiSetting.settingName ?? s.settingName,
+                  settingKey: apiSetting.settingKey ?? s.settingKey
+                }
+              : s
+          )
+        );
+      }
+
       toast.success(
         `Setting "${setting.settingName}" marked as ${newStatus ? 'Active' : 'Inactive'}`
       );
+      // Silently refresh in background to ensure accurate state
+      fetchSettings();
     } catch (err) {
       console.error('Failed to toggle setting status:', err);
-      // Revert optimistic update
+      // Revert optimistic update using map loop
       setSettings((prev) =>
         prev.map((s) => (s.settingId === sId ? { ...s, isActive: previousStatus } : s))
       );
@@ -343,10 +369,9 @@ const SettingPage = () => {
   };
 
   // ---------------------------------------------------------------------------
-  // Optimistic Toggle for Setting Value Active Status
+  // Optimistic Toggle for Setting Value Active Status (PUT /api/SettingValue)
   // ---------------------------------------------------------------------------
-  const handleToggleValueActive = async (value, parentSetting, e) => {
-    e.stopPropagation();
+  const handleToggleValueActive = async (value, parentSetting, nextChecked) => {
     if (!permissions.canEdit) {
       toast.error('You do not have permission to edit setting values.');
       return;
@@ -356,10 +381,10 @@ const SettingPage = () => {
     const pId = parentSetting.settingId;
     if (togglingValues[vId]) return;
 
-    const previousStatus = value.isActive;
-    const newStatus = !previousStatus;
+    const previousStatus = Boolean(value.isActive);
+    const newStatus = typeof nextChecked === 'boolean' ? nextChecked : !previousStatus;
 
-    // 1. Optimistic UI update
+    // 1. Optimistic UI update using map loop
     setSettings((prev) =>
       prev.map((s) => {
         if (s.settingId !== pId) return s;
@@ -375,17 +400,19 @@ const SettingPage = () => {
 
     try {
       await settingService.updateSettingValue({
-        settingValueId: vId,
-        settingId: pId,
-        settingValueText: value.settingValueText,
-        isActive: newStatus
+        settingValueId: Number(vId),
+        settingId: Number(pId),
+        settingValueText: String(value.settingValueText || '').trim(),
+        isActive: Boolean(newStatus)
       });
       toast.success(
         `Value "${value.settingValueText}" marked as ${newStatus ? 'Active' : 'Inactive'}`
       );
+      // Silently refresh in background
+      fetchSettings();
     } catch (err) {
       console.error('Failed to toggle setting value status:', err);
-      // Revert optimistic update
+      // Revert optimistic update using map loop
       setSettings((prev) =>
         prev.map((s) => {
           if (s.settingId !== pId) return s;
@@ -739,8 +766,9 @@ const SettingPage = () => {
                                   <div className="inline-flex items-center justify-center scale-90">
                                     <IosToggle
                                       checked={Boolean(setting.isActive)}
-                                      onCheckedChange={() => handleToggleSettingActive(setting)}
+                                      onCheckedChange={(nextChecked) => handleToggleSettingActive(setting, nextChecked)}
                                       disabled={isTogglingSetting}
+                                      loading={isTogglingSetting}
                                       title={setting.isActive ? 'Active - Click to deactivate' : 'Inactive - Click to activate'}
                                     />
                                   </div>
@@ -883,8 +911,9 @@ const SettingPage = () => {
                                                       <div className="inline-flex items-center justify-center scale-90">
                                                         <IosToggle
                                                           checked={Boolean(val.isActive)}
-                                                          onCheckedChange={() => handleToggleValueActive(val, setting)}
+                                                          onCheckedChange={(nextChecked) => handleToggleValueActive(val, setting, nextChecked)}
                                                           disabled={isTogglingVal}
+                                                          loading={isTogglingVal}
                                                           title={val.isActive ? 'Active - Click to deactivate' : 'Inactive - Click to activate'}
                                                         />
                                                       </div>

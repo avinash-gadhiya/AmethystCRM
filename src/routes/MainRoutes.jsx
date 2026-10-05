@@ -15,6 +15,7 @@ const AttendanceReport = lazy(() => import('../views/attendance/AttendanceReport
 const TicketsPage = lazy(() => import('../views/tickets/TicketsPage'));
 const CustomersPage = lazy(() => import('../views/customers/CustomersPage'));
 const ReportCenter = lazy(() => import('../views/reports/ReportCenter'));
+const PerformanceDashboardPage = lazy(() => import('../views/performance/PerformanceDashboardPage'));
 const GatewayPage = lazy(() => import('../views/gateway/GatewayPage'));
 const SettingsPage = lazy(() => import('../views/settings/SettingsPage'));
 const RolesPage = lazy(() => import('../views/settings/role/RolesPage'));
@@ -991,6 +992,10 @@ const MainRoutes = {
               element: <SettingsPage />
             },
             // CRM Module Prefix Wildcards
+            {
+              path: '/Performance/Dashboard',
+              element: <PerformanceDashboardPage />
+            },
             {
               path: '/Performance/*',
               element: <ReportCenter />

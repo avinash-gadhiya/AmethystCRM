@@ -130,14 +130,14 @@ const roleService = {
       const API_URL = getApiBaseUrl();
       const response = await axios.get(`${API_URL}/Permission`, {
         headers: getAuthHeaders(),
-        params: { roleId }
+        params: { roleId: Number(roleId) }
       });
 
       if (response.data && response.data.success) {
         return response.data.data;
       }
 
-      return response.data?.data || [];
+      return response.data?.data ?? (Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Error fetching permissions:', error);
       throw error;
@@ -148,7 +148,20 @@ const roleService = {
   assignPermissions: async (payload) => {
     try {
       const API_URL = getApiBaseUrl();
-      const response = await axios.post(`${API_URL}/Permission`, payload, {
+      const cleanRoleId = Number(payload.roleId);
+      const cleanPayload = {
+        roleId: cleanRoleId,
+        assignPermissionDTOs: Array.isArray(payload.assignPermissionDTOs)
+          ? payload.assignPermissionDTOs.map((p) => ({
+              rolePermissionId: Number(p.rolePermissionId || 0),
+              roleId: cleanRoleId,
+              pagePermissionId: Number(p.pagePermissionId || 0),
+              isGranted: Boolean(p.isGranted)
+            }))
+          : []
+      };
+
+      const response = await axios.post(`${API_URL}/Permission`, cleanPayload, {
         headers: getAuthHeaders()
       });
 

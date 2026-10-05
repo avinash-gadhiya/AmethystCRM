@@ -386,9 +386,12 @@ const BrandTabsPage = () => {
       fetchEmails();
     } else if (activeTab === 'gateway') {
       brandService.clearGatewayCache();
-      Promise.all([brandService.getPaymentTypes(), brandService.getGatewayPaymentTypes({ BrandId: selectedBrandId })]).catch((err) =>
-        toast.error(getApiErrorMessage(err, 'Failed to load payment assignments'))
-      );
+      Promise.all([
+        brandService.getPaymentTypes(),
+        brandService.getGatewayPaymentTypes({ brandId: selectedBrandId })
+      ]).catch((err) => {
+        console.warn('Could not preload payment assignments:', err);
+      });
       fetchGateways();
     } else if (activeTab === 'templates') {
       fetchTemplates();

@@ -44,9 +44,9 @@ const TableRefreshButton = ({
       disabled={disabled || loading || isRefreshing}
       title={title}
       aria-label={title}
-      className={`liquid-glass-icon-btn ${className}`.trim()}
+      className={`inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed ${className}`.trim()}
     >
-      <RefreshCw className={`h-4 w-4 ${isRefreshing || loading ? 'animate-spin' : ''}`} />
+      <RefreshCw className={`h-4 w-4 ${isRefreshing || loading ? 'animate-spin text-indigo-600' : ''}`} />
     </button>
   );
 };

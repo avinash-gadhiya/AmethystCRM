@@ -4,6 +4,7 @@ import { Eye, Trash2, Plus, Search, X, ShieldCheck } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 
 import roleService from '@/services/roleService';
+import permissionService from '@/services/permissionService';
 import { getApiErrorMessage } from '@/lib/apiError';
 
 import LiquidGlassButton from '@/components/common/LiquidGlassButton';
@@ -152,22 +153,46 @@ const RolesPage = () => {
     setLoadingPermissions(true);
     try {
       const permissionsData = await roleService.getPermissions(role.roleId);
-      // Read the tree from: response.data.data[0].permissionMenuDTOs
-      const menus = permissionsData?.[0]?.permissionMenuDTOs || [];
-      const normalizedMenus = menus.map((menu) => {
+      // Read the tree from: permissionsData[0]?.permissionMenuDTOs or permissionsData.permissionMenuDTOs or permissionsData
+      let menus = [];
+      if (Array.isArray(permissionsData)) {
+        if (permissionsData[0]?.permissionMenuDTOs) {
+          menus = permissionsData[0].permissionMenuDTOs;
+        } else {
+          menus = permissionsData;
+        }
+      } else if (permissionsData?.permissionMenuDTOs) {
+        menus = permissionsData.permissionMenuDTOs;
+      }
+
+      const normalizedMenus = (Array.isArray(menus) ? menus : []).map((menu) => {
         const pages = (menu.menuPermissionPageDTOs || []).map((page) => {
           const perms = page.menuPagePermissionDTOs || [];
           const allPermsGranted =
             perms.length > 0
-              ? perms.every((p) => Boolean(p.hasPermission))
-              : Boolean(page.hasPermission);
-          return { ...page, hasPermission: allPermsGranted };
+              ? perms.every((p) => Boolean(p.hasPermission ?? p.isGranted))
+              : Boolean(page.hasPermission ?? page.isGranted);
+          return {
+            ...page,
+            hasPermission: allPermsGranted,
+            isGranted: allPermsGranted,
+            menuPagePermissionDTOs: perms.map((p) => ({
+              ...p,
+              hasPermission: Boolean(p.hasPermission ?? p.isGranted),
+              isGranted: Boolean(p.hasPermission ?? p.isGranted)
+            }))
+          };
         });
         const allPagesGranted =
           pages.length > 0
             ? pages.every((p) => Boolean(p.hasPermission))
-            : Boolean(menu.hasPermission);
-        return { ...menu, hasPermission: allPagesGranted, menuPermissionPageDTOs: pages };
+            : Boolean(menu.hasPermission ?? menu.isGranted);
+        return {
+          ...menu,
+          hasPermission: allPagesGranted,
+          isGranted: allPagesGranted,
+          menuPermissionPageDTOs: pages
+        };
       });
       setPermissions(normalizedMenus);
     } catch (error) {
@@ -197,21 +222,24 @@ const RolesPage = () => {
           (page.menuPagePermissionDTOs || []).forEach((permission) => {
             if (!permission.pagePermissionId) return;
             assignPermissionDTOs.push({
-              rolePermissionId: permission.rolePermissionId || 0,
-              roleId: permissionModalRole.roleId,
-              pagePermissionId: permission.pagePermissionId,
-              isGranted: Boolean(permission.hasPermission)
+              rolePermissionId: Number(permission.rolePermissionId || 0),
+              roleId: Number(permissionModalRole.roleId),
+              pagePermissionId: Number(permission.pagePermissionId),
+              isGranted: Boolean(permission.hasPermission ?? permission.isGranted)
             });
           });
         });
       });
 
-      if (assignPermissionDTOs.length > 0) {
-        await roleService.assignPermissions({
-          roleId: permissionModalRole.roleId,
-          assignPermissionDTOs
-        });
-      }
+      await roleService.assignPermissions({
+        roleId: Number(permissionModalRole.roleId),
+        assignPermissionDTOs
+      });
+
+      try {
+        permissionService.clearCache();
+      } catch {}
+
       toast.success('Permissions updated successfully');
       handleClosePermissionModal();
     } catch (error) {

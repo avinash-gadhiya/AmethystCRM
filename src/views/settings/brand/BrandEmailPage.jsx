@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Edit, Mail, Plus, Search, ShieldAlert, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Edit, Mail, Plus, Search, ShieldAlert, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import brandService from '@/services/brandService';
@@ -11,6 +11,7 @@ import DeleteConfirmModal from '@/components/common/DeleteConfirmModal';
 import IosToggle from '@/components/common/IosToggle';
 import LiquidGlassButton from '@/components/common/LiquidGlassButton';
 import TableRefreshButton from '@/components/common/TableRefreshButton';
+import AnchorPagination from '@/components/common/AnchorPagination';
 import BrandEmailModal from '@/components/brand/BrandEmailModal';
 
 const PAGE_SIZES = [10, 25, 50, 100];
@@ -238,7 +239,17 @@ const BrandEmailPage = () => {
               </tbody>
             </table>
           </div>
-          {!loading && totalCount > 0 && <div className="px-4 py-3.5 border-t border-gray-200 dark:border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-gray-500 dark:text-gray-400"><div className="flex items-center gap-3"><span>Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, totalCount)} of {totalCount}</span><select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="rounded-md border border-gray-300 dark:border-white/10 bg-transparent px-2 py-1">{PAGE_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}</select></div><div className="flex items-center gap-1 self-end sm:self-auto"><button type="button" disabled={page <= 1} onClick={() => setPage((value) => value - 1)} aria-label="Previous page" className="p-1 rounded border disabled:opacity-40"><ChevronLeft size={16} /></button><span className="px-2">Page {page} of {totalPages}</span><button type="button" disabled={page >= totalPages} onClick={() => setPage((value) => value + 1)} aria-label="Next page" className="p-1 rounded border disabled:opacity-40"><ChevronRight size={16} /></button></div></div>}
+          {!loading && totalCount > 0 && (
+            <div className="px-4 py-3.5 border-t border-gray-200 dark:border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-gray-500 dark:text-gray-400">
+              <div className="flex items-center gap-3">
+                <span>Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, totalCount)} of {totalCount}</span>
+                <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="rounded-md border border-gray-300 dark:border-white/10 bg-transparent px-2 py-1">
+                  {PAGE_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
+                </select>
+              </div>
+              <AnchorPagination currentPage={page} totalPages={totalPages} onPageChange={(val) => setPage(val)} disabled={loading} />
+            </div>
+          )}
         </div>
       </>}
 

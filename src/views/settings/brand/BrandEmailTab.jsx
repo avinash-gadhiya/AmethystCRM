@@ -1,8 +1,9 @@
 import brandService from '@/services/brandService';
 import React from 'react';
-import { Mail, Search, X, Pencil, Trash2, ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react';
+import { Mail, Search, X, Pencil, Trash2, Eye, EyeOff } from 'lucide-react';
 import ActionIconButton from '@/components/common/ActionIconButton';
 import TableRefreshButton from '@/components/common/TableRefreshButton';
+import AnchorPagination from '@/components/common/AnchorPagination';
 import IosToggle from '@/components/common/IosToggle';
 
 const BrandEmailTab = ({
@@ -266,22 +267,13 @@ const BrandEmailTab = ({
 
       {/* Email Pagination */}
       {!emailLoading && !emailError && emailTotal > 0 && (
-        <div className="px-4 py-3 border-t border-gray-200 dark:border-white/10 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-          <span>
-            Showing {(emailPage - 1) * emailPageSize + 1} to {Math.min(emailPage * emailPageSize, emailTotal)} of {emailTotal}
-          </span>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              aria-label="Previous page"
-              disabled={emailPage <= 1}
-              onClick={() => setEmailPage((p) => Math.max(1, p - 1))}
-              className="p-1 rounded-lg border border-gray-300 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-40"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <label>
-              Rows{' '}
+        <div className="px-4 py-3 border-t border-gray-200 dark:border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-gray-500 dark:text-gray-400">
+          <div className="flex items-center gap-3">
+            <span>
+              Showing {(emailPage - 1) * emailPageSize + 1} to {Math.min(emailPage * emailPageSize, emailTotal)} of {emailTotal}
+            </span>
+            <label className="flex items-center gap-1">
+              <span>Rows:</span>
               <select
                 aria-label="Rows per page"
                 value={emailPageSize}
@@ -289,7 +281,7 @@ const BrandEmailTab = ({
                   setEmailPageSize(Number(e.target.value));
                   setEmailPage(1);
                 }}
-                className="rounded border dark:bg-[#17132a]"
+                className="rounded border border-gray-300 dark:border-white/10 dark:bg-[#17132a] px-2 py-0.5"
               >
                 {[10, 25, 50].map((size) => (
                   <option key={size} value={size}>
@@ -298,19 +290,13 @@ const BrandEmailTab = ({
                 ))}
               </select>
             </label>
-            <span className="px-2 font-medium">
-              Page {emailPage} of {Math.max(1, Math.ceil(emailTotal / emailPageSize))}
-            </span>
-            <button
-              type="button"
-              aria-label="Next page"
-              disabled={emailPage * emailPageSize >= emailTotal}
-              onClick={() => setEmailPage((p) => p + 1)}
-              className="p-1 rounded-lg border border-gray-300 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-40"
-            >
-              <ChevronRight size={16} />
-            </button>
           </div>
+          <AnchorPagination
+            currentPage={emailPage}
+            totalPages={Math.max(1, Math.ceil(emailTotal / emailPageSize))}
+            onPageChange={(p) => setEmailPage(p)}
+            disabled={emailLoading}
+          />
         </div>
       )}
     </div>

@@ -1,8 +1,9 @@
 import brandService from '@/services/brandService';
 import React from 'react';
-import { Mail, FileText, Search, X, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Mail, FileText, Search, X, Pencil, Trash2 } from 'lucide-react';
 import ActionIconButton from '@/components/common/ActionIconButton';
 import TableRefreshButton from '@/components/common/TableRefreshButton';
+import AnchorPagination from '@/components/common/AnchorPagination';
 import IosToggle from '@/components/common/IosToggle';
 
 const BrandTemplatesTab = ({
@@ -248,23 +249,14 @@ const BrandTemplatesTab = ({
 
       {/* Template Pagination */}
       {!templateLoading && !templateError && templateTotal > 0 && (
-        <div className="px-4 py-3 border-t border-gray-200 dark:border-white/10 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-          <span>
-            Showing {(templatePage - 1) * templatePageSize + 1} to {Math.min(templatePage * templatePageSize, templateTotal)} of{' '}
-            {templateTotal}
-          </span>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              aria-label="Previous page"
-              disabled={templatePage <= 1}
-              onClick={() => setTemplatePage((p) => Math.max(1, p - 1))}
-              className="p-1 rounded-lg border border-gray-300 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-40"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <label>
-              Rows{' '}
+        <div className="px-4 py-3 border-t border-gray-200 dark:border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-gray-500 dark:text-gray-400">
+          <div className="flex items-center gap-3">
+            <span>
+              Showing {(templatePage - 1) * templatePageSize + 1} to {Math.min(templatePage * templatePageSize, templateTotal)} of{' '}
+              {templateTotal}
+            </span>
+            <label className="flex items-center gap-1">
+              <span>Rows:</span>
               <select
                 aria-label="Rows per page"
                 value={templatePageSize}
@@ -272,7 +264,7 @@ const BrandTemplatesTab = ({
                   setTemplatePageSize(Number(e.target.value));
                   setTemplatePage(1);
                 }}
-                className="rounded border dark:bg-[#17132a]"
+                className="rounded border border-gray-300 dark:border-white/10 dark:bg-[#17132a] px-2 py-0.5"
               >
                 {[10, 25, 50].map((size) => (
                   <option key={size} value={size}>
@@ -281,19 +273,13 @@ const BrandTemplatesTab = ({
                 ))}
               </select>
             </label>
-            <span className="px-2 font-medium">
-              Page {templatePage} of {Math.max(1, Math.ceil(templateTotal / templatePageSize))}
-            </span>
-            <button
-              type="button"
-              aria-label="Next page"
-              disabled={templatePage * templatePageSize >= templateTotal}
-              onClick={() => setTemplatePage((p) => p + 1)}
-              className="p-1 rounded-lg border border-gray-300 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-40"
-            >
-              <ChevronRight size={16} />
-            </button>
           </div>
+          <AnchorPagination
+            currentPage={templatePage}
+            totalPages={Math.max(1, Math.ceil(templateTotal / templatePageSize))}
+            onPageChange={(p) => setTemplatePage(p)}
+            disabled={templateLoading}
+          />
         </div>
       )}
     </div>

@@ -1,0 +1,62 @@
+/* DashboardKit CRM Normal Modern Controls & Role Settings Styles */
+
+/* ── iOS-style Clean Toggle ── */
+.ios-toggle {
+  --toggle-w: 48px;
+  --toggle-h: 26px;
+  --toggle-pad: 2px;
+
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: var(--toggle-w);
+  height: var(--toggle-h);
+  padding: var(--toggle-pad);
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #e2e8f0;
+  transition: background-color 150ms ease, border-color 150ms ease;
+  cursor: pointer;
+}
+
+.ios-toggle[data-checked='true'] {
+  background: #4f46e5;
+  border-color: #4338ca;
+}
+
+.ios-toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #818cf8;
+}
+
+.ios-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ios-toggle-thumb {
+  --thumb-size: calc(var(--toggle-h) - (var(--toggle-pad) * 2));
+
+  position: absolute;
+  top: 50%;
+  left: var(--toggle-pad);
+  width: var(--thumb-size);
+  height: var(--thumb-size);
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: transform 150ms cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.ios-toggle[data-checked='true'] .ios-toggle-thumb {
+  transform: translateX(calc(var(--toggle-w) - var(--toggle-h))) translateY(-50%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ios-toggle,
+  .ios-toggle-thumb {
+    transition: none !important;
+  }
+}

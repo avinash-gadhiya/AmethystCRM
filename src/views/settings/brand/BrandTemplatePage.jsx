@@ -4,8 +4,6 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
-  ChevronLeft,
-  ChevronRight,
   Edit,
   FileText,
   Plus,
@@ -23,6 +21,7 @@ import ActionIconButton from '@/components/common/ActionIconButton';
 import DeleteConfirmModal from '@/components/common/DeleteConfirmModal';
 import IosToggle from '@/components/common/IosToggle';
 import LiquidGlassButton from '@/components/common/LiquidGlassButton';
+import AnchorPagination from '@/components/common/AnchorPagination';
 import TableRefreshButton from '@/components/common/TableRefreshButton';
 import StandaloneBrandTemplateModal from '@/components/brand/StandaloneBrandTemplateModal';
 
@@ -356,11 +355,12 @@ const BrandTemplatePage = () => {
                     </select>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 self-end sm:self-auto">
-                  <button type="button" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))} aria-label="Previous page" className="p-1 rounded-lg border border-gray-300 dark:border-white/10 disabled:opacity-40"><ChevronLeft size={16} /></button>
-                  <span className="px-2 font-medium text-gray-700 dark:text-gray-300">Page {page} of {totalPages}</span>
-                  <button type="button" disabled={page >= totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} aria-label="Next page" className="p-1 rounded-lg border border-gray-300 dark:border-white/10 disabled:opacity-40"><ChevronRight size={16} /></button>
-                </div>
+                <AnchorPagination
+                  currentPage={page}
+                  totalPages={totalPages}
+                  onPageChange={(next) => setPage(next)}
+                  disabled={loading}
+                />
               </div>
             )}
           </div>

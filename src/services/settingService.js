@@ -9,6 +9,15 @@ const getApiBaseUrl = () => {
 const inFlightRequests = new Map();
 const settingsCache = new Map();
 
+const normalizeBoolean = (value, fallback = true) => {
+  if (value === true || value === false) return value;
+  if (value === 1 || value === 0) return value === 1;
+  const str = String(value ?? '').trim().toLowerCase();
+  if (str === 'true' || str === '1' || str === 'active') return true;
+  if (str === 'false' || str === '0' || str === 'inactive') return false;
+  return fallback;
+};
+
 const normalizeSettingsList = (payload) => {
   if (!payload) return { data: [], totalCount: 0 };
 
@@ -44,13 +53,13 @@ const normalizeSettingsList = (payload) => {
     settingId: Number(item.settingId ?? item.id ?? 0),
     settingName: String(item.settingName ?? item.name ?? '').trim(),
     settingKey: String(item.settingKey ?? item.key ?? '').trim(),
-    isActive: Boolean(item.isActive ?? item.status ?? true),
+    isActive: normalizeBoolean(item.isActive ?? item.status, true),
     settingValueDTOs: Array.isArray(item.settingValueDTOs)
       ? item.settingValueDTOs.map((v) => ({
           settingValueId: Number(v.settingValueId ?? v.id ?? 0),
           settingId: Number(v.settingId ?? item.settingId ?? 0),
           settingValueText: String(v.settingValueText ?? v.text ?? v.value ?? '').trim(),
-          isActive: Boolean(v.isActive ?? v.status ?? true)
+          isActive: normalizeBoolean(v.isActive ?? v.status, true)
         }))
       : []
   }));
@@ -81,7 +90,7 @@ const normalizeSettingValuesList = (payload) => {
     settingValueId: Number(v.settingValueId ?? v.id ?? 0),
     settingId: Number(v.settingId ?? 0),
     settingValueText: String(v.settingValueText ?? v.text ?? v.value ?? '').trim(),
-    isActive: Boolean(v.isActive ?? v.status ?? true)
+    isActive: normalizeBoolean(v.isActive ?? v.status, true)
   }));
 
   return { data: normalized, totalCount: Number(total) || normalized.length };
@@ -101,8 +110,8 @@ export const settingService = {
 
     const cacheKey = `settings:${JSON.stringify(queryParams)}`;
 
-    // Return cached data if present
-    if (settingsCache.has(cacheKey)) {
+    // Return cached data if present (unless force refresh requested)
+    if (!params.force && settingsCache.has(cacheKey)) {
       return settingsCache.get(cacheKey);
     }
 
@@ -143,7 +152,14 @@ export const settingService = {
       settingName: String(settingName || '').trim(),
       settingKey: String(settingKey || '').trim(),
       isActive: Boolean(isActive),
-      settingValueDTOs: Array.isArray(settingValueDTOs) ? settingValueDTOs : []
+      settingValueDTOs: Array.isArray(settingValueDTOs)
+        ? settingValueDTOs.map((v) => ({
+            settingValueId: Number(v.settingValueId ?? v.id ?? 0),
+            settingId: 0,
+            settingValueText: String(v.settingValueText ?? v.text ?? v.value ?? '').trim(),
+            isActive: normalizeBoolean(v.isActive ?? v.status, true)
+          }))
+        : []
     };
 
     const response = await axios.post(`${API_URL}/Setting`, payload, {
@@ -157,12 +173,20 @@ export const settingService = {
   // PUT /Setting
   async updateSetting({ settingId, settingName, settingKey, isActive, settingValueDTOs = [] }) {
     const API_URL = getApiBaseUrl();
+    const cleanSettingId = Number(settingId);
     const payload = {
-      settingId: Number(settingId),
+      settingId: cleanSettingId,
       settingName: String(settingName || '').trim(),
       settingKey: String(settingKey || '').trim(),
       isActive: Boolean(isActive),
-      settingValueDTOs: Array.isArray(settingValueDTOs) ? settingValueDTOs : []
+      settingValueDTOs: Array.isArray(settingValueDTOs)
+        ? settingValueDTOs.map((v) => ({
+            settingValueId: Number(v.settingValueId ?? v.id ?? 0),
+            settingId: Number(v.settingId ?? cleanSettingId),
+            settingValueText: String(v.settingValueText ?? v.text ?? v.value ?? '').trim(),
+            isActive: normalizeBoolean(v.isActive ?? v.status, true)
+          }))
+        : []
     };
 
     const response = await axios.put(`${API_URL}/Setting`, payload, {

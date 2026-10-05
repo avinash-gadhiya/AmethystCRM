@@ -20,7 +20,7 @@ import { ChartSkeleton, DashboardStatCardSkeleton, DonutChartSkeleton } from '@/
 
 const API_URL = (import.meta.env.VITE_APP_API_URL || 'https://demoapi.enstasol.com/api').replace(/\/$/, '');
 
-const LOCATION_COLORS = ['#7c3aed', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444', '#06B6D4'];
+const LOCATION_COLORS = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#14b8a6'];
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const toYmd = (date) => {
@@ -400,7 +400,7 @@ const DashboardPage = () => {
     return Array.from(locationSet);
   }, [dailyLocationWiseSales]);
 
-  const DAILY_LOC_COLORS = ['#7c3aed', '#06B6D4', '#F59E0B', '#10B981', '#8B5CF6', '#EF4444'];
+  const DAILY_LOC_COLORS = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#14b8a6'];
 
   // Team targets for the "All Sales Persons" view. The day-wise API only carries
   // a target when a single user is requested, so this stands in for it.
@@ -958,26 +958,23 @@ const DashboardPage = () => {
 
   const chartTheme = useMemo(
     () => ({
-      gridStroke: isDarkMode ? '#334155' : '#E5E7EB',
-      axisStroke: isDarkMode ? '#475569' : '#CBD5E1',
-      tickColor: isDarkMode ? '#CBD5E1' : '#6B7280',
-      labelColor: isDarkMode ? '#E2E8F0' : '#6B7280',
-      legendColor: isDarkMode ? '#E2E8F0' : '#374151',
-      legendMuted: isDarkMode ? '#94A3B8' : '#9CA3AF',
-      chartBg: isDarkMode ? '#020617' : 'transparent',
-      plotBg: isDarkMode ? '#020617' : 'transparent',
-      tooltipBg: isDarkMode ? '#111827' : '#FFFFFF',
-      tooltipBorder: isDarkMode ? '#374151' : '#E5E7EB',
-      tooltipText: isDarkMode ? '#F9FAFB' : '#111827',
-      tooltipShadow: isDarkMode ? '0 8px 24px rgba(0,0,0,0.35)' : '0 4px 12px rgba(0,0,0,0.08)',
-      // Series colours that would otherwise sit near-black on the dark plot
-      // area. The dark values are lifted variants of the same hue, so the
-      // charts keep their identity in both themes.
-      salesColumn: isDarkMode ? '#c084fc' : '#a855f7',
-      forecastFill: isDarkMode ? 'rgba(129, 140, 248, 0.32)' : 'rgba(168, 85, 247, 0.35)',
-      forecastBorder: isDarkMode ? '#c084fc' : '#a855f7',
-      forecastTrend: isDarkMode ? '#d8b4fe' : '#7e22ce',
-      salesBar: isDarkMode ? '#8b5cf6' : '#7c3aed',
+      gridStroke: isDarkMode ? '#1e293b' : '#f1f5f9',
+      axisStroke: isDarkMode ? '#334155' : '#e2e8f0',
+      tickColor: isDarkMode ? '#94a3b8' : '#64748b',
+      labelColor: isDarkMode ? '#cbd5e1' : '#64748b',
+      legendColor: isDarkMode ? '#e2e8f0' : '#334155',
+      legendMuted: isDarkMode ? '#64748b' : '#94a3b8',
+      chartBg: isDarkMode ? '#0f172a' : 'transparent',
+      plotBg: isDarkMode ? '#0f172a' : 'transparent',
+      tooltipBg: isDarkMode ? '#0f172a' : '#ffffff',
+      tooltipBorder: isDarkMode ? '#1e293b' : '#e2e8f0',
+      tooltipText: isDarkMode ? '#f8fafc' : '#0f172a',
+      tooltipShadow: isDarkMode ? '0 10px 25px -5px rgba(0,0,0,0.5)' : '0 10px 25px -5px rgba(0,0,0,0.08), 0 8px 10px -6px rgba(0,0,0,0.04)',
+      salesColumn: isDarkMode ? '#818cf8' : '#6366f1',
+      forecastFill: isDarkMode ? 'rgba(99, 102, 241, 0.25)' : 'rgba(99, 102, 241, 0.2)',
+      forecastBorder: isDarkMode ? '#818cf8' : '#6366f1',
+      forecastTrend: isDarkMode ? '#a5b4fc' : '#4f46e5',
+      salesBar: isDarkMode ? '#818cf8' : '#6366f1',
     }),
     [isDarkMode],
   );
@@ -997,6 +994,7 @@ const DashboardPage = () => {
       tooltip: {
         backgroundColor: chartTheme.tooltipBg,
         borderColor: chartTheme.tooltipBorder,
+        borderRadius: 8,
         style: { color: chartTheme.tooltipText },
         pointFormatter() {
           return `<span style="color:${this.color}">&#9679;</span> ${this.name}: <b>${formatPieValue(this.y)}</b><br/>`;
@@ -1009,10 +1007,13 @@ const DashboardPage = () => {
       },
       plotOptions: {
         pie: {
-          innerSize: '45%',
+          innerSize: '62%',
+          borderRadius: 4,
+          borderWidth: 2,
+          borderColor: isDarkMode ? '#0f172a' : '#ffffff',
           dataLabels: {
             enabled: true,
-            style: { color: chartTheme.labelColor, textOutline: 'none', fontSize: '11px' },
+            style: { color: chartTheme.labelColor, textOutline: 'none', fontSize: '11px', fontWeight: '500' },
             formatter() {
               return this.percentage > 4 ? `${this.point.name} (${Math.round(this.percentage)}%)` : '';
             },
@@ -1203,6 +1204,7 @@ const DashboardPage = () => {
           useHTML: true,
           backgroundColor: chartTheme.tooltipBg,
           borderColor: chartTheme.tooltipBorder,
+          borderRadius: 8,
           style: { color: chartTheme.tooltipText },
           formatter() {
             // On a category axis `this.x` is the 0-based point index, so the raw
@@ -1224,6 +1226,7 @@ const DashboardPage = () => {
             borderWidth: 0,
             pointPadding: 0.12,
             groupPadding: 0.08,
+            borderRadius: 4,
           },
           series: {
             connectNulls: false,
@@ -1302,6 +1305,7 @@ const DashboardPage = () => {
         column: {
           stacking: 'normal',
           borderWidth: 0,
+          borderRadius: 4,
         },
       },
       series: [
@@ -1369,11 +1373,13 @@ const DashboardPage = () => {
         shared: true,
         backgroundColor: chartTheme.tooltipBg,
         borderColor: chartTheme.tooltipBorder,
+        borderRadius: 8,
         style: { color: chartTheme.tooltipText },
       },
       plotOptions: {
         column: {
           borderWidth: 0,
+          borderRadius: 4,
         },
       },
       series: [
@@ -1425,7 +1431,7 @@ const DashboardPage = () => {
     [],
   );
 
-  // Four cards matching website glassmorphism style with Amethyst theme icon badges:
+  // Four cards with modern clean icon badges:
   // 1) Sales + Net Sale, 2) RPL, 3) Refunds/Voids/Chargeback, 4) Leads.
   const summaryCards = [
     {
@@ -1679,14 +1685,14 @@ const DashboardPage = () => {
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 sm:gap-6 lg:gap-7">
 
           {/* ── Header ── */}
-          <div className="flex w-full flex-col gap-3 pt-1 lg:flex-row lg:items-center lg:justify-between lg:gap-5">
+          <div className="relative z-50 flex w-full flex-col gap-3 pt-1 lg:flex-row lg:items-center lg:justify-between lg:gap-5">
             <div className="shrink-0">
               <h1 className="text-xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:!text-white">Dashboard</h1>
               <p className="text-xs sm:text-sm text-gray-500 dark:!text-slate-300 mt-0.5">Overview of your business performance</p>
             </div>
 
             {/* Date controls */}
-            <div className="dashboard-toolbar-row flex w-full min-w-0 flex-col gap-2 rounded-2xl border border-gray-200/70 bg-white/70 p-2 shadow-sm backdrop-blur-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-end lg:w-auto xl:flex-nowrap dark:border-slate-700/60 dark:bg-slate-900/40">
+            <div className="dashboard-toolbar-row flex w-full min-w-0 flex-col gap-2 rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-end lg:w-auto xl:flex-nowrap dark:border-slate-800 dark:bg-slate-900">
               {/* Selects sit side by side as soon as there is room for two. */}
               <div className="flex flex-col min-[420px]:flex-row items-stretch min-[420px]:items-center gap-2 w-full sm:w-auto min-w-0">
               {isAdminUser && (
@@ -1815,12 +1821,12 @@ const DashboardPage = () => {
                   return (
                     <div
                       key={card.key}
-                      className="relative flex min-h-[140px] flex-col overflow-hidden rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-sm backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950 dark:shadow-black/30 sm:min-h-[170px] sm:p-5"
+                      className="relative flex min-h-[140px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-200 hover:shadow-md hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700 sm:min-h-[165px] sm:p-5"
                     >
                       <div className="relative flex flex-1 flex-col">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="min-w-0 pr-1 text-[10px] font-semibold uppercase leading-snug tracking-[0.08em] text-gray-500 dark:text-slate-400 sm:text-xs">{card.title}</span>
-                          <div className={`flex h-7 w-7 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-gradient-to-br ${card.iconGradient} text-white shadow-sm shrink-0`}>
+                          <span className="min-w-0 pr-1 text-[10px] font-semibold uppercase leading-snug tracking-[0.08em] text-slate-500 dark:text-slate-400 sm:text-xs">{card.title}</span>
+                          <div className={`flex h-7 w-7 sm:h-9 sm:w-9 items-center justify-center rounded-lg bg-gradient-to-br ${card.iconGradient} text-white shadow-sm shrink-0`}>
                             <CardIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                           </div>
                         </div>
@@ -1868,14 +1874,14 @@ const DashboardPage = () => {
 
             {/* Pie chart - right side of top row */}
             {showFullDashboard && (
-              <div className="flex min-w-0 flex-1 flex-col rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-sm backdrop-blur-md transition-shadow duration-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-950 dark:shadow-black/30 sm:p-5">
+              <div className="flex min-w-0 flex-1 flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-200 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 sm:p-5">
                 <div className="flex items-center gap-2 sm:gap-3 mb-4">
-                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-sm shrink-0">
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-indigo-600 flex items-center justify-center shadow-sm shrink-0">
                     <PieChart className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
                   </div>
                   <div className="min-w-0">
-                    <h2 className="text-xs sm:text-sm font-bold text-gray-800 dark:text-white truncate">Location-wise Monthly Breakdown</h2>
-                    <p className="text-[10px] sm:text-xs text-gray-400 dark:text-slate-400">Total sales distribution by location</p>
+                    <h2 className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-white truncate">Location-wise Monthly Breakdown</h2>
+                    <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">Total sales distribution by location</p>
                   </div>
                 </div>
                 <div className="flex-1">
@@ -1899,14 +1905,14 @@ const DashboardPage = () => {
           <div className="flex flex-col gap-4 sm:gap-5">
 
             {/* Day-wise bar chart */}
-            <div className="rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-sm backdrop-blur-md transition-shadow duration-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-950 dark:shadow-black/30 sm:p-5">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-200 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 sm:p-5">
               <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-5">
-                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center shadow-sm shrink-0">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-indigo-600 flex items-center justify-center shadow-sm shrink-0">
                   <BarChart2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
                 </div>
                 <div className="min-w-0">
-                  <h2 className="text-xs sm:text-sm font-bold text-gray-800 dark:text-white truncate">Day-wise Sales &amp; Leads Forecast</h2>
-                  <p className="text-[10px] sm:text-xs text-gray-400 dark:text-slate-400">Daily total sales &amp; RPL forecast against the target base line</p>
+                  <h2 className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-white truncate">Day-wise Sales &amp; Leads Forecast</h2>
+                  <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">Daily total sales &amp; RPL forecast against the target base line</p>
                 </div>
               </div>
               <div className="w-full">
@@ -1928,14 +1934,14 @@ const DashboardPage = () => {
             {showFullDashboard && (
               <>
                 {/* User-wise bar chart */}
-                <div className="rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-sm backdrop-blur-md transition-shadow duration-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-950 dark:shadow-black/30 sm:p-5">
+                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-200 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 sm:p-5">
                   <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-5">
-                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-sm shrink-0">
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-indigo-600 flex items-center justify-center shadow-sm shrink-0">
                       <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
                     </div>
                     <div className="min-w-0">
-                      <h2 className="text-xs sm:text-sm font-bold text-gray-800 dark:text-white truncate">User-wise Financial Summary</h2>
-                      <p className="text-[10px] sm:text-xs text-gray-400 dark:text-slate-400">Stacked sales, refunds and voids per agent</p>
+                      <h2 className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-white truncate">User-wise Financial Summary</h2>
+                      <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">Stacked sales, refunds and voids per agent</p>
                     </div>
                   </div>
                   <div className="w-full">
@@ -1957,14 +1963,14 @@ const DashboardPage = () => {
                 </div>
 
                 {/* Location-wise Daily Sales chart */}
-                <div className="rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-sm backdrop-blur-md transition-shadow duration-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-950 dark:shadow-black/30 sm:p-5">
+                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-200 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 sm:p-5">
                   <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-5">
-                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-rose-500 to-orange-500 flex items-center justify-center shadow-sm shrink-0">
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-indigo-600 flex items-center justify-center shadow-sm shrink-0">
                       <MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
                     </div>
                     <div className="min-w-0">
-                      <h2 className="text-xs sm:text-sm font-bold text-gray-800 dark:text-white truncate">Location Wise Daily Sales</h2>
-                      <p className="text-[10px] sm:text-xs text-gray-400 dark:text-slate-400">Daily sales per location with total sales trend</p>
+                      <h2 className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-white truncate">Location Wise Daily Sales</h2>
+                      <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">Daily sales per location with total sales trend</p>
                     </div>
                   </div>
                   <div className="w-full">

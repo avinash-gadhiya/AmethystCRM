@@ -3,7 +3,7 @@ import { useContext, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 // third party - Lucide icons
-import { Minus, Plus } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 
 // project imports
 import NavItem from './NavItem';
@@ -76,7 +76,12 @@ export default function NavCollapse({ collapse, type }) {
       >
         <NavIcon items={collapse} />
         <span className="pc-mtext">{collapse.title}</span>
-        <span className="pc-arrow">{isExpanded ? <Minus size={16} /> : <Plus size={16} />}</span>
+        <span className="pc-arrow">
+          <ChevronDown
+            size={14}
+            className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+          />
+        </span>
       </Link>
       <ul className="pc-submenu">{navItems}</ul>
     </li>

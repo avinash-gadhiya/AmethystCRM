@@ -18,7 +18,7 @@ const UserEditorModal = ({
   onClose,
   onSuccess
 }) => {
-  const isEditing = Boolean(user && user.userId);
+  const isEditing = Boolean(user && (user.userId || user.id));
 
   const [formData, setFormData] = useState({
     userId: 0,
@@ -27,6 +27,7 @@ const UserEditorModal = ({
     firstName: '',
     lastName: '',
     passwordHash: '',
+    existingPasswordHash: '',
     roleId: '',
     locationId: '',
     salesTarget: '',
@@ -36,6 +37,7 @@ const UserEditorModal = ({
   });
 
   const [saving, setSaving] = useState(false);
+  const [fetchingUser, setFetchingUser] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [selfWarningOpen, setSelfWarningOpen] = useState(false);
 
@@ -44,14 +46,18 @@ const UserEditorModal = ({
     setErrorMsg('');
     setSelfWarningOpen(false);
 
-    if (user) {
+    const targetUserId = user ? (user.userId || user.id || 0) : 0;
+
+    if (user && targetUserId) {
+      // 1. Pre-fill immediately with available user object to avoid delay
       setFormData({
-        userId: user.userId || 0,
-        username: user.username || '',
+        userId: targetUserId,
+        username: user.username || user.userName || '',
         email: user.email || '',
         firstName: user.firstName || '',
         lastName: user.lastName || '',
         passwordHash: '',
+        existingPasswordHash: user.passwordHash || '',
         roleId: user.roleId || (roles.length > 0 ? roles[0].roleId || roles[0].id : ''),
         locationId: user.locationId || (locations.length > 0 ? locations[0].locationId || locations[0].id : ''),
         salesTarget: user.salesTarget ?? 0,
@@ -59,6 +65,40 @@ const UserEditorModal = ({
         isActive: user.isActive !== false,
         isLeadOn: Boolean(user.isLeadOn)
       });
+
+      // 2. Fetch fresh user information from GET /api/User to auto-fill complete fields
+      setFetchingUser(true);
+      let isMounted = true;
+
+      userService.getUserById(targetUserId)
+        .then((latest) => {
+          if (!isMounted || !latest) return;
+          setFormData((prev) => ({
+            ...prev,
+            userId: latest.userId ?? latest.id ?? prev.userId,
+            username: latest.username ?? latest.userName ?? prev.username,
+            email: latest.email ?? prev.email,
+            firstName: latest.firstName ?? prev.firstName,
+            lastName: latest.lastName ?? prev.lastName,
+            existingPasswordHash: latest.passwordHash || prev.existingPasswordHash,
+            roleId: (latest.roleId !== undefined && latest.roleId !== null) ? latest.roleId : prev.roleId,
+            locationId: (latest.locationId !== undefined && latest.locationId !== null) ? latest.locationId : prev.locationId,
+            salesTarget: (latest.salesTarget !== null && latest.salesTarget !== undefined) ? latest.salesTarget : prev.salesTarget,
+            rplTarget: (latest.rplTarget !== null && latest.rplTarget !== undefined) ? latest.rplTarget : prev.rplTarget,
+            isActive: latest.isActive !== false,
+            isLeadOn: Boolean(latest.isLeadOn)
+          }));
+        })
+        .catch((err) => {
+          console.warn('Failed to auto-fetch user details from GET /api/User:', err);
+        })
+        .finally(() => {
+          if (isMounted) setFetchingUser(false);
+        });
+
+      return () => {
+        isMounted = false;
+      };
     } else {
       setFormData({
         userId: 0,
@@ -67,6 +107,7 @@ const UserEditorModal = ({
         firstName: '',
         lastName: '',
         passwordHash: '',
+        existingPasswordHash: '',
         roleId: roles.length > 0 ? roles[0].roleId || roles[0].id : '',
         locationId: locations.length > 0 ? locations[0].locationId || locations[0].id : '',
         salesTarget: 0,
@@ -119,7 +160,12 @@ const UserEditorModal = ({
     setSaving(true);
     try {
       if (isEditing) {
-        await userService.updateUser(formData);
+        // Send PUT /api/User with the new password or preserve existing passwordHash
+        const payloadToUpdate = {
+          ...formData,
+          passwordHash: formData.passwordHash?.trim() || formData.existingPasswordHash
+        };
+        await userService.updateUser(payloadToUpdate);
         toast.success(`User "${formData.username}" updated successfully`);
       } else {
         await userService.createUser(formData);
@@ -144,8 +190,14 @@ const UserEditorModal = ({
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-white/95 dark:bg-[#1d1733] backdrop-blur z-10">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {isEditing ? 'Edit User' : 'Add New User'}
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                <span>{isEditing ? 'Edit User' : 'Add New User'}</span>
+                {fetchingUser && (
+                  <span className="text-xs font-normal text-purple-600 dark:text-purple-400 flex items-center gap-1.5 bg-purple-50 dark:bg-purple-950/40 px-2 py-0.5 rounded-full border border-purple-200 dark:border-purple-800/40">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
+                    Auto-filling...
+                  </span>
+                )}
               </h3>
               <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-300">
                 {isEditing ? 'Update user details and permissions.' : 'Create a user account to manage access.'}
@@ -258,7 +310,7 @@ const UserEditorModal = ({
                   </label>
                   <select
                     name="roleId"
-                    value={formData.roleId}
+                    value={formData.roleId !== undefined && formData.roleId !== null ? String(formData.roleId) : ''}
                     onChange={handleInputChange}
                     className="w-full rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0f1322] px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500"
                   >
@@ -267,11 +319,16 @@ const UserEditorModal = ({
                       const id = r.roleId ?? r.id;
                       const name = r.roleName ?? r.name ?? `Role #${id}`;
                       return (
-                        <option key={id} value={id}>
+                        <option key={id} value={String(id)}>
                           {name}
                         </option>
                       );
                     })}
+                    {Boolean(formData.roleId) && !roles.some((r) => String(r.roleId ?? r.id) === String(formData.roleId)) && (
+                      <option value={String(formData.roleId)}>
+                        {user?.roleName || user?.role || `Role #${formData.roleId}`}
+                      </option>
+                    )}
                   </select>
                 </div>
 
@@ -281,7 +338,7 @@ const UserEditorModal = ({
                   </label>
                   <select
                     name="locationId"
-                    value={formData.locationId}
+                    value={formData.locationId !== undefined && formData.locationId !== null ? String(formData.locationId) : ''}
                     onChange={handleInputChange}
                     className="w-full rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0f1322] px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500"
                   >
@@ -290,11 +347,16 @@ const UserEditorModal = ({
                       const id = loc.locationId ?? loc.id;
                       const name = loc.locationName ?? loc.name ?? `Location #${id}`;
                       return (
-                        <option key={id} value={id}>
+                        <option key={id} value={String(id)}>
                           {name}
                         </option>
                       );
                     })}
+                    {Boolean(formData.locationId) && !locations.some((loc) => String(loc.locationId ?? loc.id) === String(formData.locationId)) && (
+                      <option value={String(formData.locationId)}>
+                        {user?.locationName || user?.location || `Location #${formData.locationId}`}
+                      </option>
+                    )}
                   </select>
                 </div>
               </div>

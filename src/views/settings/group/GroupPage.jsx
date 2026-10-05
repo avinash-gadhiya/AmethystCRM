@@ -11,8 +11,6 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  ChevronLeft,
-  ChevronRight,
   ShieldAlert
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
@@ -25,6 +23,7 @@ import LiquidGlassButton from '@/components/common/LiquidGlassButton';
 import ActionIconButton from '@/components/common/ActionIconButton';
 import TableRefreshButton from '@/components/common/TableRefreshButton';
 import DeleteConfirmModal from '@/components/common/DeleteConfirmModal';
+import AnchorPagination from '@/components/common/AnchorPagination';
 import IosToggle from '@/components/common/IosToggle';
 
 import GroupModal from '@/components/group/GroupModal';
@@ -678,31 +677,12 @@ const GroupPage = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1 self-end sm:self-auto">
-                      <button
-                        type="button"
-                        disabled={groupPage <= 1}
-                        onClick={() => setGroupPage((p) => Math.max(1, p - 1))}
-                        className="p-1 rounded-lg border border-gray-300 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                        aria-label="Previous Page"
-                      >
-                        <ChevronLeft size={16} />
-                      </button>
-
-                      <span className="px-2 font-medium text-gray-700 dark:text-gray-300">
-                        Page {groupPage} of {groupTotalPages}
-                      </span>
-
-                      <button
-                        type="button"
-                        disabled={groupPage >= groupTotalPages}
-                        onClick={() => setGroupPage((p) => Math.min(groupTotalPages, p + 1))}
-                        className="p-1 rounded-lg border border-gray-300 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                        aria-label="Next Page"
-                      >
-                        <ChevronRight size={16} />
-                      </button>
-                    </div>
+                    <AnchorPagination
+                      currentPage={groupPage}
+                      totalPages={groupTotalPages}
+                      onPageChange={(p) => setGroupPage(p)}
+                      disabled={groupLoading}
+                    />
                   </div>
                 )}
               </div>
@@ -995,31 +975,12 @@ const GroupPage = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1 self-end sm:self-auto">
-                      <button
-                        type="button"
-                        disabled={emailPage <= 1}
-                        onClick={() => setEmailPage((p) => Math.max(1, p - 1))}
-                        className="p-1 rounded-lg border border-gray-300 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                        aria-label="Previous Page"
-                      >
-                        <ChevronLeft size={16} />
-                      </button>
-
-                      <span className="px-2 font-medium text-gray-700 dark:text-gray-300">
-                        Page {emailPage} of {emailTotalPages}
-                      </span>
-
-                      <button
-                        type="button"
-                        disabled={emailPage >= emailTotalPages}
-                        onClick={() => setEmailPage((p) => Math.min(emailTotalPages, p + 1))}
-                        className="p-1 rounded-lg border border-gray-300 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                        aria-label="Next Page"
-                      >
-                        <ChevronRight size={16} />
-                      </button>
-                    </div>
+                    <AnchorPagination
+                      currentPage={emailPage}
+                      totalPages={emailTotalPages}
+                      onPageChange={(p) => setEmailPage(p)}
+                      disabled={emailLoading}
+                    />
                   </div>
                 )}
               </div>

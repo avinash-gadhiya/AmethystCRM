@@ -142,7 +142,7 @@ export default function NavIcon({ items }) {
       style={{ '--nav-icon-color': iconColor }}
       aria-hidden="true"
     >
-      {items.iconname || items.icon ? <IconComponent /> : <Circle className="pc-submenu-dot" />}
+      {items.iconname || items.icon ? <IconComponent size={18} /> : <Circle size={6} className="pc-submenu-dot" />}
     </span>
   );
 }
