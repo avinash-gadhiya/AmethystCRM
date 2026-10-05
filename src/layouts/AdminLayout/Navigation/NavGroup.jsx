@@ -6,22 +6,30 @@ import NavItem from './NavItem';
 
 // -----------------------|| NAV GROUP ||-----------------------//
 
+const isProfileNavItem = (item) => {
+  const title = String(item?.title || '').trim().toLowerCase().replace(/[\s-_]/g, '');
+  const url = String(item?.url || '').trim().toLowerCase().replace(/[\s-_]/g, '');
+  return title === 'myprofile' || title === 'profile' || url === '/myprofile' || url === '/profile';
+};
+
 export default function NavGroup({ group, id }) {
   let navItems = null;
 
   if (group.children) {
     const groups = group.children;
-    navItems = Object.keys(groups).map((key) => {
-      const item = groups[key];
-      switch (item.type) {
-        case 'collapse':
-          return <NavCollapse key={`nav-collapse-${item.id}`} collapse={item} type="main" />;
-        case 'item':
-          return <NavItem key={`nav-item-${item.id}`} item={item} />;
-        default:
-          return null;
-      }
-    });
+    navItems = Object.keys(groups)
+      .map((key) => groups[key])
+      .filter((item) => !isProfileNavItem(item))
+      .map((item) => {
+        switch (item.type) {
+          case 'collapse':
+            return <NavCollapse key={`nav-collapse-${item.id}`} collapse={item} type="main" />;
+          case 'item':
+            return <NavItem key={`nav-item-${item.id}`} item={item} />;
+          default:
+            return null;
+        }
+      });
   }
 
   return (

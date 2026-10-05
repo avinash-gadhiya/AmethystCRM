@@ -23,8 +23,15 @@ export default function NavContent({ navigation }) {
   const { dispatch } = configContext;
   const navigate = useNavigate();
 
+  const isProfileNavItem = (item) => {
+    const title = String(item?.title || '').trim().toLowerCase().replace(/[\s-_]/g, '');
+    const url = String(item?.url || '').trim().toLowerCase().replace(/[\s-_]/g, '');
+    return title === 'myprofile' || title === 'profile' || url === '/myprofile' || url === '/profile';
+  };
+
   const firstNavigationPath = navigation
     .flatMap((group) => group.children || [])
+    .filter((item) => !isProfileNavItem(item))
     .map((item) => item.url || item.children?.find((child) => child.url)?.url)
     .find(Boolean);
 

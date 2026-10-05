@@ -621,15 +621,39 @@ export const permissionService = {
   transformMenuDTOsToNavItems(permissionMenuDTOs = []) {
     if (!Array.isArray(permissionMenuDTOs)) return createNavigation();
 
+    const isProfileMenu = (menu) => {
+      const name = String(menu?.menuName || menu?.menuDisplayName || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[\s-_]/g, '');
+      if (name === 'myprofile' || name === 'profile') return true;
+      if (Array.isArray(menu?.menuPermissionPageDTOs)) {
+        return menu.menuPermissionPageDTOs.some((p) => {
+          const url = normalizeRoute(p?.pageUrl).toLowerCase().replace(/[\s-_]/g, '');
+          const pName = String(p?.pageName || p?.pageDisplayName || '').trim().toLowerCase().replace(/[\s-_]/g, '');
+          return url === '/myprofile' || url === '/profile' || pName === 'myprofile';
+        });
+      }
+      return false;
+    };
+
+    const isProfilePage = (page) => {
+      const url = normalizeRoute(page?.pageUrl).toLowerCase().replace(/[\s-_]/g, '');
+      const name = String(page?.pageName || page?.pageDisplayName || '').trim().toLowerCase().replace(/[\s-_]/g, '');
+      return url === '/myprofile' || url === '/profile' || name === 'myprofile' || name === 'profile';
+    };
+
     const grantedCodes = getStoredPermissionCodes();
     const menuItems = sortByOrder(
-      moveGatewayPageToSettings(permissionMenuDTOs).filter((menu) => menu && normalizeBoolean(menu.isActive) !== false),
+      moveGatewayPageToSettings(permissionMenuDTOs).filter(
+        (menu) => menu && normalizeBoolean(menu.isActive) !== false && !isProfileMenu(menu)
+      ),
       'menuOrder'
     )
       .map((menu, menuIndex) => {
         const pages = sortByOrder(
-          (Array.isArray(menu.menuPermissionPageDTOs) ? menu.menuPermissionPageDTOs : []).filter((page) =>
-            canDisplayPage(page, grantedCodes)
+          (Array.isArray(menu.menuPermissionPageDTOs) ? menu.menuPermissionPageDTOs : []).filter(
+            (page) => canDisplayPage(page, grantedCodes) && !isProfilePage(page)
           ),
           'pageOrder'
         );
@@ -725,6 +749,8 @@ export const permissionService = {
   },
 
   hasPath(path, navigation = this.getNavigation()) {
+    const normalized = normalizeRoute(path).toLowerCase();
+    if (normalized === '/myprofile' || normalized === '/profile') return true;
     return containsUrl(navigation?.items || [], path);
   },
 
