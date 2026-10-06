@@ -6,6 +6,8 @@ import { Bell, User, LogOut, CheckCircle2, ChevronDown, Search } from 'lucide-re
 
 // project imports
 import authService from 'services/authService';
+import activityNotificationService, { ACTIVITY_NOTIFICATIONS_CHANGED_EVENT } from 'services/activityNotificationService';
+import attendanceService from 'services/attendanceService';
 
 // -----------------------|| NAV RIGHT ||-----------------------//
 
@@ -61,13 +63,12 @@ export default function NavRight() {
     }
   };
 
-  const [notifications, setNotifications] = useState([
-    { id: 1, title: 'New ticket #1042 assigned', time: '5m ago', read: false },
-    { id: 2, title: 'Customer payment verified', time: '20m ago', read: false },
-    { id: 3, title: 'Weekly performance report ready', time: '1h ago', read: true }
-  ]);
+  const canViewNotifications = activityNotificationService.isAllowedRole(currentUser);
+  const [notifications, setNotifications] = useState(() => activityNotificationService.getActivities());
+  const [clock, setClock] = useState(Date.now());
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [bellShaking, setBellShaking] = useState(false);
 
   const notifRef = useRef(null);
   const profileRef = useRef(null);
@@ -75,10 +76,104 @@ export default function NavRight() {
   useClickOutside(notifRef, () => setNotifOpen(false));
   useClickOutside(profileRef, () => setProfileOpen(false));
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  useEffect(() => {
+    if (!canViewNotifications) return undefined;
+
+    const refreshNotifications = () => setNotifications(activityNotificationService.getActivities());
+    const handleStorage = (event) => {
+      if (event.key === activityNotificationService.storageKey) refreshNotifications();
+    };
+    const clockTimer = window.setInterval(() => setClock(Date.now()), 60_000);
+
+    window.addEventListener(ACTIVITY_NOTIFICATIONS_CHANGED_EVENT, refreshNotifications);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.clearInterval(clockTimer);
+      window.removeEventListener(ACTIVITY_NOTIFICATIONS_CHANGED_EVENT, refreshNotifications);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, [canViewNotifications]);
+
+  useEffect(() => {
+    if (!canViewNotifications) return undefined;
+
+    const controller = new AbortController();
+    let requestInProgress = false;
+
+    const pollAttendance = async () => {
+      if (requestInProgress || controller.signal.aborted) return;
+      requestInProgress = true;
+
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const date = `${year}-${month}-${day}`;
+
+      try {
+        const response = await attendanceService.getRegister(
+          {
+            FromDate: `${date}T00:00:00`,
+            ToDate: `${date}T23:59:59`,
+            IncludeInactiveUsers: false,
+            PageNumber: 1,
+            PageSize: 1000,
+            IsDescending: false
+          },
+          controller.signal
+        );
+        activityNotificationService.syncAttendanceRegister(response);
+      } catch (error) {
+        if (error.name !== 'AbortError') console.warn('Unable to refresh attendance notifications:', error);
+      } finally {
+        requestInProgress = false;
+      }
+    };
+
+    pollAttendance();
+    const pollTimer = window.setInterval(pollAttendance, 60_000);
+    return () => {
+      controller.abort();
+      window.clearInterval(pollTimer);
+    };
+  }, [canViewNotifications]);
+
+  const unreadCount = canViewNotifications ? activityNotificationService.getUnreadCount(currentUser, notifications) : 0;
+  const previousUnreadCountRef = useRef(unreadCount);
+
+  useEffect(() => {
+    const previousUnreadCount = previousUnreadCountRef.current;
+    previousUnreadCountRef.current = unreadCount;
+
+    if (unreadCount <= previousUnreadCount || notifications[0]?.type !== 'login') return undefined;
+
+    setBellShaking(true);
+    const shakeTimer = window.setTimeout(() => setBellShaking(false), 900);
+    return () => window.clearTimeout(shakeTimer);
+  }, [notifications, unreadCount]);
 
   const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    activityNotificationService.markAllAsRead(currentUser);
+    setNotifications(activityNotificationService.getActivities());
+  };
+
+  const toggleNotifications = () => {
+    const openingNotifications = !notifOpen;
+    setNotifOpen(openingNotifications);
+    setProfileOpen(false);
+
+    if (openingNotifications && unreadCount > 0) markAllAsRead();
+  };
+
+  const formatActivityTime = (timestamp) => {
+    const elapsed = Math.max(0, clock - new Date(timestamp).getTime());
+    const minutes = Math.floor(elapsed / 60_000);
+    if (minutes < 1) return 'Just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return days < 7 ? `${days}d ago` : new Date(timestamp).toLocaleDateString();
   };
 
   const handleLogout = (e) => {
@@ -98,7 +193,6 @@ export default function NavRight() {
 
   return (
     <div className="flex items-center gap-2 h-full">
-
       {/* Global Header Search Bar (Blue Box) */}
       <form
         onSubmit={handleSearchSubmit}
@@ -118,81 +212,92 @@ export default function NavRight() {
         </kbd>
       </form>
 
-      {/* Notifications Dropdown */}
-      <div className="relative" ref={notifRef}>
-        <button
-          type="button"
-          className="neu-icon-btn relative"
-          onClick={() => { setNotifOpen((o) => !o); setProfileOpen(false); }}
-          aria-label="Notifications"
-        >
-          <Bell size={17} />
-          {unreadCount > 0 && <span className="neu-notification-dot" />}
-        </button>
-
-        {notifOpen && (
-          <div
-            className="dropdown-menu p-0 overflow-hidden"
-            style={{ width: 310, right: 0, zIndex: 1050 }}
+      {/* Login/logout activity is restricted to Admin and Developer roles. */}
+      {canViewNotifications && (
+        <div className="relative" ref={notifRef}>
+          <button
+            type="button"
+            className={`neu-icon-btn relative ${bellShaking ? 'notification-bell-shake' : ''}`}
+            onClick={toggleNotifications}
+            aria-label="Notifications"
           >
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
-              <div className="flex items-center gap-2">
-                <h6 className="text-sm font-semibold text-slate-800 mb-0">Notifications</h6>
+            <Bell size={17} />
+            {unreadCount > 0 && <span className="neu-notification-dot" />}
+          </button>
+
+          {notifOpen && (
+            <div className="dropdown-menu p-0 overflow-hidden" style={{ width: 310, right: 0, zIndex: 1050 }}>
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
+                <div className="flex items-center gap-2">
+                  <h6 className="text-sm font-semibold text-slate-800 mb-0">Notifications</h6>
+                  {unreadCount > 0 && (
+                    <span className="badge bg-primary" style={{ fontSize: '0.68rem' }}>
+                      {unreadCount} new
+                    </span>
+                  )}
+                </div>
                 {unreadCount > 0 && (
-                  <span className="badge bg-primary" style={{ fontSize: '0.68rem' }}>
-                    {unreadCount} new
-                  </span>
+                  <button
+                    type="button"
+                    onClick={markAllAsRead}
+                    className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800 bg-transparent border-0 cursor-pointer p-0"
+                  >
+                    <CheckCircle2 size={13} /> Mark read
+                  </button>
                 )}
               </div>
-              {unreadCount > 0 && (
-                <button
-                  type="button"
-                  onClick={markAllAsRead}
-                  className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800 bg-transparent border-0 cursor-pointer p-0"
-                >
-                  <CheckCircle2 size={13} /> Mark read
-                </button>
-              )}
-            </div>
 
-            {/* List */}
-            <div className="p-2 max-h-60 overflow-y-auto">
-              {notifications.map((n) => (
-                <div
-                  key={n.id}
-                  className={`flex items-center justify-between px-3 py-2.5 rounded-lg mb-1 text-xs cursor-pointer transition-colors ${
-                    n.read
-                      ? 'text-slate-400 hover:bg-slate-50'
-                      : 'bg-indigo-50/50 hover:bg-indigo-50 text-slate-700 font-medium border border-indigo-100/60'
-                  }`}
-                >
-                  <span>{n.title}</span>
-                  <span className="text-slate-400 ml-2 flex-shrink-0">{n.time}</span>
-                </div>
-              ))}
-            </div>
+              {/* List */}
+              <div className="p-2 max-h-60 overflow-y-auto">
+                {notifications.length === 0 && <div className="px-3 py-4 text-center text-xs text-slate-400">No login activity yet</div>}
+                {notifications.map((notification) => {
+                  const isRead = activityNotificationService.isActivityRead(notification, currentUser);
+                  return (
+                    <div
+                      key={notification.id}
+                      className={`flex items-center justify-between px-3 py-2.5 rounded-lg mb-1 text-xs cursor-pointer transition-colors ${
+                        isRead
+                          ? 'text-slate-400 hover:bg-slate-50'
+                          : 'bg-indigo-50/50 hover:bg-indigo-50 text-slate-700 font-medium border border-indigo-100/60'
+                      }`}
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate">
+                          {notification.displayName} {notification.type === 'login' ? 'logged in' : 'logged out'}
+                        </span>
+                        {notification.role && <span className="block text-[10px] text-slate-400 mt-0.5">{notification.role}</span>}
+                      </span>
+                      <span className="text-slate-400 ml-2 flex-shrink-0">{formatActivityTime(notification.timestamp)}</span>
+                    </div>
+                  );
+                })}
+              </div>
 
-            {/* Footer */}
-            <div className="px-4 py-2.5 border-t border-slate-200 text-center bg-slate-50">
-              <Link
-                to="/Performance/Dashboard"
-                className="text-xs text-indigo-600 font-semibold hover:text-indigo-700"
-                onClick={() => setNotifOpen(false)}
-              >
-                View all activity
-              </Link>
+              {/* Footer */}
+              <div className="px-4 py-2.5 border-t border-slate-200 text-center bg-slate-50">
+                <Link
+                  to="/Attendance"
+                  className="text-xs text-indigo-600 font-semibold hover:text-indigo-700"
+                  onClick={() => setNotifOpen(false)}
+                >
+                  View attendance activity
+                </Link>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {/* User Profile Dropdown */}
       <div className="relative" ref={profileRef}>
         <button
           type="button"
           className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white border border-slate-200/90 shadow-xs hover:bg-slate-50/80 active:bg-slate-100 transition-all cursor-pointer"
-          onClick={() => { setProfileOpen((o) => !o); setNotifOpen(false); }}
+          onClick={() => {
+            setProfileOpen((o) => !o);
+            setNotifOpen(false);
+          }}
           aria-label="User profile"
         >
           {/* Avatar with purple gradient */}

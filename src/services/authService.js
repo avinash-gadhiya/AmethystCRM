@@ -1,4 +1,5 @@
 import axios from 'axios';
+import activityNotificationService from './activityNotificationService';
 
 const API_BASE_URL = (import.meta.env.VITE_APP_API_URL || 'https://demoapi.enstasol.com/api').replace(/\/$/, '');
 export const AUTH_SESSION_CHANGED_EVENT = 'auth-session-changed';
@@ -172,6 +173,8 @@ export const authService = {
         localStorage.removeItem('permissions');
       }
 
+      activityNotificationService.record('login', storedUser);
+
       notifySessionChanged();
 
       return {
@@ -273,6 +276,10 @@ export const authService = {
    */
   logout() {
     try {
+      const currentUser = this.getUser();
+      if (currentUser && this.getToken()) {
+        activityNotificationService.record('logout', currentUser);
+      }
       localStorage.removeItem('token');
       localStorage.removeItem('userToken');
       localStorage.removeItem('api_token');

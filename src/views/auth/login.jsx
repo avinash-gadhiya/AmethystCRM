@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
@@ -82,18 +82,13 @@ function IndicatorArm() {
 export default function SignIn() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [userName, setUserName] = useState('developer');
-  const [password, setPassword] = useState('Pass@2026@Dev');
+  const [userName, setUserName] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [welcomeUser, setWelcomeUser] = useState('');
   const [pendingRedirectPath, setPendingRedirectPath] = useState('');
-
-  useEffect(() => {
-    const savedUser = localStorage.getItem('saved_username');
-    if (savedUser) setUserName(savedUser);
-  }, []);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -113,8 +108,6 @@ export default function SignIn() {
       const result = await authService.login(userName, password);
 
       if (result.success) {
-        localStorage.setItem('saved_username', userName.trim());
-
         const navResult = await permissionService.fetchPermissions(result.data?.roleId, { force: true });
         const requestedPath = location.state?.from?.pathname;
         const redirectPath =
@@ -149,6 +142,7 @@ export default function SignIn() {
             <label htmlFor="email">Username / Email</label>
             <input
               id="email"
+              name="username"
               type="text"
               autoComplete="username"
               required
@@ -162,6 +156,7 @@ export default function SignIn() {
             <label htmlFor="password">Password</label>
             <input
               id="password"
+              name="password"
               type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
               required

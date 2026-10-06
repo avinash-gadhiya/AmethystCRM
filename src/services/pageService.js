@@ -9,6 +9,17 @@ const getApiBaseUrl = () => {
 // In-flight request deduplication map
 const inFlightRequests = new Map();
 
+const normalizeBoolean = (value, fallback = true) => {
+  if (value === true || value === false) return value;
+  if (value === 1 || value === 0) return value === 1;
+  const normalized = String(value ?? '')
+    .trim()
+    .toLowerCase();
+  if (normalized === 'true' || normalized === '1') return true;
+  if (normalized === 'false' || normalized === '0') return false;
+  return fallback;
+};
+
 // Helper to broadcast route & menu invalidation across the app
 export const triggerNavigationInvalidation = () => {
   try {
@@ -34,20 +45,12 @@ const normalizePageList = (payload) => {
   // Format 1: { data: { data: [], totalCount: number } }
   if (payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data)) {
     list = Array.isArray(payload.data.data) ? payload.data.data : [];
-    total =
-      payload.data.totalCount ??
-      payload.data.totalRecords ??
-      payload.data.count ??
-      list.length;
+    total = payload.data.totalCount ?? payload.data.totalRecords ?? payload.data.count ?? list.length;
   }
   // Format 2: { success?: boolean, data: [], totalCount?: number }
   else if (Array.isArray(payload.data)) {
     list = payload.data;
-    total =
-      payload.totalCount ??
-      payload.totalRecords ??
-      payload.count ??
-      list.length;
+    total = payload.totalCount ?? payload.totalRecords ?? payload.count ?? list.length;
   }
   // Format 3: Raw array []
   else if (Array.isArray(payload)) {
@@ -64,7 +67,7 @@ const normalizePageList = (payload) => {
     pageIcon: String(item.pageIcon ?? item.icon ?? '').trim(),
     pageOrder: Number(item.pageOrder ?? item.order ?? 0),
     parentPageId: Number(item.parentPageId ?? 0),
-    isActive: Boolean(item.isActive ?? item.status ?? true)
+    isActive: normalizeBoolean(item.isActive ?? item.status)
   }));
 
   return {
@@ -95,7 +98,7 @@ const normalizePermissionList = (payload) => {
     permissionCode: String(item.permissionCode ?? item.code ?? '').trim(),
     permissionDescription: String(item.permissionDescription ?? item.description ?? '').trim(),
     permissionOrder: Number(item.permissionOrder ?? item.order ?? 0),
-    isActive: Boolean(item.isActive ?? item.status ?? true)
+    isActive: normalizeBoolean(item.isActive ?? item.status)
   }));
 };
 
@@ -114,10 +117,12 @@ const normalizeMenuList = (payload) => {
     list = payload;
   }
 
-  return list.map((item) => ({
-    id: Number(item.menuId ?? item.id ?? 0),
-    name: String(item.menuDisplayName || item.menuName || item.name || `Menu #${item.menuId ?? item.id}`).trim()
-  })).filter((m) => m.id > 0);
+  return list
+    .map((item) => ({
+      id: Number(item.menuId ?? item.id ?? 0),
+      name: String(item.menuDisplayName || item.menuName || item.name || `Menu #${item.menuId ?? item.id}`).trim()
+    }))
+    .filter((m) => m.id > 0);
 };
 
 export const pageService = {
@@ -230,10 +235,7 @@ export const pageService = {
     const id = Number(pageId);
 
     // Primary: DELETE /Page?id={id}, fallback to /Page/{id}
-    const result = await deleteById(
-      `${API_URL}/Page?id=${encodeURIComponent(id)}`,
-      `${API_URL}/Page/${encodeURIComponent(id)}`
-    );
+    const result = await deleteById(`${API_URL}/Page?id=${encodeURIComponent(id)}`, `${API_URL}/Page/${encodeURIComponent(id)}`);
 
     triggerNavigationInvalidation();
     return result;
@@ -281,7 +283,8 @@ export const pageService = {
   // ---------------------------------------------------------------------------
 
   /**
-   * GET /PagePermission?PageId={pageId}
+   * GET /PagePermission, then filter the paged result by pageId.
+   * The API does not expose a PageId query parameter.
    */
   async getPagePermissions(pageId, signal) {
     const API_URL = getApiBaseUrl();
@@ -289,13 +292,18 @@ export const pageService = {
 
     const response = await axios.get(`${API_URL}/PagePermission`, {
       headers: getAuthHeaders(),
-      params: { PageId: id },
+      params: {
+        Text: '',
+        PageNumber: 1,
+        PageSize: 1000,
+        SortProperty: 'permissionOrder',
+        IsDescending: false
+      },
       signal
     });
 
     const list = normalizePermissionList(response.data);
-    // Defensive filter: only return permissions matching the selected page
-    return list.filter((p) => p.pageId === id || p.pageId === 0 || !p.pageId);
+    return list.filter((permission) => permission.pageId === id);
   },
 
   /**

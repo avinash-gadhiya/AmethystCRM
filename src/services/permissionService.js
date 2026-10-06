@@ -27,8 +27,8 @@ const MENU_ICON_MAP = {
   user: 'user',
   'blocked ip': 'shield-alert',
   'blocked ip addresses': 'shield-alert',
-  'blockip': 'shield-alert',
-  'ip': 'shield-alert',
+  blockip: 'shield-alert',
+  ip: 'shield-alert',
   brand: 'award',
   brands: 'award',
   branddetails: 'award',
@@ -143,11 +143,34 @@ const getPermissionRows = (page) => {
 const canDisplayPage = (page, grantedCodes) => {
   if (!page || normalizeBoolean(page.isActive) === false || !normalizeRoute(page.pageUrl)) return false;
 
-  const permissionRows = getPermissionRows(page).filter((permission) => permission && normalizeBoolean(permission.isActive) !== false);
+  const permissionRows = getPermissionRows(page).filter(Boolean);
   if (permissionRows.length === 0) return true;
 
-  return permissionRows.some((permission) => {
-    if (normalizeBoolean(permission.hasPermission) === true) return true;
+  const isViewPermission = (permission) => {
+    const name = String(permission.permissionName ?? '')
+      .trim()
+      .toLowerCase();
+    const code = String(permission.permissionCode ?? '')
+      .trim()
+      .toLowerCase();
+    return name === 'view' || name === 'read' || name === 'access' || /(?:^|[_:.-])(view|read|list|access)$/.test(code);
+  };
+
+  const activePermissions = permissionRows.filter((permission) => normalizeBoolean(permission.isActive) !== false);
+  const definedViewPermissions = permissionRows.filter(isViewPermission);
+  const visibilityPermissions =
+    definedViewPermissions.length > 0
+      ? definedViewPermissions.filter((permission) => normalizeBoolean(permission.isActive) !== false)
+      : activePermissions;
+
+  // If a page defines a View/Read/Access permission and it is disabled, the
+  // page itself must disappear even if another action (such as Edit) is granted.
+  if (visibilityPermissions.length === 0) return false;
+
+  return visibilityPermissions.some((permission) => {
+    const explicitGrant = normalizeBoolean(permission.hasPermission ?? permission.isGranted);
+    if (explicitGrant !== undefined) return explicitGrant;
+
     const code = String(permission.permissionCode ?? '')
       .trim()
       .toLowerCase();
@@ -260,11 +283,10 @@ const moveGatewayPageToSettings = (menus = []) => {
   clonedMenus.forEach((menu) => {
     menu.menuPermissionPageDTOs = menu.menuPermissionPageDTOs.filter((page) => {
       const url = normalizeRoute(page?.pageUrl).toLowerCase();
-      const name = String(page?.pageName || page?.pageDisplayName || '').trim().toLowerCase();
-      const isLocationPage =
-        name === 'location' ||
-        name === 'locations' ||
-        (url.includes('/settings/') && url.includes('location'));
+      const name = String(page?.pageName || page?.pageDisplayName || '')
+        .trim()
+        .toLowerCase();
+      const isLocationPage = name === 'location' || name === 'locations' || (url.includes('/settings/') && url.includes('location'));
       if (isLocationPage && !locationPage) locationPage = page;
       return !isLocationPage;
     });
@@ -290,14 +312,22 @@ const moveGatewayPageToSettings = (menus = []) => {
   // Filter out Brand Template from sidebar navigation (accessible via Brands tab)
   clonedMenus.forEach((menu) => {
     menu.menuPermissionPageDTOs = menu.menuPermissionPageDTOs.filter((page) => {
-      const url = normalizeRoute(page?.pageUrl).toLowerCase().replace(/[^a-z0-9]/g, '');
-      const name = String(page?.pageName || page?.pageDisplayName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const url = normalizeRoute(page?.pageUrl)
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+      const name = String(page?.pageName || page?.pageDisplayName || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
       return !(name === 'brandtemplate' || name === 'brandtemplates' || url.includes('brandtemplate'));
     });
   });
   settingsMenu.menuPermissionPageDTOs = settingsMenu.menuPermissionPageDTOs.filter((page) => {
-    const url = normalizeRoute(page?.pageUrl).toLowerCase().replace(/[^a-z0-9]/g, '');
-    const name = String(page?.pageName || page?.pageDisplayName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const url = normalizeRoute(page?.pageUrl)
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+    const name = String(page?.pageName || page?.pageDisplayName || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
     return !(name === 'brandtemplate' || name === 'brandtemplates' || url.includes('brandtemplate'));
   });
 
@@ -373,7 +403,9 @@ const moveGatewayPageToSettings = (menus = []) => {
   // Ensure Brands management page is registered under Settings navigation
   const hasBrandPage = settingsMenu.menuPermissionPageDTOs.some((page) => {
     const u = normalizeRoute(page?.pageUrl).toLowerCase();
-    const name = String(page?.pageName || page?.pageDisplayName || '').trim().toLowerCase();
+    const name = String(page?.pageName || page?.pageDisplayName || '')
+      .trim()
+      .toLowerCase();
     return u === '/settings/brand' || u === '/settings/brands' || name === 'brand' || name === 'brands';
   });
 
@@ -394,11 +426,14 @@ const moveGatewayPageToSettings = (menus = []) => {
     });
   }
 
-
   // Ensure Sales Target is available in Settings even when the permission API omits a navigation record.
   const hasSalesTargetPage = settingsMenu.menuPermissionPageDTOs.some((page) => {
-    const url = normalizeRoute(page?.pageUrl).toLowerCase().replace(/[^a-z0-9]/g, '');
-    const name = String(page?.pageName || page?.pageDisplayName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const url = normalizeRoute(page?.pageUrl)
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+    const name = String(page?.pageName || page?.pageDisplayName || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
     return url.includes('salestarget') || name === 'salestarget' || name === 'salestargets';
   });
 
@@ -513,21 +548,31 @@ const moveGatewayPageToSettings = (menus = []) => {
   // Filter out Group Email from sidebar navigation (accessible via Groups tab)
   clonedMenus.forEach((menu) => {
     menu.menuPermissionPageDTOs = menu.menuPermissionPageDTOs.filter((page) => {
-      const url = normalizeRoute(page?.pageUrl).toLowerCase().replace(/[^a-z0-9]/g, '');
-      const name = String(page?.pageName || page?.pageDisplayName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const url = normalizeRoute(page?.pageUrl)
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+      const name = String(page?.pageName || page?.pageDisplayName || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
       return !(name === 'groupemail' || name === 'groupemails' || url.includes('groupemail') || url.includes('group-email'));
     });
   });
   settingsMenu.menuPermissionPageDTOs = settingsMenu.menuPermissionPageDTOs.filter((page) => {
-    const url = normalizeRoute(page?.pageUrl).toLowerCase().replace(/[^a-z0-9]/g, '');
-    const name = String(page?.pageName || page?.pageDisplayName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const url = normalizeRoute(page?.pageUrl)
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+    const name = String(page?.pageName || page?.pageDisplayName || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
     return !(name === 'groupemail' || name === 'groupemails' || url.includes('groupemail') || url.includes('group-email'));
   });
 
   // Ensure Locations management page is registered under Settings navigation
   const hasLocationsPage = settingsMenu.menuPermissionPageDTOs.some((page) => {
     const u = normalizeRoute(page?.pageUrl).toLowerCase();
-    const name = String(page?.pageName || page?.pageDisplayName || '').trim().toLowerCase();
+    const name = String(page?.pageName || page?.pageDisplayName || '')
+      .trim()
+      .toLowerCase();
     return u === '/settings/location' || u === '/settings/locations' || name === 'location' || name === 'locations';
   });
 
@@ -607,8 +652,13 @@ export const permissionService = {
       if (name === 'myprofile' || name === 'profile') return true;
       if (Array.isArray(menu?.menuPermissionPageDTOs)) {
         return menu.menuPermissionPageDTOs.some((p) => {
-          const url = normalizeRoute(p?.pageUrl).toLowerCase().replace(/[\s-_]/g, '');
-          const pName = String(p?.pageName || p?.pageDisplayName || '').trim().toLowerCase().replace(/[\s-_]/g, '');
+          const url = normalizeRoute(p?.pageUrl)
+            .toLowerCase()
+            .replace(/[\s-_]/g, '');
+          const pName = String(p?.pageName || p?.pageDisplayName || '')
+            .trim()
+            .toLowerCase()
+            .replace(/[\s-_]/g, '');
           return url === '/myprofile' || url === '/profile' || pName === 'myprofile';
         });
       }
@@ -616,14 +666,24 @@ export const permissionService = {
     };
 
     const isProfilePage = (page) => {
-      const url = normalizeRoute(page?.pageUrl).toLowerCase().replace(/[\s-_]/g, '');
-      const name = String(page?.pageName || page?.pageDisplayName || '').trim().toLowerCase().replace(/[\s-_]/g, '');
+      const url = normalizeRoute(page?.pageUrl)
+        .toLowerCase()
+        .replace(/[\s-_]/g, '');
+      const name = String(page?.pageName || page?.pageDisplayName || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[\s-_]/g, '');
       return url === '/myprofile' || url === '/profile' || name === 'myprofile' || name === 'profile';
     };
 
     const isSidebarExcludedPage = (page) => {
-      const url = normalizeRoute(page?.pageUrl).toLowerCase().replace(/[^a-z0-9]/g, '');
-      const name = String(page?.pageName || page?.pageDisplayName || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+      const url = normalizeRoute(page?.pageUrl)
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+      const name = String(page?.pageName || page?.pageDisplayName || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
       return (
         name === 'brandtemplate' ||
         name === 'brandtemplates' ||
@@ -644,9 +704,12 @@ export const permissionService = {
     )
       .map((menu, menuIndex) => {
         const pages = sortByOrder(
-          (Array.isArray(menu.menuPermissionPageDTOs) ? menu.menuPermissionPageDTOs : []).filter(
-            (page) => canDisplayPage(page, grantedCodes) && !isProfilePage(page) && !isSidebarExcludedPage(page)
-          ),
+          (Array.isArray(menu.menuPermissionPageDTOs) ? menu.menuPermissionPageDTOs : []).filter((page) => {
+            // Never expose client-generated fallback pages. Real pages must come
+            // from the permission API so role revocations remain authoritative.
+            if (String(page?.pageId ?? '').startsWith('settings-')) return false;
+            return canDisplayPage(page, grantedCodes) && !isProfilePage(page) && !isSidebarExcludedPage(page);
+          }),
           'pageOrder'
         );
 

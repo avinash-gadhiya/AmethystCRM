@@ -19,12 +19,20 @@ export default function Navigation() {
   const [navItems, setNavItems] = useState(() => permissionService.getNavigation()?.items || []);
 
   useEffect(() => {
+    let active = true;
+
+    const refreshNavigation = ({ force = false } = {}) =>
+      permissionService.fetchPermissions(undefined, { force }).then((res) => {
+        if (!active) return;
+        if (res && Array.isArray(res.items) && res.items.length > 0) {
+          setNavItems(res.items);
+        } else {
+          setNavItems([]);
+        }
+      });
+
     // 1. Fetch live permissions from API
-    permissionService.fetchPermissions().then((res) => {
-      if (res && Array.isArray(res.items) && res.items.length > 0) {
-        setNavItems(res.items);
-      }
-    });
+    refreshNavigation();
 
     // 2. Subscribe to dynamic permission updates
     const unsubscribe = permissionService.subscribe((updatedNav) => {
@@ -33,7 +41,15 @@ export default function Navigation() {
       }
     });
 
-    return () => unsubscribe();
+    // Page/PagePermission mutations clear the cache and emit this event.
+    const handleRoutesInvalidated = () => refreshNavigation({ force: true });
+    window.addEventListener('app:routes-invalidated', handleRoutesInvalidated);
+
+    return () => {
+      active = false;
+      unsubscribe();
+      window.removeEventListener('app:routes-invalidated', handleRoutesInvalidated);
+    };
   }, []);
 
   const navToggleHandler = () => {
