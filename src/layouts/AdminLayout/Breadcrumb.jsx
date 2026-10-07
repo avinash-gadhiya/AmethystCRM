@@ -14,6 +14,20 @@ export default function Breadcrumb() {
   const location = useLocation();
 
   useEffect(() => {
+    const normalizedPath = location.pathname.toLowerCase().replace(/\/$/, '');
+    const leadTitles = {
+      '/newleads': 'New Leads',
+      '/leads/myleads': 'My Leads',
+      '/leads/callback': 'Call Back',
+      '/leads/voicemail': 'Voicemails',
+      '/leads': 'Leads'
+    };
+    if (leadTitles[normalizedPath]) {
+      setItem({ title: leadTitles[normalizedPath], type: 'item' });
+      setMain({ title: 'Leads' });
+      return;
+    }
+
     const nav = permissionService.getNavigation() || { items: [] };
     let matchedItem = null;
     let matchedMain = null;
@@ -66,9 +80,7 @@ export default function Breadcrumb() {
   return (
     <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
       {/* Primary Page Title (Bold) */}
-      <h1 className="text-xs sm:text-sm font-bold text-slate-800 tracking-tight leading-none mb-0 truncate">
-        {title}
-      </h1>
+      <h1 className="text-xs sm:text-sm font-bold text-slate-800 tracking-tight leading-none mb-0 truncate">{title}</h1>
 
       <span className="text-slate-300 text-xs font-light select-none">/</span>
 

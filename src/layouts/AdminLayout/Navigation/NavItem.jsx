@@ -17,11 +17,14 @@ export default function NavItem({ item }) {
   const location = useLocation();
 
   const currentPath = (location.pathname || window.location.pathname).toLowerCase();
-  const isItemActive = item.url && (currentPath === item.url.toLowerCase() || (item.url !== '/' && currentPath.startsWith(item.url.toLowerCase())));
+  const matchPaths = Array.isArray(item.matchPaths) ? item.matchPaths.map((path) => String(path).toLowerCase()) : [];
+  const isItemActive =
+    item.url &&
+    (currentPath === item.url.toLowerCase() ||
+      (item.url !== '/' && currentPath.startsWith(item.url.toLowerCase())) ||
+      matchPaths.some((path) => currentPath === path || currentPath.startsWith(`${path}/`)));
 
-  const navItemClass = ['pc-item', isItemActive ? 'active' : '']
-    .filter(Boolean)
-    .join(' ');
+  const navItemClass = ['pc-item', isItemActive ? 'active' : ''].filter(Boolean).join(' ');
 
   let subContent;
   if (item.external) {
@@ -35,7 +38,7 @@ export default function NavItem({ item }) {
     subContent = (
       <NavLink
         to={item.url}
-        className={({ isActive }) => ['pc-link', (isActive || isItemActive) ? 'active' : ''].filter(Boolean).join(' ')}
+        className={({ isActive }) => ['pc-link', isActive || isItemActive ? 'active' : ''].filter(Boolean).join(' ')}
         title={item.title}
       >
         <NavIcon items={item} />
@@ -44,9 +47,7 @@ export default function NavItem({ item }) {
     );
   }
 
-  const handleMobileClick = windowSize.width <= 1024
-    ? () => dispatch({ type: actionType.COLLAPSE_MENU })
-    : undefined;
+  const handleMobileClick = windowSize.width <= 1024 ? () => dispatch({ type: actionType.COLLAPSE_MENU }) : undefined;
 
   return (
     <li className={navItemClass} onClick={handleMobileClick}>

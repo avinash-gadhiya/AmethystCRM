@@ -37,6 +37,7 @@ const SalesTargetPage = lazy(() => import('../views/settings/sales-target/SalesT
 const MyProfilePage = lazy(() => import('../views/users/MyProfilePage'));
 const OrdersPage = lazy(() => import('../views/orders/OrdersPage'));
 const ProductsPage = lazy(() => import('../views/products/ProductsPage'));
+const LeadsPage = lazy(() => import('../views/leads/LeadsPage'));
 
 const isConfiguredLocationPath = (pathname) => {
   try {
@@ -254,7 +255,7 @@ const MainRoutes = {
             },
             {
               path: '/NewLeads',
-              element: <CRMModuleView moduleName="New Leads" />
+              element: <LeadsPage />
             },
             {
               path: '/Customers',
@@ -306,7 +307,7 @@ const MainRoutes = {
             },
             {
               path: '/Leads',
-              element: <CRMModuleView moduleName="Leads" />
+              element: <LeadsPage />
             },
             // Products routes (handles both standalone and nested under Orders)
             {
@@ -1006,7 +1007,7 @@ const MainRoutes = {
             },
             {
               path: '/Leads/*',
-              element: <CRMModuleView />
+              element: <LeadsPage />
             },
             {
               path: '/LeadsReports/*',

@@ -1304,7 +1304,7 @@ body:has(.navbar-collapsed) .pc-header {
 .form-control,
 .form-select,
 .neu-input,
-input[type='text']:not(.neu-header-search-input),
+input[type='text']:not(.neu-header-search-input):not(.lead-search-input),
 input[type='password'],
 input[type='email'],
 input[type='number'],
@@ -1335,7 +1335,7 @@ textarea.form-control {
 .form-control:focus,
 .form-select:focus,
 .neu-input:focus,
-input:focus:not(.neu-header-search-input),
+input:focus:not(.neu-header-search-input):not(.lead-search-input),
 select:focus,
 textarea:focus {
   border-color: #4f46e5 !important;

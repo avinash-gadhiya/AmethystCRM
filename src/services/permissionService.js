@@ -760,6 +760,22 @@ export const permissionService = {
           iconname: getIconName(menu)
         };
 
+        // Lead sub-pages live in the page-level tab bar. Keep the application
+        // navigation focused by exposing a single Lead entry that opens the
+        // first tab; LeadsPage will redirect to the first permitted tab when
+        // New Leads is not available to the current role.
+        const normalizedMenuName = String(menu.menuName || menu.menuDisplayName || title)
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '');
+        if (normalizedMenuName === 'lead' || normalizedMenuName === 'leads') {
+          return {
+            ...common,
+            type: 'item',
+            url: '/NewLeads',
+            matchPaths: ['/newleads', '/leads']
+          };
+        }
+
         if (pages.length === 1) {
           return { ...common, type: 'item', url: normalizeRoute(pages[0].pageUrl) };
         }
@@ -868,13 +884,14 @@ export const permissionService = {
         .filter(Boolean);
       const requestedPaths = requestedValues.map((value) => normalizeRoute(value).toLowerCase());
       const pageKey = (value) => {
-        const clean = String(value ?? '')
-          .split('?')[0]
-          .split('/')
-          .filter(Boolean)
-          .pop()
-          ?.toLowerCase()
-          .replace(/[^a-z0-9]/g, '') || '';
+        const clean =
+          String(value ?? '')
+            .split('?')[0]
+            .split('/')
+            .filter(Boolean)
+            .pop()
+            ?.toLowerCase()
+            .replace(/[^a-z0-9]/g, '') || '';
         return clean.length > 3 && clean.endsWith('s') ? clean.slice(0, -1) : clean;
       };
       const requestedKeys = new Set(requestedValues.map(pageKey).filter(Boolean));
@@ -884,9 +901,7 @@ export const permissionService = {
       const page =
         pages.find((candidate) => requestedPaths.includes(normalizeRoute(candidate?.pageUrl).toLowerCase())) ||
         pages.find((candidate) =>
-          [candidate?.pageUrl, candidate?.pageName, candidate?.pageDisplayName]
-            .map(pageKey)
-            .some((key) => key && requestedKeys.has(key))
+          [candidate?.pageUrl, candidate?.pageName, candidate?.pageDisplayName].map(pageKey).some((key) => key && requestedKeys.has(key))
         );
 
       if (!page || normalizeBoolean(page.isActive) === false) return denied;
