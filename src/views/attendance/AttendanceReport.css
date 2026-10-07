@@ -1,0 +1,212 @@
+.attendance-modal-backdrop {
+  background: rgba(15, 23, 42, 0.58) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.attendance-calendar-modal {
+  width: min(680px, calc(100vw - 32px));
+  max-height: calc(100vh - 40px);
+  box-shadow: 0 28px 70px -24px rgba(15, 23, 42, 0.5);
+  animation: attendanceModalIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes attendanceModalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.attendance-calendar-grid {
+  display: grid !important;
+  grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+  gap: 8px;
+  width: 100%;
+}
+
+.attendance-calendar-grid > * {
+  min-width: 0;
+}
+
+.attendance-calendar-day,
+.attendance-calendar-empty {
+  width: 100%;
+  min-height: 58px;
+  aspect-ratio: 1.15 / 1;
+}
+
+.attendance-calendar-date {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.attendance-calendar-status {
+  margin-top: 5px;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Day box status styles - Vibrant Green for Present, Bold Red for Absent */
+.attendance-day--present {
+  background-color: #ecfdf5 !important;
+  border: 2px solid #10b981 !important;
+  color: #065f46 !important;
+}
+
+.attendance-day--present:hover {
+  background-color: #d1fae5 !important;
+  border-color: #059669 !important;
+  box-shadow: 0 4px 14px -2px rgba(16, 185, 129, 0.35) !important;
+}
+
+.attendance-day--absent {
+  background-color: #fff1f2 !important;
+  border: 2px solid #f43f5e !important;
+  color: #9f1239 !important;
+}
+
+.attendance-day--absent:hover {
+  background-color: #ffe4e6 !important;
+  border-color: #e11d48 !important;
+  box-shadow: 0 4px 14px -2px rgba(244, 63, 94, 0.35) !important;
+}
+
+.attendance-day--late {
+  background-color: #fffbeb !important;
+  border: 2px solid #f59e0b !important;
+  color: #92400e !important;
+}
+
+.attendance-day--late:hover {
+  background-color: #fef3c7 !important;
+  border-color: #d97706 !important;
+  box-shadow: 0 4px 14px -2px rgba(245, 158, 11, 0.35) !important;
+}
+
+.attendance-day--weekend {
+  background-color: #f8fafc !important;
+  border: 1px dashed #cbd5e1 !important;
+  color: #64748b !important;
+}
+
+.attendance-day--none {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #94a3b8 !important;
+}
+
+.attendance-day--none:hover {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Dark mode overrides for day boxes */
+:global(.dark) .attendance-day--present,
+.dark .attendance-day--present {
+  background-color: rgba(6, 78, 59, 0.4) !important;
+  border: 2px solid #10b981 !important;
+  color: #6ee7b7 !important;
+}
+
+:global(.dark) .attendance-day--present:hover,
+.dark .attendance-day--present:hover {
+  background-color: rgba(6, 78, 59, 0.6) !important;
+  border-color: #34d399 !important;
+  box-shadow: 0 4px 14px -2px rgba(16, 185, 129, 0.45) !important;
+}
+
+:global(.dark) .attendance-day--absent,
+.dark .attendance-day--absent {
+  background-color: rgba(136, 19, 55, 0.4) !important;
+  border: 2px solid #f43f5e !important;
+  color: #fda4af !important;
+}
+
+:global(.dark) .attendance-day--absent:hover,
+.dark .attendance-day--absent:hover {
+  background-color: rgba(136, 19, 55, 0.6) !important;
+  border-color: #fb7185 !important;
+  box-shadow: 0 4px 14px -2px rgba(244, 63, 94, 0.45) !important;
+}
+
+:global(.dark) .attendance-day--late,
+.dark .attendance-day--late {
+  background-color: rgba(120, 53, 15, 0.4) !important;
+  border: 2px solid #f59e0b !important;
+  color: #fcd34d !important;
+}
+
+:global(.dark) .attendance-day--late:hover,
+.dark .attendance-day--late:hover {
+  background-color: rgba(120, 53, 15, 0.6) !important;
+  border-color: #fbbf24 !important;
+}
+
+:global(.dark) .attendance-day--weekend,
+.dark .attendance-day--weekend {
+  background-color: rgba(255, 255, 255, 0.02) !important;
+  border: 1px dashed rgba(255, 255, 255, 0.15) !important;
+  color: #64748b !important;
+}
+
+:global(.dark) .attendance-day--none,
+.dark .attendance-day--none {
+  background-color: #161226 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #64748b !important;
+}
+
+:global(.dark) .attendance-day--none:hover,
+.dark .attendance-day--none:hover {
+  background-color: #1d1833 !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+/* User avatar gradients */
+.attendance-user-avatar {
+  background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%) !important;
+  color: #fff !important;
+}
+
+/* Toolbar styling */
+.attendance-toolbar {
+  transition: all 0.2s ease;
+}
+
+@media (max-width: 640px) {
+  .attendance-calendar-modal {
+    width: min(100%, 520px);
+    max-height: calc(100vh - 20px);
+    border-radius: 20px !important;
+  }
+
+  .attendance-calendar-grid {
+    gap: 4px;
+  }
+
+  .attendance-calendar-day,
+  .attendance-calendar-empty {
+    min-height: 46px;
+  }
+
+  .attendance-calendar-date {
+    font-size: 12px;
+  }
+
+  .attendance-calendar-status {
+    margin-top: 3px;
+    font-size: 7.5px;
+  }
+}

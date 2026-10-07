@@ -20,6 +20,7 @@ import {
 import productService from 'services/productService';
 import authService from 'services/authService';
 import AnchorPagination from '@/components/common/AnchorPagination';
+import { resolveConfiguredPagePermissions } from '@/utils/configuredPagePermissions';
 
 const PAGE_SIZES = [10, 25, 50, 100];
 const STANDARD_TYPES = ['Service', 'Software', 'Subscription', 'Physical', 'Consulting', 'Custom'];
@@ -80,6 +81,10 @@ const Pagination = ({ page, pageSize, total, onPage, onPageSize }) => {
 };
 
 export default function ProductsPage() {
+  const permissions = useMemo(
+    () => resolveConfiguredPagePermissions('product', ['/orders/products', '/products']),
+    []
+  );
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -178,6 +183,7 @@ export default function ProductsPage() {
   };
 
   const handleOpenEditor = (product = null) => {
+    if (product ? !permissions.canUpdate : !permissions.canAdd) return;
     if (product) {
       setEditorForm({
         productId: product.productId || 0,
@@ -203,6 +209,7 @@ export default function ProductsPage() {
 
   const handleSaveProduct = async (e) => {
     e.preventDefault();
+    if (Number(editorForm.productId) > 0 ? !permissions.canUpdate : !permissions.canAdd) return;
     if (!editorForm.name.trim()) {
       setError('Product name is required.');
       return;
@@ -247,6 +254,7 @@ export default function ProductsPage() {
   };
 
   const handleDeleteProduct = async (product) => {
+    if (!permissions.canDelete) return;
     if (!window.confirm(`Are you sure you want to delete product “${product.name}”?`)) return;
     try {
       await productService.deleteProduct(product.productId);
@@ -352,10 +360,10 @@ export default function ProductsPage() {
               >
                 <RefreshCw size={15} />
               </Button>
-              <Button size="sm" onClick={() => handleOpenEditor(null)}>
+              {permissions.canAdd && <Button size="sm" onClick={() => handleOpenEditor(null)}>
                 <Plus size={16} className="me-1.5" />
                 Add Product
-              </Button>
+              </Button>}
             </div>
           </div>
 
@@ -538,7 +546,7 @@ export default function ProductsPage() {
 
                       {/* Actions */}
                       <td className="text-center text-nowrap">
-                        <Button
+                        {permissions.canUpdate && <Button
                           size="sm"
                           variant="outline-primary"
                           className="me-1.5 p-1"
@@ -546,8 +554,8 @@ export default function ProductsPage() {
                           title="Edit Product"
                         >
                           <Pencil size={14} />
-                        </Button>
-                        <Button
+                        </Button>}
+                        {permissions.canDelete && <Button
                           size="sm"
                           variant="outline-danger"
                           className="p-1"
@@ -555,7 +563,7 @@ export default function ProductsPage() {
                           title="Delete Product"
                         >
                           <Trash2 size={14} />
-                        </Button>
+                        </Button>}
                       </td>
                     </tr>
                   ))}
@@ -609,7 +617,7 @@ export default function ProductsPage() {
                             {formatCurrency(prod.price)}
                           </span>
                           <div className="d-flex gap-1">
-                            <Button
+                            {permissions.canUpdate && <Button
                               size="sm"
                               variant="outline-primary"
                               className="p-1"
@@ -617,8 +625,8 @@ export default function ProductsPage() {
                               title="Edit Product"
                             >
                               <Pencil size={13} />
-                            </Button>
-                            <Button
+                            </Button>}
+                            {permissions.canDelete && <Button
                               size="sm"
                               variant="outline-danger"
                               className="p-1"
@@ -626,7 +634,7 @@ export default function ProductsPage() {
                               title="Delete Product"
                             >
                               <Trash2 size={13} />
-                            </Button>
+                            </Button>}
                           </div>
                         </div>
                       </Card.Body>

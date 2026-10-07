@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 
 import salesTargetService from '@/services/salesTargetService';
 import { getApiErrorMessage } from '@/lib/apiError';
+import { resolveConfiguredPagePermissions } from '@/utils/configuredPagePermissions';
 import ActionIconButton from '@/components/common/ActionIconButton';
 import TableRefreshButton from '@/components/common/TableRefreshButton';
 import AnchorPagination from '@/components/common/AnchorPagination';
@@ -38,6 +39,10 @@ const compareValues = (left, right, property) => {
 };
 
 const SalesTargetPage = () => {
+  const permissions = useMemo(
+    () => resolveConfiguredPagePermissions('salestarget', ['/settings/sales-target']),
+    []
+  );
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -50,6 +55,11 @@ const SalesTargetPage = () => {
   const latestRequestRef = useRef(0);
 
   const fetchUsers = useCallback(async (forceFresh = false) => {
+    if (!permissions.canView) {
+      setUsers([]);
+      setLoading(false);
+      return;
+    }
     const requestId = ++latestRequestRef.current;
     try {
       setLoading(true);
@@ -63,7 +73,7 @@ const SalesTargetPage = () => {
     } finally {
       if (requestId === latestRequestRef.current) setLoading(false);
     }
-  }, []);
+  }, [permissions.canView]);
 
   useEffect(() => {
     fetchUsers();
@@ -114,6 +124,7 @@ const SalesTargetPage = () => {
   };
 
   const openEditor = (user) => {
+    if (!permissions.canUpdate) return;
     setEditingUser(user);
     setModalOpen(true);
   };
@@ -200,9 +211,11 @@ const SalesTargetPage = () => {
                 >
                   RPL Target {renderSortIndicator('rplTarget')}
                 </th>
-                <th className="py-3.5 px-4 text-center w-28 sticky right-0 bg-gray-50/95 dark:bg-[#1d1733]/95 backdrop-blur-xs shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.06)] z-10">
-                  Actions
-                </th>
+                {permissions.canUpdate && (
+                  <th className="py-3.5 px-4 text-center w-28 sticky right-0 bg-gray-50/95 dark:bg-[#1d1733]/95 backdrop-blur-xs shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.06)] z-10">
+                    Actions
+                  </th>
+                )}
               </tr>
             </thead>
 
@@ -213,13 +226,13 @@ const SalesTargetPage = () => {
                     <td className="py-4 px-5"><div className="h-4 w-44 rounded bg-gray-200 dark:bg-white/10" /></td>
                     <td className="py-4 px-4"><div className="h-4 w-16 mx-auto rounded bg-gray-200 dark:bg-white/10" /></td>
                     <td className="py-4 px-4"><div className="h-4 w-16 mx-auto rounded bg-gray-200 dark:bg-white/10" /></td>
-                    <td className="py-4 px-4 sticky right-0 bg-white dark:bg-[#17132a]"><div className="h-8 w-8 mx-auto rounded-full bg-gray-200 dark:bg-white/10" /></td>
+                    {permissions.canUpdate && <td className="py-4 px-4 sticky right-0 bg-white dark:bg-[#17132a]"><div className="h-8 w-8 mx-auto rounded-full bg-gray-200 dark:bg-white/10" /></td>}
                   </tr>
                 ))}
 
               {!loading && pagedUsers.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="py-16 px-4 text-center">
+                  <td colSpan={permissions.canUpdate ? 4 : 3} className="py-16 px-4 text-center">
                     <div className="max-w-sm mx-auto flex flex-col items-center">
                       <div className="w-14 h-14 rounded-2xl bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-3">
                         <Target size={28} className="opacity-80" />
@@ -244,14 +257,14 @@ const SalesTargetPage = () => {
                     <td className="py-3.5 px-4 text-center font-medium text-gray-700 dark:text-gray-300">
                       {user.rplTarget ?? '-'}
                     </td>
-                    <td className="py-3.5 px-4 text-center sticky right-0 bg-white/95 dark:bg-[#17132a]/95 backdrop-blur-xs shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.06)] group-hover:bg-purple-50/50 dark:group-hover:bg-[#1f1938]/90 transition-colors z-10">
+                    {permissions.canUpdate && <td className="py-3.5 px-4 text-center sticky right-0 bg-white/95 dark:bg-[#17132a]/95 backdrop-blur-xs shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.06)] group-hover:bg-purple-50/50 dark:group-hover:bg-[#1f1938]/90 transition-colors z-10">
                       <ActionIconButton
                         icon={Edit}
                         variant="edit"
                         tooltip="Edit Sales Target"
                         onClick={() => openEditor(user)}
                       />
-                    </td>
+                    </td>}
                   </tr>
                 ))}
             </tbody>
@@ -291,7 +304,7 @@ const SalesTargetPage = () => {
         )}
       </div>
 
-      <SalesTargetModal
+      {permissions.canUpdate && <SalesTargetModal
         open={modalOpen}
         user={editingUser}
         users={users}
@@ -301,7 +314,7 @@ const SalesTargetPage = () => {
           setEditingUser(null);
         }}
         onSuccess={() => fetchUsers(true)}
-      />
+      />}
     </div>
   );
 };

@@ -22,6 +22,7 @@ import { toast, Toaster } from 'sonner';
 
 import settingService from '@/services/settingService';
 import authService from '@/services/authService';
+import { resolveConfiguredPagePermissions } from '@/utils/configuredPagePermissions';
 import { getApiErrorMessage } from '@/lib/apiError';
 
 import LiquidGlassButton from '@/components/common/LiquidGlassButton';
@@ -36,6 +37,8 @@ import SettingValueModal from '@/components/settings/SettingValueModal';
 // Resolve CRUD permissions for the Settings page (Fail-closed principle)
 // ---------------------------------------------------------------------------
 const resolvePermissions = () => {
+  return resolveConfiguredPagePermissions('setting', ['/settings/settings', '/settings/setting']);
+
   try {
     const user = authService.getUser();
     if (!user) {

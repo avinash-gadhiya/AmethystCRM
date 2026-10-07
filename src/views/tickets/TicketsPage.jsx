@@ -5,6 +5,7 @@ import { Activity, Eye, FileText, Paperclip, Pencil, Plus, RefreshCw, Search, Ti
 import authService from 'services/authService';
 import ticketService from 'services/ticketService';
 import AnchorPagination from '@/components/common/AnchorPagination';
+import { resolveConfiguredPagePermissions } from '@/utils/configuredPagePermissions';
 
 const PAGE_SIZES = [10, 25, 50];
 const SEARCH_FIELDS = [
@@ -77,6 +78,10 @@ const getAttachments = (ticket) => {
 };
 
 export default function TicketsPage() {
+  const permissions = useMemo(
+    () => resolveConfiguredPagePermissions('ticket', ['/tickets']),
+    []
+  );
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -139,12 +144,14 @@ export default function TicketsPage() {
   }, [loadTickets, refreshKey]);
 
   const openCreate = () => {
+    if (!permissions.canAdd) return;
     setFormData({ ...EMPTY_FORM, createdBy: authService.getUser()?.userId || 0 });
     setFormError('');
     setShowEditor(true);
   };
 
   const openEdit = async (ticket) => {
+    if (!permissions.canUpdate) return;
     setFormError('');
     setShowEditor(true);
     setSaving(true);
@@ -198,6 +205,7 @@ export default function TicketsPage() {
 
   const saveTicket = async (event) => {
     event.preventDefault();
+    if (Number(formData.ticketId) > 0 ? !permissions.canUpdate : !permissions.canAdd) return;
     setFormError('');
 
     if (!formData.subject.trim()) {
@@ -256,9 +264,9 @@ export default function TicketsPage() {
               <h6 className="mb-0 fw-bold text-gray-800" style={{ fontSize: '0.875rem' }}>Tickets</h6>
               <span className="badge bg-primary" style={{ fontSize: '0.7rem' }}>{totalCount} total</span>
             </div>
-            <Button size="sm" onClick={openCreate} style={{ height: '30px', fontSize: '0.75rem' }}>
+            {permissions.canAdd && <Button size="sm" onClick={openCreate} style={{ height: '30px', fontSize: '0.75rem' }}>
               <Plus size={14} className="me-1" />New Ticket
-            </Button>
+            </Button>}
           </div>
           <Form onSubmit={search}>
             <Row className="g-2 align-items-center">
@@ -323,7 +331,7 @@ export default function TicketsPage() {
                     <td>{formatDateTime(ticket.createdDate)}</td>
                     <td className="text-end">
                       <Button size="sm" variant="link" title="View" onClick={() => openDetails(ticket)}><Eye size={16} /></Button>
-                      <Button size="sm" variant="link" title="Edit" onClick={() => openEdit(ticket)}><Pencil size={16} /></Button>
+                      {permissions.canUpdate && <Button size="sm" variant="link" title="Edit" onClick={() => openEdit(ticket)}><Pencil size={16} /></Button>}
                     </td>
                   </tr>
                 );

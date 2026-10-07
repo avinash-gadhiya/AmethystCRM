@@ -21,6 +21,7 @@ import orderService from 'services/orderService';
 import authService from 'services/authService';
 import OrderMetricCard from 'components/orders/OrderMetricCard';
 import AnchorPagination from '@/components/common/AnchorPagination';
+import { resolveConfiguredPagePermissions } from '@/utils/configuredPagePermissions';
 
 const PAGE_SIZES = [10, 25, 50, 100];
 const SEARCH_FIELDS = [
@@ -148,6 +149,10 @@ const Pagination = ({ page, pageSize, total, onPage, onPageSize }) => {
 };
 
 export default function OrdersPage() {
+  const permissions = useMemo(
+    () => resolveConfiguredPagePermissions('order', ['/orders']),
+    []
+  );
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -279,6 +284,7 @@ export default function OrdersPage() {
 
   // Open Editor
   const handleOpenEditor = async (orderItem = null) => {
+    if (orderItem ? !permissions.canUpdate : !permissions.canAdd) return;
     if (orderItem) {
       setSaving(false);
       try {
@@ -382,6 +388,7 @@ export default function OrdersPage() {
   // Save Order
   const handleSaveOrder = async (e) => {
     e.preventDefault();
+    if (editorForm.orderId ? !permissions.canUpdate : !permissions.canAdd) return;
     if (!editorForm.customerId && !editorForm.orderId) {
       setError('Customer ID is required to create an order.');
       return;
@@ -488,6 +495,7 @@ export default function OrdersPage() {
 
   // Delete Order
   const handleDeleteOrder = async (orderItem) => {
+    if (!permissions.canDelete) return;
     if (!window.confirm(`Are you sure you want to delete order #${orderItem.orderId}?`)) return;
     try {
       await orderService.deleteOrder(orderItem.orderId);
@@ -563,10 +571,10 @@ export default function OrdersPage() {
               >
                 <RefreshCw size={15} />
               </Button>
-              <Button size="sm" onClick={() => handleOpenEditor(null)}>
+              {permissions.canAdd && <Button size="sm" onClick={() => handleOpenEditor(null)}>
                 <Plus size={16} className="me-1.5" />
                 Create Order
-              </Button>
+              </Button>}
             </div>
           </div>
 
@@ -753,7 +761,7 @@ export default function OrdersPage() {
 
                       {/* Actions */}
                       <td className="text-center text-nowrap">
-                        <Button
+                        {permissions.canUpdate && <Button
                           size="sm"
                           variant="outline-info"
                           className="order-icon-action me-1.5 p-1"
@@ -761,8 +769,8 @@ export default function OrdersPage() {
                           title="View Order Details"
                         >
                           <Eye size={14} />
-                        </Button>
-                        <Button
+                        </Button>}
+                        {permissions.canDelete && <Button
                           size="sm"
                           variant="outline-primary"
                           className="order-icon-action me-1.5 p-1"
@@ -770,7 +778,7 @@ export default function OrdersPage() {
                           title="Edit Order"
                         >
                           <Pencil size={14} />
-                        </Button>
+                        </Button>}
                         <Button
                           size="sm"
                           variant="outline-danger"
@@ -964,7 +972,7 @@ export default function OrdersPage() {
           <Button variant="outline-secondary" onClick={() => setShowDetailsModal(false)}>
             Close
           </Button>
-          <Button
+          {permissions.canUpdate && <Button
             variant="primary"
             onClick={() => {
               setShowDetailsModal(false);
@@ -972,7 +980,7 @@ export default function OrdersPage() {
             }}
           >
             Edit Order
-          </Button>
+          </Button>}
         </Modal.Footer>
       </Modal>
 

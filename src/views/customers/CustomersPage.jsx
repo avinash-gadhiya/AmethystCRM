@@ -6,6 +6,7 @@ import authService from 'services/authService';
 import customerService from 'services/customerService';
 import IosToggle from 'components/common/IosToggle';
 import AnchorPagination from '@/components/common/AnchorPagination';
+import { resolveConfiguredPagePermissions } from '@/utils/configuredPagePermissions';
 
 const PAGE_SIZES = [10, 25, 50];
 const SEARCH_FIELDS = [
@@ -49,6 +50,10 @@ const customerAddress = (customer) =>
     .join(', ') || '-';
 
 export default function CustomersPage() {
+  const permissions = useMemo(
+    () => resolveConfiguredPagePermissions('customer', ['/customers']),
+    []
+  );
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -117,12 +122,14 @@ export default function CustomersPage() {
   }, [loadCustomers, refreshKey]);
 
   const openCreate = () => {
+    if (!permissions.canAdd) return;
     setFormData({ ...EMPTY_FORM, createdBy: authService.getUser()?.userId || 0, createdDate: new Date().toISOString() });
     setFormError('');
     setShowEditor(true);
   };
 
   const openEdit = (customer) => {
+    if (!permissions.canUpdate) return;
     setFormData({ ...EMPTY_FORM, ...customer, updatedBy: authService.getUser()?.userId || 0, updatedDate: new Date().toISOString() });
     setFormError('');
     setShowEditor(true);
@@ -160,6 +167,7 @@ export default function CustomersPage() {
 
   const saveCustomer = async (event) => {
     event.preventDefault();
+    if (Number(formData.customerId) > 0 ? !permissions.canUpdate : !permissions.canAdd) return;
     setFormError('');
     const requiredIds = [formData.leadId, formData.salesPerson, formData.countryId, formData.stateId];
     if (!formData.name.trim() || !formData.email.trim() || !formData.phone.trim() || !formData.city.trim()) {
@@ -198,6 +206,7 @@ export default function CustomersPage() {
   };
 
   const toggleStatus = async (customer) => {
+    if (!permissions.canUpdate) return;
     const customerId = customer.customerId;
     const previousStatus = customer.isActive !== false;
     const nextStatus = !previousStatus;
@@ -214,7 +223,7 @@ export default function CustomersPage() {
   };
 
   const confirmDelete = async () => {
-    if (!deleteCustomer?.customerId) return;
+    if (!permissions.canDelete || !deleteCustomer?.customerId) return;
     setDeleting(true);
     try {
       await customerService.deleteCustomer(deleteCustomer.customerId);
@@ -228,6 +237,7 @@ export default function CustomersPage() {
   };
 
   const rebuildIndex = async () => {
+    if (!permissions.canUpdate) return;
     setRebuilding(true);
     setError('');
     try {
@@ -256,8 +266,8 @@ export default function CustomersPage() {
           <div><h5 className="mb-1 fw-semibold">Customers</h5><span className="text-muted small">Manage CRM customers and account activity</span></div>
           <div className="d-flex gap-2">
             <Button variant="outline-secondary" onClick={openViewLogs}><History size={16} className="me-2" />View Logs</Button>
-            <Button variant="outline-secondary" onClick={rebuildIndex} disabled={rebuilding}>{rebuilding ? <Spinner size="sm" /> : <Database size={16} />}<span className="ms-2">Rebuild Index</span></Button>
-            <Button onClick={openCreate}><Plus size={16} className="me-2" />New Customer</Button>
+            {permissions.canUpdate && <Button variant="outline-secondary" onClick={rebuildIndex} disabled={rebuilding}>{rebuilding ? <Spinner size="sm" /> : <Database size={16} />}<span className="ms-2">Rebuild Index</span></Button>}
+            {permissions.canAdd && <Button onClick={openCreate}><Plus size={16} className="me-2" />New Customer</Button>}
           </div>
         </Card.Header>
         <Card.Body>
@@ -290,7 +300,7 @@ export default function CustomersPage() {
                 <div className="d-flex align-items-center gap-2">
                   <IosToggle
                     checked={customer.isActive !== false}
-                    disabled={statusBusy[customer.customerId]}
+                    disabled={!permissions.canUpdate || statusBusy[customer.customerId]}
                     loading={statusBusy[customer.customerId]}
                     onCheckedChange={() => toggleStatus(customer)}
                     title={customer.isActive !== false ? 'Deactivate customer' : 'Activate customer'}
@@ -299,7 +309,7 @@ export default function CustomersPage() {
                   <span className="small fw-semibold">{customer.isActive !== false ? 'Active' : 'Inactive'}</span>
                 </div>
               </td>
-              <td className="text-end"><Button variant="link" size="sm" title="View" onClick={() => openDetails(customer)}><Eye size={16} /></Button><Button variant="link" size="sm" title="Edit" onClick={() => openEdit(customer)}><Pencil size={16} /></Button><Button variant="link" size="sm" className="text-danger" title="Delete" onClick={() => setDeleteCustomer(customer)}><Trash2 size={16} /></Button></td>
+              <td className="text-end"><Button variant="link" size="sm" title="View" onClick={() => openDetails(customer)}><Eye size={16} /></Button>{permissions.canUpdate && <Button variant="link" size="sm" title="Edit" onClick={() => openEdit(customer)}><Pencil size={16} /></Button>}{permissions.canDelete && <Button variant="link" size="sm" className="text-danger" title="Delete" onClick={() => setDeleteCustomer(customer)}><Trash2 size={16} /></Button>}</td>
             </tr>)}
           </tbody>
         </Table></div>

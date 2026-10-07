@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Eye, Trash2, Plus, Search, X, ShieldCheck } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
@@ -6,6 +6,7 @@ import { toast, Toaster } from 'sonner';
 import roleService from '@/services/roleService';
 import permissionService from '@/services/permissionService';
 import { getApiErrorMessage } from '@/lib/apiError';
+import { resolveConfiguredPagePermissions } from '@/utils/configuredPagePermissions';
 
 import LiquidGlassButton from '@/components/common/LiquidGlassButton';
 import GlassCloseButton from '@/components/common/GlassCloseButton';
@@ -16,6 +17,11 @@ import DeleteConfirmModal from '@/components/common/DeleteConfirmModal';
 import PermissionModal from '@/components/common/PermissionModal';
 
 const RolesPage = () => {
+  const pagePermissions = useMemo(
+    () => resolveConfiguredPagePermissions('role', ['/settings/roles']),
+    []
+  );
+
   const normalizeRoleName = (value) =>
     (value || '')
       .toString()
@@ -81,6 +87,7 @@ const RolesPage = () => {
   const openSelfRoleWarning = () => setSelfRoleWarningOpen(true);
 
   const openDeleteModal = (role) => {
+    if (!pagePermissions.canDelete) return;
     setDeleteContext(role);
     setDeleteConfirmOpen(true);
   };
@@ -93,6 +100,12 @@ const RolesPage = () => {
 
   // Fetch roles from API: GET ${VITE_APP_API_URL}/Role
   const fetchRoles = useCallback(async () => {
+    if (!pagePermissions.canView) {
+      setRoles([]);
+      setTotalCount(0);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const result = await roleService.getRoles({
@@ -111,7 +124,7 @@ const RolesPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [searchText, pageNumber, pageSize, sortProperty, isDescending]);
+  }, [pagePermissions.canView, searchText, pageNumber, pageSize, sortProperty, isDescending]);
 
   useEffect(() => {
     fetchRoles();
@@ -119,6 +132,7 @@ const RolesPage = () => {
 
   // Open Create Role Modal
   const handleCreate = () => {
+    if (!pagePermissions.canAdd) return;
     setEditingRole(null);
     setFormData({
       roleId: 0,
@@ -132,6 +146,7 @@ const RolesPage = () => {
 
   // Open Edit Role Modal
   const handleEdit = (role) => {
+    if (!pagePermissions.canUpdate) return;
     setEditingRole(role);
     setFormData({
       roleId: role.roleId,
@@ -145,6 +160,7 @@ const RolesPage = () => {
 
   // Open Permission Modal: GET ${VITE_APP_API_URL}/Permission?roleId={roleId}
   const handleOpenPermissionModal = async (role) => {
+    if (!pagePermissions.canUpdate) return;
     if (!role?.roleId) return;
     setPermissionModalRole(role);
     setPermissionModalOpen(true);
@@ -213,7 +229,7 @@ const RolesPage = () => {
 
   // Save permissions: POST ${VITE_APP_API_URL}/Permission
   const handleSavePermissions = async () => {
-    if (!permissionModalRole?.roleId) return;
+    if (!pagePermissions.canUpdate || !permissionModalRole?.roleId) return;
     try {
       setPermissionModalSaving(true);
       const assignPermissionDTOs = [];
@@ -252,7 +268,7 @@ const RolesPage = () => {
 
   // Confirm Delete: DELETE ${VITE_APP_API_URL}/Role/{roleId} (with ?id= retry)
   const handleConfirmDelete = async () => {
-    if (!deleteContext?.roleId) return;
+    if (!pagePermissions.canDelete || !deleteContext?.roleId) return;
     setIsDeleting(true);
     try {
       await roleService.deleteRole(deleteContext.roleId);
@@ -270,6 +286,8 @@ const RolesPage = () => {
   // Submit Create or Update Role
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (editingRole ? !pagePermissions.canUpdate : !pagePermissions.canAdd) return;
 
     if (editingRole && isEditingLoggedInRole && !formData.isActive) {
       openSelfRoleWarning();
@@ -319,7 +337,7 @@ const RolesPage = () => {
               Manage system and custom roles
             </p>
           </div>
-          <div className="w-full sm:w-auto flex justify-start sm:justify-end">
+          {pagePermissions.canAdd && <div className="w-full sm:w-auto flex justify-start sm:justify-end">
             <LiquidGlassButton
               type="button"
               onClick={handleCreate}
@@ -328,7 +346,7 @@ const RolesPage = () => {
               <Plus className="w-4 h-4 liquid-glass-btn__icon" />
               Create Role
             </LiquidGlassButton>
-          </div>
+          </div>}
         </div>
 
         {/* Search Summary Card */}
@@ -426,25 +444,25 @@ const RolesPage = () => {
 
                     {/* Top-Right Actions */}
                     <div className="flex items-center gap-2 shrink-0">
-                      <ActionIconButton
+                      {pagePermissions.canUpdate && <ActionIconButton
                         label="View / Edit"
                         onClick={() => handleEdit(role)}
                         className="w-9 h-9 border-gray-200 bg-white/90 hover:bg-white shadow-sm"
                         stopPropagation={false}
                       >
                         <Eye className="w-5 h-5 text-gray-600" />
-                      </ActionIconButton>
+                      </ActionIconButton>}
 
-                      <ActionIconButton
+                      {pagePermissions.canUpdate && <ActionIconButton
                         label="Permissions"
                         onClick={() => handleOpenPermissionModal(role)}
                         className="w-9 h-9 border-gray-200 bg-white/90 hover:bg-white shadow-sm"
                         stopPropagation={false}
                       >
                         <ShieldCheck className="w-5 h-5 text-purple-600" />
-                      </ActionIconButton>
+                      </ActionIconButton>}
 
-                      <ActionIconButton
+                      {pagePermissions.canDelete && <ActionIconButton
                         variant="delete"
                         label="Delete"
                         onClick={() => openDeleteModal(role)}
@@ -452,7 +470,7 @@ const RolesPage = () => {
                         stopPropagation={false}
                       >
                         <Trash2 className="w-5 h-5 text-red-600" />
-                      </ActionIconButton>
+                      </ActionIconButton>}
                     </div>
                   </div>
 

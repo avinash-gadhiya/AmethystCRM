@@ -153,7 +153,13 @@ const canDisplayPage = (page, grantedCodes) => {
     const code = String(permission.permissionCode ?? '')
       .trim()
       .toLowerCase();
-    return name === 'view' || name === 'read' || name === 'access' || /(?:^|[_:.-])(view|read|list|access)$/.test(code);
+    const compactName = name.replace(/[^a-z0-9]/g, '');
+    const viewActions = ['view', 'read', 'list', 'access'];
+
+    return (
+      viewActions.some((action) => compactName === action || compactName.startsWith(action)) ||
+      /(?:^|[_:.-])(view|read|list|access)(?:$|[_:.-])/.test(code)
+    );
   };
 
   const activePermissions = permissionRows.filter((permission) => normalizeBoolean(permission.isActive) !== false);
@@ -640,6 +646,36 @@ const containsUrl = (items = [], requestedPath = '') => {
   });
 };
 
+const classifyPermissionAction = (permission) => {
+  const values = [permission?.permissionName, permission?.permissionCode]
+    .map((value) =>
+      String(value ?? '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '')
+    )
+    .filter(Boolean);
+
+  const startsWithAny = (prefixes) => values.some((value) => prefixes.some((prefix) => value.startsWith(prefix)));
+  if (startsWithAny(['view', 'read', 'list', 'access', 'get'])) return 'view';
+  if (startsWithAny(['add', 'create', 'new'])) return 'add';
+  if (startsWithAny(['update', 'edit', 'modify'])) return 'update';
+  if (startsWithAny(['delete', 'remove'])) return 'delete';
+  return '';
+};
+
+const isPermissionGranted = (permission, grantedCodes) => {
+  if (!permission || normalizeBoolean(permission.isActive) === false) return false;
+
+  const explicitGrant = normalizeBoolean(permission.hasPermission ?? permission.isGranted);
+  if (explicitGrant !== undefined) return explicitGrant;
+
+  const code = String(permission.permissionCode ?? '')
+    .trim()
+    .toLowerCase();
+  return Boolean(code && grantedCodes.has(code));
+};
+
 export const permissionService = {
   transformMenuDTOsToNavItems(permissionMenuDTOs = []) {
     if (!Array.isArray(permissionMenuDTOs)) return createNavigation();
@@ -817,6 +853,58 @@ export const permissionService = {
       return true;
     }
     return containsUrl(navigation?.items || [], path);
+  },
+
+  getPageActionPermissions(pathOrAliases, targetRoleId) {
+    const denied = { canView: false, canAdd: false, canUpdate: false, canDelete: false };
+    const identity = getIdentity(targetRoleId);
+    if (!identity.roleId) return denied;
+
+    try {
+      const cached = localStorage.getItem(getCacheKey(identity));
+      const menus = cached ? JSON.parse(cached) : [];
+      const requestedValues = (Array.isArray(pathOrAliases) ? pathOrAliases : [pathOrAliases])
+        .map((value) => String(value ?? '').trim())
+        .filter(Boolean);
+      const requestedPaths = requestedValues.map((value) => normalizeRoute(value).toLowerCase());
+      const pageKey = (value) => {
+        const clean = String(value ?? '')
+          .split('?')[0]
+          .split('/')
+          .filter(Boolean)
+          .pop()
+          ?.toLowerCase()
+          .replace(/[^a-z0-9]/g, '') || '';
+        return clean.length > 3 && clean.endsWith('s') ? clean.slice(0, -1) : clean;
+      };
+      const requestedKeys = new Set(requestedValues.map(pageKey).filter(Boolean));
+      const pages = (Array.isArray(menus) ? menus : []).flatMap((menu) =>
+        Array.isArray(menu?.menuPermissionPageDTOs) ? menu.menuPermissionPageDTOs : []
+      );
+      const page =
+        pages.find((candidate) => requestedPaths.includes(normalizeRoute(candidate?.pageUrl).toLowerCase())) ||
+        pages.find((candidate) =>
+          [candidate?.pageUrl, candidate?.pageName, candidate?.pageDisplayName]
+            .map(pageKey)
+            .some((key) => key && requestedKeys.has(key))
+        );
+
+      if (!page || normalizeBoolean(page.isActive) === false) return denied;
+
+      const grantedCodes = getStoredPermissionCodes();
+      const permissions = getPermissionRows(page);
+      const hasAction = (action) =>
+        permissions.some((permission) => classifyPermissionAction(permission) === action && isPermissionGranted(permission, grantedCodes));
+
+      return {
+        canView: hasAction('view'),
+        canAdd: hasAction('add'),
+        canUpdate: hasAction('update'),
+        canDelete: hasAction('delete')
+      };
+    } catch {
+      return denied;
+    }
   },
 
   clearCache() {

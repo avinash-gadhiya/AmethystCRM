@@ -5,6 +5,7 @@ import { useLocation } from 'react-router-dom';
 
 import gatewayService from 'services/gatewayService';
 import AnchorPagination from '@/components/common/AnchorPagination';
+import { resolveConfiguredPagePermissions } from '@/utils/configuredPagePermissions';
 
 const PAGE_SIZES = [10, 25, 50];
 const GATEWAY_TYPES = [
@@ -127,6 +128,10 @@ const Pagination = ({ page, pageSize, total, setPage, setPageSize }) => {
 
 export default function GatewayPage() {
   const location = useLocation();
+  const permissions = useMemo(
+    () => resolveConfiguredPagePermissions('gateway', ['/settings/gateway', '/gateways']),
+    []
+  );
   const [activeSection, setActiveSection] = useState(() => getSectionFromPath(location.pathname));
   const [rows, setRows] = useState([]);
   const [gatewayOptions, setGatewayOptions] = useState([]);
@@ -242,6 +247,7 @@ export default function GatewayPage() {
   };
 
   const openGatewayEditor = (gateway = null) => {
+    if (gateway ? !permissions.canUpdate : !permissions.canAdd) return;
     setGatewayForm(
       gateway
         ? { ...EMPTY_GATEWAY, ...gateway, apiSecretKey: '', brandId: gateway.brandId || '' }
@@ -252,6 +258,7 @@ export default function GatewayPage() {
 
   const saveGateway = async (event) => {
     event.preventDefault();
+    if (gatewayForm.gatewayId ? !permissions.canUpdate : !permissions.canAdd) return;
     setError('');
     if (!gatewayForm.gatewayName.trim() || Number(gatewayForm.brandId) <= 0) {
       setError('Gateway name and Brand ID are required.');
@@ -296,6 +303,7 @@ export default function GatewayPage() {
   };
 
   const removeGateway = async (gateway) => {
+    if (!permissions.canDelete) return;
     if (!window.confirm(`Delete gateway “${gateway.gatewayName || gateway.gatewayId}”?`)) return;
     try {
       await gatewayService.deleteGateway(gateway.gatewayId);
@@ -307,6 +315,7 @@ export default function GatewayPage() {
   };
 
   const openMappingEditor = (mapping = null) => {
+    if (mapping ? !permissions.canUpdate : !permissions.canAdd) return;
     const paymentTypeIds = Array.isArray(mapping?.paymentTypeIds)
       ? mapping.paymentTypeIds.join(', ')
       : mapping?.paymentTypeId || '';
@@ -316,6 +325,7 @@ export default function GatewayPage() {
 
   const saveMapping = async (event) => {
     event.preventDefault();
+    if (mappingForm.gatewayPaymentTypeId ? !permissions.canUpdate : !permissions.canAdd) return;
     const paymentTypeIds = String(mappingForm.paymentTypeIds)
       .split(',')
       .map((value) => Number(value.trim()))
@@ -350,6 +360,7 @@ export default function GatewayPage() {
   };
 
   const removeMapping = async (mapping) => {
+    if (!permissions.canDelete) return;
     if (!window.confirm('Delete this gateway payment type mapping?')) return;
     try {
       await gatewayService.deleteGatewayPaymentType(mapping);
@@ -362,6 +373,7 @@ export default function GatewayPage() {
 
   const runSync = async (event) => {
     event.preventDefault();
+    if (!permissions.canUpdate) return;
     if (Number(syncForm.brandId) <= 0) {
       setError('Brand ID is required to sync transactions.');
       return;
@@ -466,9 +478,9 @@ export default function GatewayPage() {
             )}
             <Col className="d-flex justify-content-end gap-2">
               <Button variant="outline-secondary" onClick={() => setRefreshKey((value) => value + 1)} disabled={loading}><RefreshCw size={16} /></Button>
-              {activeSection === 'gateways' && <Button onClick={() => openGatewayEditor()}><Plus size={16} className="me-2" />Add Gateway</Button>}
-              {activeSection === 'paymentTypes' && <Button onClick={() => openMappingEditor()}><Plus size={16} className="me-2" />Add Mapping</Button>}
-              {(activeSection === 'transactions' || activeSection === 'syncLogs') && <Button onClick={() => setShowSync(true)}><RefreshCw size={16} className="me-2" />Sync</Button>}
+              {permissions.canAdd && activeSection === 'gateways' && <Button onClick={() => openGatewayEditor()}><Plus size={16} className="me-2" />Add Gateway</Button>}
+              {permissions.canAdd && activeSection === 'paymentTypes' && <Button onClick={() => openMappingEditor()}><Plus size={16} className="me-2" />Add Mapping</Button>}
+              {permissions.canUpdate && (activeSection === 'transactions' || activeSection === 'syncLogs') && <Button onClick={() => setShowSync(true)}><RefreshCw size={16} className="me-2" />Sync</Button>}
             </Col>
           </Row>
         </Card.Header>
@@ -488,7 +500,7 @@ export default function GatewayPage() {
                     <td className="px-3">{getGatewayType(gateway.gatewayType)}{gateway.isSandbox && <Badge bg="warning" text="dark" className="ms-2">Sandbox</Badge>}</td>
                     <td className="px-3"><div>{gateway.apiBaseUrl || '-'}</div><small className="text-muted">{gateway.hasCredentials ? 'Credentials configured' : 'No credentials'}</small></td>
                     <td className="px-3"><Badge bg={gateway.isActive ? 'success' : 'secondary'}>{gateway.isActive ? 'Active' : 'Inactive'}</Badge></td>
-                    <td className="px-3 text-nowrap"><Button size="sm" variant="outline-primary" className="me-2" onClick={() => openGatewayEditor(gateway)}><Pencil size={14} /></Button><Button size="sm" variant="outline-danger" onClick={() => removeGateway(gateway)}><Trash2 size={14} /></Button></td>
+                    <td className="px-3 text-nowrap">{permissions.canUpdate && <Button size="sm" variant="outline-primary" className="me-2" onClick={() => openGatewayEditor(gateway)}><Pencil size={14} /></Button>}{permissions.canDelete && <Button size="sm" variant="outline-danger" onClick={() => removeGateway(gateway)}><Trash2 size={14} /></Button>}</td>
                   </tr>
                 )) : activeSection === 'paymentTypes' ? rows.map((mapping, index) => (
                   <tr key={mapping.gatewayPaymentTypeId || `${mapping.gatewayId}-${index}`}>
@@ -496,7 +508,7 @@ export default function GatewayPage() {
                     <td className="px-3">{mapping.brandName || mapping.brandId || '-'}</td>
                     <td className="px-3">{mapping.paymentTypeName || (Array.isArray(mapping.paymentTypeIds) ? mapping.paymentTypeIds.join(', ') : mapping.paymentTypeId) || '-'}</td>
                     <td className="px-3"><Badge bg={mapping.isActive !== false ? 'success' : 'secondary'}>{mapping.isActive !== false ? 'Active' : 'Inactive'}</Badge></td>
-                    <td className="px-3 text-nowrap"><Button size="sm" variant="outline-primary" className="me-2" onClick={() => openMappingEditor(mapping)}><Pencil size={14} /></Button><Button size="sm" variant="outline-danger" onClick={() => removeMapping(mapping)}><Trash2 size={14} /></Button></td>
+                    <td className="px-3 text-nowrap">{permissions.canUpdate && <Button size="sm" variant="outline-primary" className="me-2" onClick={() => openMappingEditor(mapping)}><Pencil size={14} /></Button>}{permissions.canDelete && <Button size="sm" variant="outline-danger" onClick={() => removeMapping(mapping)}><Trash2 size={14} /></Button>}</td>
                   </tr>
                 )) : activeSection === 'transactions' ? rows.map((transaction, index) => {
                   const customerName = transaction.customerName || [transaction.customerFirstName, transaction.customerLastName].filter(Boolean).join(' ');

@@ -13,6 +13,7 @@ import { toast, Toaster } from 'sonner';
 
 import blockIpService from '@/services/blockIpService';
 import authService from '@/services/authService';
+import { resolveConfiguredPagePermissions } from '@/utils/configuredPagePermissions';
 import { getApiErrorMessage } from '@/lib/apiError';
 
 import LiquidGlassButton from '@/components/common/LiquidGlassButton';
@@ -26,6 +27,8 @@ import BlockIpModal from '@/components/blocked-ip/BlockIpModal';
 // Resolve CRUD permissions for the Blocked IP page (Fail-closed principle)
 // ---------------------------------------------------------------------------
 const resolvePermissions = () => {
+  return resolveConfiguredPagePermissions('ip', ['/settings/ip']);
+
   try {
     const user = authService.getUser();
     if (!user) {

@@ -18,6 +18,7 @@ import { toast, Toaster } from 'sonner';
 
 import countryService from '@/services/countryService';
 import authService from '@/services/authService';
+import { resolveConfiguredPagePermissions } from '@/utils/configuredPagePermissions';
 import { getApiErrorMessage } from '@/lib/apiError';
 
 import LiquidGlassButton from '@/components/common/LiquidGlassButton';
@@ -34,6 +35,8 @@ const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 // Resolve CRUD permissions for the Countries & States page (Fail-closed principle)
 // ---------------------------------------------------------------------------
 const resolvePermissions = () => {
+  return resolveConfiguredPagePermissions('country', ['/settings/country']);
+
   try {
     const user = authService.getUser();
     if (!user) {

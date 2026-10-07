@@ -1,23 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  Users,
-  UserPlus,
-  Search,
-  X,
-  ShieldCheck,
-  Pencil,
-  Copy,
-  Check,
-  Filter,
-  AlertCircle,
-  Eye,
-  EyeOff
-} from 'lucide-react';
+import { Users, UserPlus, Search, X, ShieldCheck, Pencil, Copy, Check, Filter, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 
 import userService from '@/services/userService';
 import authService from '@/services/authService';
+import permissionService from '@/services/permissionService';
 import { getApiErrorMessage } from '@/lib/apiError';
 
 import LiquidGlassButton from '@/components/common/LiquidGlassButton';
@@ -59,8 +47,12 @@ const formatLastLogin = (dateString) => {
 // Helper: User Avatar initials
 // ---------------------------------------------------------------------------
 const getInitials = (user) => {
-  const first = String(user?.firstName || user?.username || 'U').trim().replace(/[^a-zA-Z0-9]/g, '');
-  const last = String(user?.lastName || '').trim().replace(/[^a-zA-Z0-9]/g, '');
+  const first = String(user?.firstName || user?.username || 'U')
+    .trim()
+    .replace(/[^a-zA-Z0-9]/g, '');
+  const last = String(user?.lastName || '')
+    .trim()
+    .replace(/[^a-zA-Z0-9]/g, '');
   const f = first[0] || 'U';
   const l = last[0] || (first.length > 1 && !user?.lastName ? first[1] : '');
   return (f + l).toUpperCase();
@@ -74,15 +66,9 @@ const PasswordCell = ({ user }) => {
   const [copied, setCopied] = useState(false);
 
   // Backend intentionally exposed password fields
-  const rawPassword =
-    user.password ||
-    user.passwordHash ||
-    user.rawPassword ||
-    user.userPassword ||
-    '';
+  const rawPassword = user.password || user.passwordHash || user.rawPassword || user.userPassword || '';
 
-  const hasExposedPassword =
-    typeof rawPassword === 'string' && rawPassword.trim().length > 0;
+  const hasExposedPassword = typeof rawPassword === 'string' && rawPassword.trim().length > 0;
 
   if (!hasExposedPassword) {
     return <span className="text-gray-400 dark:text-gray-500 text-xs font-mono">N/A</span>;
@@ -117,11 +103,7 @@ const PasswordCell = ({ user }) => {
         title="Copy password"
         aria-label="Copy password to clipboard"
       >
-        {copied ? (
-          <Check size={13} className="text-emerald-500" />
-        ) : (
-          <Copy size={13} />
-        )}
+        {copied ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
       </button>
     </div>
   );
@@ -141,38 +123,22 @@ const UsersPage = () => {
     }
   }, []);
 
-  const currentUserId =
-    currentUser.userId ||
-    (typeof window !== 'undefined' ? localStorage.getItem('userId') : null);
+  const currentUserId = currentUser.userId || (typeof window !== 'undefined' ? localStorage.getItem('userId') : null);
 
-  // Check if current user has create user permission
-  const canCreateUser = useMemo(() => {
-    if (!currentUser) return false;
+  const userAccess = useMemo(() => {
     const roleName = String(currentUser.role || currentUser.roleName || '').toLowerCase();
-    if (
-      roleName.includes('admin') ||
-      roleName.includes('developer') ||
-      Number(currentUser.roleId) === 1
-    ) {
-      return true;
+    const canManageAllUsers = roleName.includes('admin') || roleName.includes('developer') || Number(currentUser.roleId) === 1;
+
+    if (canManageAllUsers) {
+      return { canView: true, canAdd: true, canUpdate: true, canDelete: true };
     }
-    const codes = (currentUser.permissionCodes || []).map((c) =>
-      String(c).toLowerCase()
-    );
-    if (codes.length === 0) return true;
-    return codes.some(
-      (c) =>
-        c === 'user_create' ||
-        c === 'users_create' ||
-        c === 'user_add' ||
-        c === 'users_add' ||
-        c === 'create_user' ||
-        c === 'add_user' ||
-        c === 'create' ||
-        c === 'user' ||
-        c === 'users'
-    );
+
+    return permissionService.getPageActionPermissions('/settings/users', currentUser.roleId);
   }, [currentUser]);
+
+  const canCreateUser = userAccess.canAdd;
+  const canUpdateUser = userAccess.canUpdate;
+  const canDeleteUser = userAccess.canDelete;
 
   // State: Data & Pagination
   const [users, setUsers] = useState([]);
@@ -271,16 +237,7 @@ const UsersPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [
-    pageNumber,
-    pageSize,
-    sortProperty,
-    isDescending,
-    searchMode,
-    searchText,
-    selectedRoleId,
-    selectedLocationId
-  ]);
+  }, [pageNumber, pageSize, sortProperty, isDescending, searchMode, searchText, selectedRoleId, selectedLocationId]);
 
   useEffect(() => {
     fetchUsers();
@@ -298,6 +255,11 @@ const UsersPage = () => {
 
   // Toggle user status (iOS Switch)
   const handleToggleStatus = async (user, nextStatus) => {
+    if (!canUpdateUser) {
+      toast.error('You do not have permission to update users.');
+      return;
+    }
+
     // Check self-user protection
     if (currentUserId && Number(user.userId) === Number(currentUserId) && !nextStatus) {
       setSelfWarningMessage('You cannot deactivate your own user account.');
@@ -308,20 +270,14 @@ const UsersPage = () => {
     setStatusToggling((prev) => ({ ...prev, [user.userId]: true }));
 
     // Optimistic update
-    setUsers((prev) =>
-      prev.map((u) => (u.userId === user.userId ? { ...u, isActive: nextStatus } : u))
-    );
+    setUsers((prev) => prev.map((u) => (u.userId === user.userId ? { ...u, isActive: nextStatus } : u)));
 
     try {
       await userService.toggleUserStatus(user, nextStatus);
-      toast.success(
-        `User "${user.username}" ${nextStatus ? 'activated' : 'deactivated'} successfully`
-      );
+      toast.success(`User "${user.username}" ${nextStatus ? 'activated' : 'deactivated'} successfully`);
     } catch (err) {
       // Revert optimistic update
-      setUsers((prev) =>
-        prev.map((u) => (u.userId === user.userId ? { ...u, isActive: !nextStatus } : u))
-      );
+      setUsers((prev) => prev.map((u) => (u.userId === user.userId ? { ...u, isActive: !nextStatus } : u)));
       toast.error(getApiErrorMessage(err, 'Failed to update user status'));
     } finally {
       setStatusToggling((prev) => ({ ...prev, [user.userId]: false }));
@@ -330,6 +286,11 @@ const UsersPage = () => {
 
   // Delete User handler
   const handleOpenDelete = (user) => {
+    if (!canDeleteUser) {
+      toast.error('You do not have permission to delete users.');
+      return;
+    }
+
     if (currentUserId && Number(user.userId) === Number(currentUserId)) {
       setSelfWarningMessage('You cannot delete your own user account.');
       setSelfActionWarningOpen(true);
@@ -340,7 +301,7 @@ const UsersPage = () => {
   };
 
   const handleConfirmDelete = async () => {
-    if (!deleteTargetUser) return;
+    if (!deleteTargetUser || !canDeleteUser) return;
     setIsDeleting(true);
     try {
       await userService.deleteUser(deleteTargetUser.userId);
@@ -358,6 +319,11 @@ const UsersPage = () => {
 
   // Permissions Modal handler
   const handleOpenPermissions = async (user) => {
+    if (!canUpdateUser) {
+      toast.error('You do not have permission to update users.');
+      return;
+    }
+
     setPermissionModalUser(user);
     setPermissionModalOpen(true);
     setPermissions([]);
@@ -373,9 +339,7 @@ const UsersPage = () => {
         const pages = (menu.menuPermissionPageDTOs || []).map((page) => {
           const perms = page.menuPagePermissionDTOs || [];
           const allPermsGranted =
-            perms.length > 0
-              ? perms.every((p) => Boolean(p.hasPermission ?? p.isGranted))
-              : Boolean(page.hasPermission ?? page.isGranted);
+            perms.length > 0 ? perms.every((p) => Boolean(p.hasPermission ?? p.isGranted)) : Boolean(page.hasPermission ?? page.isGranted);
           return {
             ...page,
             hasPermission: allPermsGranted,
@@ -386,10 +350,7 @@ const UsersPage = () => {
           };
         });
 
-        const allPagesGranted =
-          pages.length > 0
-            ? pages.every((p) => Boolean(p.hasPermission))
-            : Boolean(menu.hasPermission);
+        const allPagesGranted = pages.length > 0 ? pages.every((p) => Boolean(p.hasPermission)) : Boolean(menu.hasPermission);
 
         return {
           ...menu,
@@ -455,9 +416,7 @@ const UsersPage = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-semibold text-gray-900 dark:text-white truncate">Users</h1>
-            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-              Manage system users and their permissions.
-            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Manage system users and their permissions.</p>
           </div>
           {canCreateUser && (
             <div className="w-full sm:w-auto flex justify-start sm:justify-end">
@@ -684,9 +643,7 @@ const UsersPage = () => {
                         <div className="w-14 h-14 rounded-2xl bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-3">
                           <Users size={28} className="opacity-80" />
                         </div>
-                        <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
-                          No users found
-                        </h4>
+                        <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-1">No users found</h4>
                         <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
                           {searchText || selectedRoleId || selectedLocationId
                             ? 'No users match your search criteria. Try adjusting your filters.'
@@ -702,19 +659,19 @@ const UsersPage = () => {
                   users.map((user, idx) => {
                     const serialNumber = (pageNumber - 1) * pageSize + idx + 1;
                     const cleanFirst = String(user.firstName || '').trim();
-                    const cleanLast = String(user.lastName || '').trim().replace(/^\.+$/, '');
-                    const fullName =
-                      [cleanFirst, cleanLast].filter(Boolean).join(' ') ||
-                      user.username;
+                    const cleanLast = String(user.lastName || '')
+                      .trim()
+                      .replace(/^\.+$/, '');
+                    const fullName = [cleanFirst, cleanLast].filter(Boolean).join(' ') || user.username;
 
                     // Groups extraction
                     const rawGroupList = Array.isArray(user.groupName)
                       ? user.groupName
                       : typeof user.groupName === 'string' && user.groupName.trim()
-                      ? user.groupName.split(',').map((g) => g.trim())
-                      : Array.isArray(user.groups)
-                      ? user.groups
-                      : [];
+                        ? user.groupName.split(',').map((g) => g.trim())
+                        : Array.isArray(user.groups)
+                          ? user.groups
+                          : [];
 
                     const assignedGroups = rawGroupList.filter((g) => {
                       if (!g) return false;
@@ -723,14 +680,9 @@ const UsersPage = () => {
                     });
 
                     return (
-                      <tr
-                        key={user.userId || idx}
-                        className="group hover:bg-purple-50/30 dark:hover:bg-white/[0.02] transition-colors"
-                      >
+                      <tr key={user.userId || idx} className="group hover:bg-purple-50/30 dark:hover:bg-white/[0.02] transition-colors">
                         {/* 1. Serial Number */}
-                        <td className="py-3.5 px-3 text-center text-xs font-medium text-gray-400 dark:text-gray-500">
-                          #{serialNumber}
-                        </td>
+                        <td className="py-3.5 px-3 text-center text-xs font-medium text-gray-400 dark:text-gray-500">#{serialNumber}</td>
 
                         {/* 2. Username (First & Last prominent, @username below) */}
                         <td className="py-3.5 px-3">
@@ -772,9 +724,7 @@ const UsersPage = () => {
                               {user.roleName || user.role}
                             </span>
                           ) : (
-                            <span className="text-gray-400 dark:text-gray-500 text-xs italic">
-                              Not assigned
-                            </span>
+                            <span className="text-gray-400 dark:text-gray-500 text-xs italic">Not assigned</span>
                           )}
                         </td>
 
@@ -785,9 +735,7 @@ const UsersPage = () => {
                               {user.locationName || user.location}
                             </span>
                           ) : (
-                            <span className="text-gray-400 dark:text-gray-500 text-xs italic">
-                              Not assigned
-                            </span>
+                            <span className="text-gray-400 dark:text-gray-500 text-xs italic">Not assigned</span>
                           )}
                         </td>
 
@@ -820,7 +768,7 @@ const UsersPage = () => {
                             <IosToggle
                               checked={Boolean(user.isActive)}
                               onCheckedChange={(next) => handleToggleStatus(user, next)}
-                              disabled={Boolean(statusToggling[user.userId])}
+                              disabled={!canUpdateUser || Boolean(statusToggling[user.userId])}
                               title={user.isActive ? 'Active' : 'Inactive'}
                             />
                           </div>
@@ -834,45 +782,47 @@ const UsersPage = () => {
                         {/* 10. Actions (Sticky Right Column: Manage groups, permissions, edit, delete) */}
                         <td className="sticky right-0 z-10 bg-white/95 dark:bg-[#17132a]/95 backdrop-blur-xs py-3 px-4 text-right shadow-[-6px_0_10px_-2px_rgba(0,0,0,0.06)] border-l border-gray-100 dark:border-white/5 group-hover:bg-purple-50/95 dark:group-hover:bg-[#1f1938]/95 transition-colors">
                           <div className="inline-flex items-center justify-end gap-1.5">
-                            {/* Manage Groups */}
-                            <ActionIconButton
-                              label="Manage Groups"
-                              onClick={() => {
-                                setGroupsModalUser(user);
-                                setGroupsModalOpen(true);
-                              }}
-                              className="text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"
-                            >
-                              <Users size={15} />
-                            </ActionIconButton>
+                            {canUpdateUser && (
+                              <>
+                                {/* Manage Groups */}
+                                <ActionIconButton
+                                  label="Manage Groups"
+                                  onClick={() => {
+                                    setGroupsModalUser(user);
+                                    setGroupsModalOpen(true);
+                                  }}
+                                  className="text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                                >
+                                  <Users size={15} />
+                                </ActionIconButton>
 
-                            {/* Manage Permissions */}
-                            <ActionIconButton
-                              label="Manage Permissions"
-                              onClick={() => handleOpenPermissions(user)}
-                              className="text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30"
-                            >
-                              <ShieldCheck size={15} />
-                            </ActionIconButton>
+                                {/* Manage Permissions */}
+                                <ActionIconButton
+                                  label="Manage Permissions"
+                                  onClick={() => handleOpenPermissions(user)}
+                                  className="text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30"
+                                >
+                                  <ShieldCheck size={15} />
+                                </ActionIconButton>
 
-                            {/* Edit User */}
-                            <ActionIconButton
-                              label="Edit User"
-                              onClick={() => {
-                                setEditingUser(user);
-                                setEditorModalOpen(true);
-                              }}
-                              className="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30"
-                            >
-                              <Pencil size={15} />
-                            </ActionIconButton>
+                                {/* Edit User */}
+                                <ActionIconButton
+                                  label="Edit User"
+                                  onClick={() => {
+                                    setEditingUser(user);
+                                    setEditorModalOpen(true);
+                                  }}
+                                  className="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                                >
+                                  <Pencil size={15} />
+                                </ActionIconButton>
+                              </>
+                            )}
 
                             {/* Delete User */}
-                            <ActionIconButton
-                              label="Delete User"
-                              variant="delete"
-                              onClick={() => handleOpenDelete(user)}
-                            />
+                            {canDeleteUser && (
+                              <ActionIconButton label="Delete User" variant="delete" onClick={() => handleOpenDelete(user)} />
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -963,9 +913,7 @@ const UsersPage = () => {
         subtitle={
           permissionModalUser
             ? `Managing permissions for "${
-                [permissionModalUser.firstName, permissionModalUser.lastName]
-                  .filter(Boolean)
-                  .join(' ') || permissionModalUser.username
+                [permissionModalUser.firstName, permissionModalUser.lastName].filter(Boolean).join(' ') || permissionModalUser.username
               }"`
             : 'Manage user permissions'
         }
@@ -992,9 +940,7 @@ const UsersPage = () => {
         itemName={
           deleteTargetUser
             ? `${
-                [deleteTargetUser.firstName, deleteTargetUser.lastName]
-                  .filter(Boolean)
-                  .join(' ') || deleteTargetUser.username
+                [deleteTargetUser.firstName, deleteTargetUser.lastName].filter(Boolean).join(' ') || deleteTargetUser.username
               } (@${deleteTargetUser.username})`
             : ''
         }
@@ -1036,15 +982,10 @@ const UsersPage = () => {
                 <p className="text-sm text-gray-700 dark:text-gray-200">
                   {selfWarningMessage || 'You cannot perform this action on your own account.'}
                 </p>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  This prevents locking yourself out of the system.
-                </p>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">This prevents locking yourself out of the system.</p>
 
                 <div className="mt-6 flex items-center justify-end">
-                  <LiquidGlassButton
-                    onClick={() => setSelfActionWarningOpen(false)}
-                    className="text-center"
-                  >
+                  <LiquidGlassButton onClick={() => setSelfActionWarningOpen(false)} className="text-center">
                     OK
                   </LiquidGlassButton>
                 </div>
