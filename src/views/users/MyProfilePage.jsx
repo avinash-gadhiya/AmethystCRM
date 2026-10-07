@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import authService from 'services/authService';
 import userService from 'services/userService';
+import './MyProfilePage.css';
 
 export default function MyProfilePage() {
   const [currentUser, setCurrentUser] = useState(() => authService.getUser() || {});
@@ -187,7 +188,7 @@ export default function MyProfilePage() {
     (currentUser.lastName?.[0] || 'D');
 
   return (
-    <div className="space-y-6 pb-12 max-w-7xl mx-auto">
+    <div className="my-profile-page space-y-6 pb-12 mx-auto">
       {/* Toast Notification */}
       {profileSuccess && (
         <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center justify-between shadow-xs animate-in fade-in">
@@ -206,11 +207,11 @@ export default function MyProfilePage() {
       )}
 
       {/* TOP HEADER CARD (Matches Screenshot 1) */}
-      <div className="relative rounded-3xl bg-gradient-to-r from-blue-50/60 via-indigo-50/40 to-purple-50/50 border border-slate-200/80 p-6 sm:p-8 shadow-sm backdrop-blur-sm">
+      <div className="my-profile-hero relative rounded-3xl bg-gradient-to-r from-blue-50/60 via-indigo-50/40 to-purple-50/50 border border-slate-200/80 p-6 sm:p-8 shadow-sm backdrop-blur-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
             {/* Avatar Initials with Vibrant Gradient */}
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-600 via-indigo-600 to-indigo-700 text-white flex items-center justify-center font-extrabold text-2xl shadow-lg shadow-indigo-500/20 flex-shrink-0 tracking-wider">
+            <div className="my-profile-avatar w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-600 via-indigo-600 to-indigo-700 text-white flex items-center justify-center font-extrabold text-2xl shadow-lg shadow-indigo-500/20 flex-shrink-0 tracking-wider">
               {initials.toUpperCase()}
             </div>
 
@@ -254,7 +255,7 @@ export default function MyProfilePage() {
             <button
               type="button"
               onClick={openEditModal}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-indigo-700 hover:from-purple-700 hover:via-indigo-700 hover:to-indigo-800 text-white text-xs font-semibold shadow-md shadow-purple-500/25 transition-all hover:shadow-lg hover:shadow-purple-500/30 cursor-pointer active:scale-[0.98]"
+              className="profile-primary-button inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-indigo-700 hover:from-purple-700 hover:via-indigo-700 hover:to-indigo-800 text-white text-xs font-semibold shadow-md shadow-purple-500/25 transition-all hover:shadow-lg hover:shadow-purple-500/30 cursor-pointer active:scale-[0.98]"
             >
               <Pencil size={13} />
               <span>Edit Profile</span>
@@ -264,7 +265,7 @@ export default function MyProfilePage() {
       </div>
 
       {/* PILL TAB NAVIGATION (Matches Screenshot 1) */}
-      <div className="inline-flex items-center gap-1 p-1.5 rounded-2xl bg-slate-100/90 border border-slate-200/80 shadow-xs">
+      <div className="my-profile-tabs inline-flex items-center gap-1 p-1.5 rounded-2xl bg-slate-100/90 border border-slate-200/80 shadow-xs">
         <button
           type="button"
           onClick={() => setActiveTab('overview')}
@@ -319,7 +320,7 @@ export default function MyProfilePage() {
           {/* 3 Summary Stat Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Card 1: Account Role */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex items-center gap-4">
+            <div className="profile-stat-card bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex items-center gap-4">
               <div className="w-11 h-11 rounded-xl bg-purple-50 border border-purple-100 text-purple-600 flex items-center justify-center flex-shrink-0">
                 <ShieldCheck size={20} />
               </div>
@@ -334,7 +335,7 @@ export default function MyProfilePage() {
             </div>
 
             {/* Card 2: Username */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex items-center gap-4">
+            <div className="profile-stat-card bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex items-center gap-4">
               <div className="w-11 h-11 rounded-xl bg-sky-50 border border-sky-100 text-sky-600 flex items-center justify-center flex-shrink-0">
                 <AtSign size={20} />
               </div>
@@ -349,7 +350,7 @@ export default function MyProfilePage() {
             </div>
 
             {/* Card 3: Email */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex items-center gap-4">
+            <div className="profile-stat-card bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex items-center gap-4">
               <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
                 <Mail size={20} />
               </div>
@@ -365,7 +366,7 @@ export default function MyProfilePage() {
           </div>
 
           {/* Personal Information Card (Matches Screenshot 1) */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-7 shadow-xs">
+          <div className="profile-section-card bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-7 shadow-xs">
             <div className="flex items-center justify-between pb-5 border-b border-slate-100">
               <div>
                 <h3 className="text-sm font-bold text-slate-900">Personal information</h3>
@@ -448,7 +449,7 @@ export default function MyProfilePage() {
 
       {/* PERSONAL INFORMATION TAB */}
       {activeTab === 'personal' && (
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-7 shadow-xs">
+        <div className="profile-section-card bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-7 shadow-xs">
           <div className="flex items-center justify-between pb-5 border-b border-slate-100">
             <div>
               <h3 className="text-sm font-bold text-slate-900">Personal information</h3>
@@ -545,7 +546,7 @@ export default function MyProfilePage() {
           {/* 3 Status / Info Cards (Matches Screenshot) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Card 1: Password */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex items-start gap-3.5">
+            <div className="profile-stat-card bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex items-start gap-3.5">
               <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0 mt-0.5">
                 <Lock size={18} />
               </div>
@@ -563,7 +564,7 @@ export default function MyProfilePage() {
             </div>
 
             {/* Card 2: Account */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex items-start gap-3.5">
+            <div className="profile-stat-card bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex items-start gap-3.5">
               <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center flex-shrink-0 mt-0.5">
                 <User size={18} />
               </div>
@@ -581,7 +582,7 @@ export default function MyProfilePage() {
             </div>
 
             {/* Card 3: Authentication */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex items-start gap-3.5">
+            <div className="profile-stat-card bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex items-start gap-3.5">
               <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0 mt-0.5">
                 <ShieldCheck size={18} />
               </div>
@@ -600,7 +601,7 @@ export default function MyProfilePage() {
           </div>
 
           {/* Change Password Card */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-xs">
+          <div className="profile-section-card bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-xs">
             {/* Header with Key Icon */}
             <div className="flex items-start gap-3.5 pb-6 border-b border-slate-100">
               <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0">

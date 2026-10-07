@@ -1591,9 +1591,60 @@ const DashboardPage = () => {
   ];
 
   return (
-    <div className="p-3 sm:p-4 lg:p-6 relative">
+    <div className="dashboard-page p-3 sm:p-4 lg:p-6 relative">
       <style>
         {`
+          .dashboard-page {
+            position: relative;
+            isolation: isolate;
+            min-height: calc(100vh - 76px);
+            overflow: hidden;
+            background: linear-gradient(118deg, #f8fafc 0%, #fbfaff 58%, #f3efff 100%);
+          }
+
+          .dashboard-page::before {
+            content: '';
+            position: absolute;
+            z-index: -1;
+            top: -190px;
+            right: 7%;
+            width: 460px;
+            height: 460px;
+            border-radius: 50%;
+            background: rgba(139, 92, 246, 0.055);
+            pointer-events: none;
+          }
+
+          .dashboard-page::after {
+            content: '';
+            position: absolute;
+            z-index: -1;
+            top: 48%;
+            left: -150px;
+            width: 310px;
+            height: 310px;
+            border-radius: 50%;
+            background: rgba(99, 102, 241, 0.035);
+            pointer-events: none;
+          }
+
+          .dashboard-page-content {
+            position: relative;
+            z-index: 1;
+          }
+
+          .dark .dashboard-page {
+            background: linear-gradient(118deg, #0f172a 0%, #111827 58%, #17132b 100%);
+          }
+
+          .dark .dashboard-page::before {
+            background: rgba(139, 92, 246, 0.1);
+          }
+
+          .dark .dashboard-page::after {
+            background: rgba(99, 102, 241, 0.065);
+          }
+
           /* Target progress bars on the Sales / RPL summary cards.
              Colours are deliberately high-luminance so they read on both the
              blue and violet gradient cards. */
@@ -1780,7 +1831,7 @@ const DashboardPage = () => {
         `}
       </style>
 
-      <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 sm:gap-6 lg:gap-7">
+      <div className="dashboard-page-content mx-auto flex w-full max-w-[1600px] flex-col gap-4 sm:gap-6 lg:gap-7">
 
           {/* ── Header ── */}
           <div className="relative z-50 flex w-full flex-col gap-3 pt-1 lg:flex-row lg:items-center lg:justify-between lg:gap-5">
