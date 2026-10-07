@@ -26,7 +26,13 @@ export function Select({ value, onValueChange, children, disabled = false }) {
     const handleEscape = (e) => {
       if (e.key === 'Escape') setOpen(false);
     };
-    const handleViewportChange = () => setOpen(false);
+    const handleViewportChange = (event) => {
+      // Keep the menu open while its own options are being scrolled. The
+      // capture listener also receives scroll events from the portal content,
+      // which previously closed long menus before an option could be chosen.
+      if (event?.type === 'scroll' && contentRef.current?.contains(event.target)) return;
+      setOpen(false);
+    };
     document.addEventListener('mousedown', handleOutsideClick);
     document.addEventListener('keydown', handleEscape);
     window.addEventListener('resize', handleViewportChange);

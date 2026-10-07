@@ -37,7 +37,7 @@ const SalesTargetPage = lazy(() => import('../views/settings/sales-target/SalesT
 const MyProfilePage = lazy(() => import('../views/users/MyProfilePage'));
 const OrdersPage = lazy(() => import('../views/orders/OrdersPage'));
 const ProductsPage = lazy(() => import('../views/products/ProductsPage'));
-const LeadsPage = lazy(() => import('../views/leads/LeadsPage'));
+const LeadsPage = lazy(() => import('../views/leads/leadpage/LeadsPage'));
 
 const isConfiguredLocationPath = (pathname) => {
   try {

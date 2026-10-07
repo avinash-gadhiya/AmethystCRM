@@ -1515,6 +1515,11 @@ const DashboardPage = () => {
     setIsDateFilterApplied(true);
   };
 
+  const handleSalesPersonChange = (value) => {
+    setSelectedUserId(String(value || 'all'));
+    setSalesPersonSearchText('');
+  };
+
   const handleRefreshDashboard = useCallback(async () => {
     await fetchDashboard();
   }, [fetchDashboard]);
@@ -1790,7 +1795,7 @@ const DashboardPage = () => {
               <div className="flex flex-col min-[420px]:flex-row items-stretch min-[420px]:items-center gap-2 w-full sm:w-auto min-w-0">
               {isAdminUser && (
                 <div className="flex-1 sm:flex-none sm:w-[200px] lg:w-[176px] xl:w-[210px] min-w-0">
-                  <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                  <Select value={selectedUserId} onValueChange={handleSalesPersonChange}>
                     <SelectTrigger className="h-10 w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg text-sm text-gray-700 dark:text-slate-100">
                       <SelectValue placeholder="All Sales Persons" />
                     </SelectTrigger>
