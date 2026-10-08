@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertCircle, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AlertCircle, CalendarDays, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { Button, Col, Form, Modal, Row, Spinner } from 'react-bootstrap';
 import { toast } from 'sonner';
 
@@ -133,16 +133,25 @@ const calendarDate = (value) => {
     .map(Number);
   return year && month && day ? new Date(year, month - 1, day) : null;
 };
-const calendarLabel = (fromDate, toDate) => {
-  if (!fromDate && !toDate) return 'Select date range';
+const calendarLabel = (fromDate, toDate, emptyLabel = 'Select date range') => {
+  if (!fromDate && !toDate) return emptyLabel;
   const formatter = new Intl.DateTimeFormat(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
   const from = calendarDate(fromDate);
   const to = calendarDate(toDate);
-  if (from && to) return `${formatter.format(from)} – ${formatter.format(to)}`;
-  return from ? formatter.format(from) : 'Select date range';
+  if (from && to) return fromDate === toDate ? formatter.format(from) : `${formatter.format(from)} – ${formatter.format(to)}`;
+  return from ? formatter.format(from) : emptyLabel;
 };
 
-function LeadDateRangeCalendar({ fromDate, toDate, onChange, disabled }) {
+function LeadDateRangeCalendar({
+  fromDate,
+  toDate,
+  onChange,
+  disabled,
+  toolbar = false,
+  emptyLabel = 'Select date range',
+  onRefresh,
+  refreshing = false
+}) {
   const [open, setOpen] = useState(false);
   const [cursor, setCursor] = useState(() => calendarDate(fromDate) || new Date());
   const [draftFrom, setDraftFrom] = useState(fromDate || '');
@@ -151,6 +160,7 @@ function LeadDateRangeCalendar({ fromDate, toDate, onChange, disabled }) {
   useEffect(() => {
     setDraftFrom(fromDate || '');
     setDraftTo(toDate || '');
+    setCursor(calendarDate(fromDate) || calendarDate(toDate) || new Date());
   }, [fromDate, toDate]);
   useEffect(() => {
     if (!open) return undefined;
@@ -181,12 +191,76 @@ function LeadDateRangeCalendar({ fromDate, toDate, onChange, disabled }) {
     onChange(draftFrom, draftTo || draftFrom);
     setOpen(false);
   };
+  const shiftRange = (direction) => {
+    const start = calendarDate(fromDate);
+    const end = calendarDate(toDate) || start;
+    if (!start || !end) return;
+    const dayMs = 24 * 60 * 60 * 1000;
+    const span = Math.round((end.getTime() - start.getTime()) / dayMs) + 1;
+    const nextFrom = new Date(start.getFullYear(), start.getMonth(), start.getDate() + span * direction);
+    const nextTo = new Date(end.getFullYear(), end.getMonth(), end.getDate() + span * direction);
+    onChange(ymd(nextFrom), ymd(nextTo));
+  };
+  const toggle = () => {
+    if (!disabled) setOpen((value) => !value);
+  };
   return (
-    <div className="lead-calendar" ref={rootRef}>
-      <button type="button" className="lead-calendar-trigger" onClick={() => !disabled && setOpen((value) => !value)} disabled={disabled}>
-        <CalendarDays size={17} />
-        <span>{calendarLabel(fromDate, toDate)}</span>
-      </button>
+    <div className={`lead-calendar ${toolbar ? 'lead-calendar-toolbar' : ''}`} ref={rootRef}>
+      {toolbar ? (
+        <>
+          <button
+            type="button"
+            className={`lead-round-refresh lead-date-calendar-button ${open ? 'active' : ''}`}
+            onClick={toggle}
+            disabled={disabled}
+            aria-label="Open date range calendar"
+            title="Select a custom date range"
+          >
+            <CalendarDays size={18} />
+          </button>
+          <button
+            type="button"
+            className="lead-date-nav-button"
+            onClick={() => shiftRange(-1)}
+            disabled={disabled || !fromDate}
+            aria-label="Previous date range"
+            title="Previous date range"
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <button type="button" className="lead-calendar-range-button" onClick={toggle} disabled={disabled}>
+            <CalendarDays size={17} />
+            <span>{calendarLabel(fromDate, toDate, emptyLabel)}</span>
+          </button>
+          <button
+            type="button"
+            className="lead-date-nav-button"
+            onClick={() => shiftRange(1)}
+            disabled={disabled || !fromDate}
+            aria-label="Next date range"
+            title="Next date range"
+          >
+            <ChevronRight size={18} />
+          </button>
+          {onRefresh && (
+            <button
+              type="button"
+              className="lead-round-refresh lead-date-refresh"
+              onClick={onRefresh}
+              disabled={refreshing}
+              aria-label="Refresh leads"
+              title="Refresh leads"
+            >
+              <RefreshCw size={18} className={refreshing ? 'spin' : ''} />
+            </button>
+          )}
+        </>
+      ) : (
+        <button type="button" className="lead-calendar-trigger" onClick={toggle} disabled={disabled}>
+          <CalendarDays size={17} />
+          <span>{calendarLabel(fromDate, toDate, emptyLabel)}</span>
+        </button>
+      )}
       {open && (
         <div className="lead-calendar-popover">
           <div className="lead-calendar-topbar">

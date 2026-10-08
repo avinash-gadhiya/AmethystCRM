@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Download, FileBarChart, RefreshCw, RotateCcw, Search, Trash2 } from 'lucide-react';
-import { Badge, Button, Form, Modal, Spinner } from 'react-bootstrap';
+import { Download, FileBarChart, RefreshCw, RotateCcw, Search, Trash2, X } from 'lucide-react';
+import { Badge, Button, Modal, Spinner } from 'react-bootstrap';
 import { toast } from 'sonner';
 
 import DeleteConfirmModal from '@/components/common/DeleteConfirmModal';
+import AnimatedDropdown from '@/components/ui/animated-dropdown';
 import leadService from '@/services/leadService';
 import {
   DateCell,
@@ -21,6 +22,27 @@ import {
 } from '../leadpage/leadShared';
 
 const MAX_EXPORT_PAGES = 1000;
+
+const QUICK_DATE_OPTIONS = ['Today', 'Yesterday', 'Last Week', 'Current Month', 'Last Month', 'This Year', 'Last Year'];
+
+const getQuickDateRange = (value) => {
+  const today = new Date();
+  let from = today;
+  let to = today;
+  if (value === 'Yesterday') from = to = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+  if (value === 'Last Week') from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6);
+  if (value === 'Current Month') from = new Date(today.getFullYear(), today.getMonth(), 1);
+  if (value === 'Last Month') {
+    from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    to = new Date(today.getFullYear(), today.getMonth(), 0);
+  }
+  if (value === 'This Year') from = new Date(today.getFullYear(), 0, 1);
+  if (value === 'Last Year') {
+    from = new Date(today.getFullYear() - 1, 0, 1);
+    to = new Date(today.getFullYear() - 1, 11, 31);
+  }
+  return { fromDate: ymd(from), toDate: ymd(to) };
+};
 
 const LEAD_REPORTS = {
   disposition: {
@@ -187,16 +209,23 @@ function ReportDialog({ report, filters, lookups, onClose }) {
       size="xl"
       centered
       scrollable
+      backdrop
+      keyboard
+      container={document.body}
+      backdropClassName="lead-report-backdrop"
       className="lead-report-window"
       dialogClassName="lead-report-modal"
     >
-      <Modal.Header closeButton className="lead-report-modal-header">
+      <Modal.Header className="lead-report-modal-header">
         <div className="lead-report-modal-title">
           <div>
             <Modal.Title>{config?.label}</Modal.Title>
             <small>{config?.description}</small>
           </div>
         </div>
+        <button type="button" className="lead-report-close" onClick={onClose} aria-label="Close report" title="Close report">
+          <X size={20} />
+        </button>
       </Modal.Header>
       <Modal.Body>
         <div className="lead-report-control-card">
@@ -224,30 +253,24 @@ function ReportDialog({ report, filters, lookups, onClose }) {
           <div className={`lead-report-control-grid ${report === 'conversation' ? 'conversation' : ''}`}>
             {report === 'disposition' && (
               <>
-                <Form.Select
+                <AnimatedDropdown
+                  ariaLabel="Report user"
                   value={reportFilters?.userId || ''}
-                  onChange={(event) => setReportFilters((old) => ({ ...old, userId: event.target.value }))}
-                  aria-label="Report user"
-                >
-                  <option value="">All Users</option>
-                  {lookups.users.map((item) => (
-                    <option value={item.id} key={item.id}>
-                      {item.label}
-                    </option>
-                  ))}
-                </Form.Select>
-                <Form.Select
+                  onValueChange={(value) => setReportFilters((old) => ({ ...old, userId: value }))}
+                  options={[
+                    { value: '', label: 'All Users' },
+                    ...lookups.users.map((item) => ({ value: String(item.id), label: item.label }))
+                  ]}
+                />
+                <AnimatedDropdown
+                  ariaLabel="Report vendor"
                   value={reportFilters?.vendorId || ''}
-                  onChange={(event) => setReportFilters((old) => ({ ...old, vendorId: event.target.value }))}
-                  aria-label="Report vendor"
-                >
-                  <option value="">All Vendors</option>
-                  {lookups.vendors.map((item) => (
-                    <option value={item.id} key={item.id}>
-                      {item.label}
-                    </option>
-                  ))}
-                </Form.Select>
+                  onValueChange={(value) => setReportFilters((old) => ({ ...old, vendorId: value }))}
+                  options={[
+                    { value: '', label: 'All Vendors' },
+                    ...lookups.vendors.map((item) => ({ value: String(item.id), label: item.label }))
+                  ]}
+                />
               </>
             )}
             <div className="lead-report-search">
@@ -261,13 +284,18 @@ function ReportDialog({ report, filters, lookups, onClose }) {
                 aria-label="Search report"
               />
             </div>
-            <Form.Select value={period} onChange={(event) => changePeriod(event.target.value)} aria-label="Report period">
-              <option value="today">Today</option>
-              <option value="yesterday">Yesterday</option>
-              <option value="week">Last 7 Days</option>
-              <option value="month">Current Month</option>
-              <option value="custom">Custom Range</option>
-            </Form.Select>
+            <AnimatedDropdown
+              ariaLabel="Report period"
+              value={period}
+              onValueChange={changePeriod}
+              options={[
+                { value: 'today', label: 'Today' },
+                { value: 'yesterday', label: 'Yesterday' },
+                { value: 'week', label: 'Last 7 Days' },
+                { value: 'month', label: 'Current Month' },
+                { value: 'custom', label: 'Custom Range' }
+              ]}
+            />
             <LeadDateRangeCalendar
               fromDate={reportFilters?.fromDate || ''}
               toDate={reportFilters?.toDate || ''}
@@ -353,6 +381,7 @@ export default function Leads({ permissions, voicemail, lookups }) {
     [sort, setSort] = useState({ sortProperty: 'leadId', isDescending: true });
   const [searchInput, setSearchInput] = useState(''),
     [filters, setFilters] = useState({ text: '', salesPersonId: '', groupId: '', locationId: '', vendorId: '', fromDate: '', toDate: '' });
+  const [quickDate, setQuickDate] = useState('Custom');
   const [deleting, setDeleting] = useState(false),
     [deleteLead, setDeleteLead] = useState(null),
     [exporting, setExporting] = useState(false),
@@ -403,6 +432,18 @@ export default function Leads({ permissions, voicemail, lookups }) {
     setFilters((old) => ({ ...old, [key]: value }));
     setPage(1);
   };
+  const updateDateRange = (fromDate, toDate) => {
+    setQuickDate('Custom');
+    setFilters((old) => ({ ...old, fromDate, toDate }));
+    setPage(1);
+  };
+  const updateQuickDate = (value) => {
+    setQuickDate(value);
+    if (value === 'Custom') return;
+    const range = getQuickDateRange(value);
+    setFilters((old) => ({ ...old, ...range }));
+    setPage(1);
+  };
   const hasActiveFilters = Boolean(
     filters.salesPersonId ||
       filters.groupId ||
@@ -415,6 +456,7 @@ export default function Leads({ permissions, voicemail, lookups }) {
   );
   const resetFilters = () => {
     setSearchInput('');
+    setQuickDate('Custom');
     setFilters({
       text: '',
       salesPersonId: '',
@@ -674,21 +716,47 @@ export default function Leads({ permissions, voicemail, lookups }) {
           >
             {exporting ? <Spinner size="sm" /> : <Download size={18} />}
           </button>
-          <button
-            type="button"
-            className="lead-round-refresh"
-            onClick={state.refresh}
-            disabled={state.loading}
-            aria-label={`Refresh ${voicemail ? 'voicemails' : 'leads'}`}
-            title={`Refresh ${voicemail ? 'voicemails' : 'leads'}`}
-          >
-            <RefreshCw size={18} className={state.loading ? 'spin' : ''} />
-          </button>
         </div>
       </div>
 
       <div className="lead-report-panel">
         <div className="lead-filters">
+          <AnimatedDropdown
+            ariaLabel="Sales person"
+            value={filters.salesPersonId}
+            onValueChange={(value) => updateFilter('salesPersonId', value)}
+            options={[
+              { value: '', label: 'Sales Person: All' },
+              ...lookups.users.map((item) => ({ value: String(item.id), label: item.label }))
+            ]}
+          />
+          <AnimatedDropdown
+            ariaLabel="Group"
+            value={filters.groupId}
+            onValueChange={(value) => updateFilter('groupId', value)}
+            options={[
+              { value: '', label: 'Groups: All' },
+              ...lookups.groups.map((item) => ({ value: String(item.id), label: item.label }))
+            ]}
+          />
+          <AnimatedDropdown
+            ariaLabel="Location"
+            value={filters.locationId}
+            onValueChange={(value) => updateFilter('locationId', value)}
+            options={[
+              { value: '', label: 'Locations: All' },
+              ...lookups.locations.map((item) => ({ value: String(item.id), label: item.label }))
+            ]}
+          />
+          <AnimatedDropdown
+            ariaLabel="Vendor"
+            value={filters.vendorId}
+            onValueChange={(value) => updateFilter('vendorId', value)}
+            options={[
+              { value: '', label: 'Vendors: All' },
+              ...lookups.vendors.map((item) => ({ value: String(item.id), label: item.label }))
+            ]}
+          />
           <div className="lead-search-field">
             <Search size={17} aria-hidden="true" />
             <input
@@ -706,52 +774,28 @@ export default function Leads({ permissions, voicemail, lookups }) {
             )}
           </div>
           <div className="lead-date-picker">
+            <AnimatedDropdown
+              className="lead-quick-date-select"
+              ariaLabel="Quick date"
+              value={quickDate}
+              disabled={Boolean(filters.text)}
+              onValueChange={updateQuickDate}
+              options={[
+                { value: 'Custom', label: 'Quick Date: Custom' },
+                ...QUICK_DATE_OPTIONS.map((option) => ({ value: option, label: option }))
+              ]}
+            />
             <LeadDateRangeCalendar
+              toolbar
+              emptyLabel={voicemail ? 'All Voicemails' : 'All Leads'}
               fromDate={filters.fromDate}
               toDate={filters.toDate}
               disabled={Boolean(filters.text)}
-              onChange={(fromDate, toDate) => {
-                setFilters((old) => ({ ...old, fromDate, toDate }));
-                setPage(1);
-              }}
+              onChange={updateDateRange}
+              onRefresh={state.refresh}
+              refreshing={state.loading}
             />
           </div>
-          <Form.Select
-            aria-label="Sales person"
-            value={filters.salesPersonId}
-            onChange={(e) => updateFilter('salesPersonId', e.target.value)}
-          >
-            <option value="">Sales Person: All</option>
-            {lookups.users.map((item) => (
-              <option value={item.id} key={item.id}>
-                {item.label}
-              </option>
-            ))}
-          </Form.Select>
-          <Form.Select aria-label="Group" value={filters.groupId} onChange={(e) => updateFilter('groupId', e.target.value)}>
-            <option value="">Groups: All</option>
-            {lookups.groups.map((item) => (
-              <option value={item.id} key={item.id}>
-                {item.label}
-              </option>
-            ))}
-          </Form.Select>
-          <Form.Select aria-label="Location" value={filters.locationId} onChange={(e) => updateFilter('locationId', e.target.value)}>
-            <option value="">Locations: All</option>
-            {lookups.locations.map((item) => (
-              <option value={item.id} key={item.id}>
-                {item.label}
-              </option>
-            ))}
-          </Form.Select>
-          <Form.Select aria-label="Vendor" value={filters.vendorId} onChange={(e) => updateFilter('vendorId', e.target.value)}>
-            <option value="">Vendors: All</option>
-            {lookups.vendors.map((item) => (
-              <option value={item.id} key={item.id}>
-                {item.label}
-              </option>
-            ))}
-          </Form.Select>
         </div>
       </div>
       <ErrorState message={state.error} onRetry={state.refresh} />

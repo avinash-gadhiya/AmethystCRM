@@ -2,7 +2,7 @@
   padding: 0.25rem 0 1.75rem;
 }
 .lead-shell {
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid rgba(124, 58, 237, 0.14);
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.96);
@@ -118,6 +118,7 @@
 }
 .lead-summary-bar {
   position: relative;
+  isolation: isolate;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -125,22 +126,14 @@
   min-height: 92px;
   padding: 0.9rem 1rem;
   margin-bottom: 1rem;
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid #e4dff5;
   border-radius: 18px;
-  background: linear-gradient(118deg, #ffffff 0%, #fbfaff 58%, #f3efff 100%);
-  box-shadow: 0 12px 30px rgba(76, 29, 149, 0.075);
+  background: linear-gradient(118deg, #ffffff 0%, #fcfbff 58%, #f8f5ff 100%);
+  box-shadow: 0 10px 26px rgba(76, 29, 149, 0.065);
 }
 .lead-summary-bar::after {
-  content: '';
-  position: absolute;
-  top: -50px;
-  right: 130px;
-  width: 160px;
-  height: 160px;
-  border-radius: 50%;
-  background: rgba(139, 92, 246, 0.06);
-  pointer-events: none;
+  content: none;
 }
 .lead-summary-overview,
 .lead-summary-actions {
@@ -421,7 +414,7 @@
 }
 .lead-report-menu-popover {
   position: absolute;
-  z-index: 60;
+  z-index: 100;
   top: calc(100% + 0.55rem);
   right: 0;
   display: grid;
@@ -453,7 +446,7 @@
 }
 .lead-filters {
   display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-columns: repeat(24, minmax(0, 1fr));
   align-items: center;
   gap: 0.85rem;
   padding: 1rem 1.15rem;
@@ -462,14 +455,24 @@
   min-width: 0;
 }
 .lead-filters .lead-search-field {
-  grid-column: span 7;
+  grid-column: span 8;
 }
 .lead-date-picker {
-  grid-column: span 5;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  grid-column: 1 / -1;
+  justify-self: end;
   min-width: 0;
 }
-.lead-filters > .form-select {
-  grid-column: span 3;
+.lead-filters > .form-select,
+.lead-filters > .animated-dropdown {
+  grid-column: span 4;
+}
+.lead-date-picker > .lead-quick-date-select {
+  width: 180px;
+  flex: 0 0 180px;
 }
 .lead-filters .form-select {
   min-height: 42px;
@@ -590,6 +593,79 @@
   position: relative;
   width: 100%;
 }
+.lead-calendar-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: auto;
+}
+.lead-date-nav-button,
+.lead-calendar-range-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  border: 1px solid #dfe3eb;
+  color: #475569;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(51, 65, 85, 0.1);
+  transition: all 0.15s ease;
+}
+.lead-date-nav-button {
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  flex: 0 0 40px;
+  padding: 0;
+  border-radius: 12px;
+}
+.lead-calendar-range-button {
+  gap: 0.55rem;
+  min-width: 190px;
+  max-width: 310px;
+  min-height: 40px;
+  padding: 0 1rem;
+  border-color: #ddd6fe;
+  border-radius: 12px;
+  color: #6d28d9;
+  background: linear-gradient(135deg, #fff, #f7f3ff);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+.lead-calendar-range-button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lead-date-nav-button:hover:not(:disabled),
+.lead-calendar-range-button:hover:not(:disabled) {
+  border-color: #c4b5fd;
+  color: #6d28d9;
+  background: #faf8ff;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(109, 40, 217, 0.14);
+}
+.lead-date-nav-button:focus-visible,
+.lead-calendar-range-button:focus-visible {
+  border-color: #8b5cf6;
+  outline: 0;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.12);
+}
+.lead-date-nav-button:disabled,
+.lead-calendar-range-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  background: #f8fafc;
+}
+.lead-date-calendar-button,
+.lead-date-refresh {
+  flex: 0 0 40px;
+}
+.lead-date-calendar-button.active {
+  color: #fff;
+  background: linear-gradient(145deg, #7c3aed, #5b21b6);
+  box-shadow: 0 9px 21px rgba(109, 40, 217, 0.3);
+}
 .lead-calendar-trigger {
   display: flex;
   align-items: center;
@@ -635,12 +711,16 @@
   z-index: 80;
   top: calc(100% + 8px);
   right: 0;
-  width: 310px;
+  width: min(310px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 0.85rem;
   border: 1px solid #e4def5;
   border-radius: 15px;
   background: #fff;
   box-shadow: 0 18px 45px rgba(51, 32, 92, 0.18);
+  overscroll-behavior: contain;
 }
 .lead-calendar-topbar {
   display: flex;
@@ -783,43 +863,74 @@
   color: #fff;
   background: rgba(255, 255, 255, 0.16);
 }
-.lead-report-window {
-  z-index: 2000 !important;
+.lead-report-window.modal {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2050 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  padding: 1rem !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
 }
-.lead-report-window.show {
-  display: flex !important;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
+.lead-report-window.modal.show {
+  display: block !important;
 }
 .lead-report-window .lead-report-modal {
-  width: 100%;
-  margin: auto;
+  position: relative;
+  width: min(1200px, calc(100vw - 3rem)) !important;
+  max-width: min(1200px, calc(100vw - 3rem)) !important;
+  min-height: 0;
+  margin: 1rem auto;
+  pointer-events: none;
 }
 .lead-report-modal .modal-content {
+  width: 100%;
   overflow: hidden;
-  max-height: calc(100vh - 2rem);
+  max-height: calc(100vh - 4rem);
   border: 1px solid #e5def7;
   border-radius: 14px;
   box-shadow: 0 24px 70px rgba(46, 16, 101, 0.18);
+  pointer-events: auto;
 }
-.lead-report-modal.modal-xl {
-  max-width: min(1500px, calc(100vw - 3rem));
+.lead-report-backdrop.modal-backdrop {
+  z-index: 2040 !important;
+  background: #0f172a;
+}
+.lead-report-backdrop.modal-backdrop.show {
+  opacity: 0.78;
 }
 .lead-report-modal-header {
+  position: relative;
   min-height: 96px;
-  padding: 1.2rem 1.75rem;
+  padding: 1.2rem 5rem 1.2rem 1.75rem;
   border-bottom-color: #eee9f8;
   background: #fff;
 }
-.lead-report-modal-header .btn-close {
-  width: 42px;
-  height: 42px;
-  margin: 0;
+.lead-report-close {
+  position: absolute;
+  top: 50%;
+  right: 1.5rem;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
   padding: 0;
+  border: 1px solid #e2e8f0;
   border-radius: 50%;
-  background-size: 13px;
+  color: #64748b;
+  background: #fff;
   box-shadow: 0 5px 16px rgba(15, 23, 42, 0.18);
+  transform: translateY(-50%);
+  transition: 0.16s ease;
+}
+.lead-report-close:hover,
+.lead-report-close:focus-visible {
+  border-color: #c4b5fd;
+  color: #6d28d9;
+  background: #faf8ff;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.12), 0 7px 18px rgba(15, 23, 42, 0.16);
 }
 .lead-report-modal-title {
   display: flex;
@@ -960,6 +1071,7 @@
   max-width: 900px;
 }
 .lead-report-control-grid .form-select,
+.lead-report-control-grid .animated-dropdown-trigger,
 .lead-report-control-grid .form-control,
 .lead-report-control-grid .lead-calendar-trigger {
   min-height: 44px;
@@ -1195,14 +1307,29 @@
   .lead-tabs {
     grid-template-columns: repeat(5, minmax(100px, 1fr));
   }
+}
+@media (max-width: 1099px) {
   .lead-report-control-grid,
   .lead-report-control-grid.conversation {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     max-width: none;
   }
 }
+@media (max-width: 1199px) {
+  .lead-filters {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+  .lead-filters > .form-select,
+  .lead-filters > .animated-dropdown {
+    grid-column: span 3;
+  }
+  .lead-filters .lead-search-field {
+    grid-column: span 12;
+  }
+}
 @media (max-width: 991px) {
-  .lead-filters > .form-select {
+  .lead-filters > .form-select,
+  .lead-filters > .animated-dropdown {
     grid-column: span 6;
   }
   .lead-filters .lead-search-field {
@@ -1240,7 +1367,8 @@
     flex-wrap: wrap;
     gap: 0.65rem;
   }
-  .lead-filters > .form-select {
+  .lead-filters > .form-select,
+  .lead-filters > .animated-dropdown {
     grid-column: span 6;
   }
   .lead-filters .lead-search-field {
@@ -1248,14 +1376,16 @@
   }
   .lead-date-picker {
     grid-column: span 12;
+    flex-wrap: wrap;
   }
-  .lead-report-modal.modal-xl {
-    max-width: calc(100vw - 1rem);
-    margin: 0.5rem;
+  .lead-report-window .lead-report-modal {
+    width: calc(100vw - 1rem) !important;
+    max-width: calc(100vw - 1rem) !important;
+    margin: 0.5rem auto;
   }
   .lead-report-modal-header {
     min-height: 82px;
-    padding: 1rem;
+    padding: 1rem 4.5rem 1rem 1rem;
   }
   .lead-report-modal .modal-body {
     padding: 0.75rem;
@@ -1307,7 +1437,8 @@
   .lead-report-tools {
     justify-content: flex-end;
   }
-  .lead-filters > .form-select {
+  .lead-filters > .form-select,
+  .lead-filters > .animated-dropdown {
     grid-column: span 12;
   }
   .lead-heading-icon {
@@ -1323,5 +1454,20 @@
   }
   .lead-calendar-popover {
     width: min(310px, calc(100vw - 3rem));
+  }
+  .lead-date-picker {
+    justify-self: stretch;
+  }
+  .lead-date-picker > .lead-quick-date-select {
+    width: 100%;
+    flex-basis: 100%;
+  }
+  .lead-calendar-toolbar {
+    width: 100%;
+  }
+  .lead-calendar-range-button {
+    min-width: 0;
+    flex: 1;
+    padding: 0 0.7rem;
   }
 }
