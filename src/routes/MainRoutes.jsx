@@ -7,7 +7,7 @@ import { ProtectedRoute, GuestRoute, RootRedirect } from 'components/AuthGuard';
 
 const DashboardPage = lazy(() => import('../views/dashboard/DashboardPage'));
 const DashboardSales = lazy(() => import('../views/dashboard/DashSales/index'));
-const DailyLocationWiseSales = lazy(() => import('../views/dashboard/DailyLocationWiseSales'));
+const DailySalesReportPage = lazy(() => import('../views/reports/daily-sales/DailySalesReportPage'));
 const LeadsDashboard = lazy(() => import('../views/dashboard/leads'));
 const ServiceDashboard = lazy(() => import('../views/dashboard/service'));
 const CRMModuleView = lazy(() => import('../views/crm/CRMModuleView'));
@@ -206,7 +206,7 @@ const MainRoutes = {
             },
             {
               path: '/Dashboard/DailyLocationWiseSales',
-              element: <DailyLocationWiseSales />
+              element: <DailySalesReportPage />
             },
             {
               path: '/Dashboard/Leads',
@@ -230,23 +230,23 @@ const MainRoutes = {
             },
             {
               path: '/dashboard/dailylocationwisesales',
-              element: <DailyLocationWiseSales />
+              element: <DailySalesReportPage />
             },
             {
               path: '/DailyLocationWiseSales',
-              element: <DailyLocationWiseSales />
+              element: <DailySalesReportPage />
             },
             {
               path: '/dailylocationwisesales',
-              element: <DailyLocationWiseSales />
+              element: <DailySalesReportPage />
             },
             {
               path: '/Performance/DailySalesReport',
-              element: <DailyLocationWiseSales />
+              element: <DailySalesReportPage />
             },
             {
               path: '/performance/dailysalesreport',
-              element: <DailyLocationWiseSales />
+              element: <DailySalesReportPage />
             },
             // Specific CRM Module Routes
             {

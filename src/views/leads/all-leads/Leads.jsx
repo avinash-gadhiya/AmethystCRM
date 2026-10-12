@@ -206,7 +206,7 @@ function ReportDialog({ report, filters, lookups, onClose }) {
     <Modal
       show={Boolean(config)}
       onHide={onClose}
-      size="xl"
+      size="lg"
       centered
       scrollable
       backdrop
@@ -218,13 +218,14 @@ function ReportDialog({ report, filters, lookups, onClose }) {
     >
       <Modal.Header className="lead-report-modal-header">
         <div className="lead-report-modal-title">
-          <div>
-            <Modal.Title>{config?.label}</Modal.Title>
-            <small>{config?.description}</small>
+          <div className="d-flex align-items-center gap-2">
+            <FileBarChart size={18} className="text-primary flex-shrink-0" />
+            <Modal.Title className="h6 mb-0 fw-bold">{config?.label}</Modal.Title>
           </div>
+          <small>{config?.description}</small>
         </div>
         <button type="button" className="lead-report-close" onClick={onClose} aria-label="Close report" title="Close report">
-          <X size={20} />
+          <X size={16} />
         </button>
       </Modal.Header>
       <Modal.Body>
@@ -235,18 +236,42 @@ function ReportDialog({ report, filters, lookups, onClose }) {
               <strong>{filteredRows.length}</strong> of <strong>{rows.length}</strong> results
             </div>
             <div className="lead-report-control-actions">
-              <button type="button" onClick={exportReport} disabled={!filteredRows.length} aria-label="Export report" title="Export report">
-                <Download size={18} />
+              <div className="lead-report-search">
+                <Search size={14} />
+                <input
+                  type="text"
+                  className="lead-report-search-input"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder={report === 'disposition' ? 'Search disposition…' : 'Search by name…'}
+                  aria-label="Search report"
+                />
+                {search && (
+                  <button type="button" className="lead-report-search-clear" onClick={() => setSearch('')} aria-label="Clear search">
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+              <button
+                type="button"
+                className="lead-report-btn"
+                onClick={exportReport}
+                disabled={!filteredRows.length}
+                aria-label="Export report"
+                title="Export report CSV"
+              >
+                <Download size={14} />
+                <span>Export</span>
               </button>
               <button
                 type="button"
-                className="round"
+                className="lead-report-btn-icon"
                 onClick={() => setRefreshKey((value) => value + 1)}
                 disabled={loading}
                 aria-label="Refresh report"
                 title="Refresh report"
               >
-                <RefreshCw size={18} className={loading ? 'spin' : ''} />
+                <RefreshCw size={14} className={loading ? 'spin' : ''} />
               </button>
             </div>
           </div>
@@ -273,17 +298,6 @@ function ReportDialog({ report, filters, lookups, onClose }) {
                 />
               </>
             )}
-            <div className="lead-report-search">
-              <Search size={17} />
-              <input
-                type="text"
-                className="lead-search-input lead-report-search-input"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder={report === 'disposition' ? 'Search disposition…' : 'Search by name…'}
-                aria-label="Search report"
-              />
-            </div>
             <AnimatedDropdown
               ariaLabel="Report period"
               value={period}
@@ -316,12 +330,12 @@ function ReportDialog({ report, filters, lookups, onClose }) {
           <ErrorState message={error} onRetry={() => setRefreshKey((value) => value + 1)} />
         ) : filteredRows.length === 0 ? (
           <div className="lead-report-empty">
-            <FileBarChart size={30} />
+            <FileBarChart size={28} />
             <strong>No report data found</strong>
             <span>Try changing the active filters or date range.</span>
           </div>
         ) : (
-          <div className="table-responsive lead-report-table-wrap">
+          <div className="lead-report-table-wrap">
             <table className="table align-middle lead-report-table">
               <thead>
                 <tr>

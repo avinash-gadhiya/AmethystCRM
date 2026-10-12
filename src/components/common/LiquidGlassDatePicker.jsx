@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const WEEK_DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
 const toYmd = (date) => {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
@@ -21,12 +22,31 @@ const formatDisplayDate = (ymdStr) => {
   return `${day} ${MONTH_NAMES[monthIdx] || ''} ${year}`.trim();
 };
 
+const fromYmd = (value) => {
+  if (!value) return null;
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const calendarDaysFor = (visibleMonth) => {
+  const firstOfMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1);
+  const firstCell = new Date(firstOfMonth);
+  firstCell.setDate(firstCell.getDate() - firstOfMonth.getDay());
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(firstCell);
+    date.setDate(firstCell.getDate() + index);
+    return date;
+  });
+};
+
 export function LiquidGlassDatePicker({
   className = '',
   initialFromDate = '',
   initialToDate = '',
   emptyLabel = 'This month',
   showQuickDateDropdown = false,
+  calendarMode = false,
   showClearButton = false,
   onChange,
   onClear,
@@ -35,7 +55,12 @@ export function LiquidGlassDatePicker({
   const [fromDate, setFromDate] = useState(initialFromDate);
   const [toDate, setToDate] = useState(initialToDate);
   const [isOpen, setIsOpen] = useState(false);
+  const [visibleMonth, setVisibleMonth] = useState(() => {
+    const initialDate = fromYmd(initialFromDate) || new Date();
+    return new Date(initialDate.getFullYear(), initialDate.getMonth(), 1);
+  });
   const containerRef = useRef(null);
+  const calendarDays = useMemo(() => calendarDaysFor(visibleMonth), [visibleMonth]);
 
   useEffect(() => {
     setFromDate(initialFromDate);
@@ -87,6 +112,12 @@ export function LiquidGlassDatePicker({
 
   const handleApply = (e) => {
     e?.preventDefault();
+    if (calendarMode && fromDate && !toDate) {
+      setToDate(fromDate);
+      onChange?.(fromDate, fromDate);
+      setIsOpen(false);
+      return;
+    }
     if (fromDate && toDate && fromDate > toDate) {
       // swap if inverted
       onChange?.(toDate, fromDate);
@@ -96,6 +127,34 @@ export function LiquidGlassDatePicker({
       onChange?.(fromDate, toDate);
     }
     setIsOpen(false);
+  };
+
+  const togglePicker = () => {
+    if (!isOpen) {
+      setFromDate(initialFromDate);
+      setToDate(initialToDate);
+      const selectedDate = fromYmd(initialFromDate) || new Date();
+      setVisibleMonth(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
+    }
+    setIsOpen((open) => !open);
+  };
+
+  const selectCalendarDate = (date) => {
+    const selected = toYmd(date);
+
+    if (!fromDate || toDate) {
+      setFromDate(selected);
+      setToDate('');
+      return;
+    }
+
+    if (selected < fromDate) {
+      setToDate(fromDate);
+      setFromDate(selected);
+      return;
+    }
+
+    setToDate(selected);
   };
 
   const formatDateLabel = () => {
@@ -120,7 +179,7 @@ export function LiquidGlassDatePicker({
       {/* Pill button */}
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={togglePicker}
         className={`inline-flex items-center justify-between gap-2 px-3 py-1.5 h-8 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 shadow-sm transition-colors min-w-0 max-w-full flex-1 ${
           stretch ? 'justify-start' : 'justify-center sm:flex-none'
         }`}
@@ -170,7 +229,94 @@ export function LiquidGlassDatePicker({
       )}
 
       {/* Date Picker Popover */}
-      {isOpen && (
+      {isOpen && calendarMode && (
+        <div className="absolute right-0 top-full z-50 mt-1.5 w-[19rem] rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+          <div className="mb-2 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setVisibleMonth((month) => new Date(month.getFullYear(), month.getMonth() - 1, 1))}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+              aria-label="Previous month"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <strong className="text-xs font-semibold text-slate-900 dark:text-white">
+              {visibleMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            </strong>
+            <button
+              type="button"
+              onClick={() => setVisibleMonth((month) => new Date(month.getFullYear(), month.getMonth() + 1, 1))}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+              aria-label="Next month"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-7 gap-0.5" aria-label="Choose a date range">
+            {WEEK_DAYS.map((day) => (
+              <span key={day} className="flex h-7 items-center justify-center text-[10px] font-bold text-slate-400">
+                {day}
+              </span>
+            ))}
+            {calendarDays.map((date) => {
+              const value = toYmd(date);
+              const isCurrentMonth = date.getMonth() === visibleMonth.getMonth();
+              const isRangeStart = value === fromDate;
+              const isRangeEnd = value === toDate;
+              const isInRange = Boolean(fromDate && toDate && value > fromDate && value < toDate);
+              const isToday = value === toYmd(new Date());
+
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => selectCalendarDate(date)}
+                  className={`relative flex h-8 items-center justify-center rounded-lg text-[11px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                    isRangeStart || isRangeEnd
+                      ? 'bg-indigo-600 text-white shadow-sm hover:bg-indigo-700'
+                      : isInRange
+                        ? 'rounded-none bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:text-indigo-200'
+                        : isCurrentMonth
+                          ? 'text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800'
+                          : 'text-slate-300 hover:bg-slate-50 dark:text-slate-600 dark:hover:bg-slate-800/60'
+                  }`}
+                  aria-label={date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                  aria-pressed={isRangeStart || isRangeEnd}
+                >
+                  {date.getDate()}
+                  {isToday && !isRangeStart && !isRangeEnd && <span className="absolute bottom-0.5 h-1 w-1 rounded-full bg-indigo-500" />}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+            <span className="min-w-0 truncate text-[10px] font-medium text-slate-500 dark:text-slate-400">
+              {fromDate ? `${formatDisplayDate(fromDate)}${toDate ? ` - ${formatDisplayDate(toDate)}` : ' - Select end date'}` : 'Select start date'}
+            </span>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleApply}
+                disabled={!fromDate}
+                className="rounded-lg bg-indigo-600 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isOpen && !calendarMode && (
         <div className="absolute right-0 top-full z-50 mt-1.5 w-72 rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
           <div className="text-xs font-semibold text-slate-800 mb-3">Custom Date Range</div>
           <form onSubmit={handleApply} className="space-y-3">
