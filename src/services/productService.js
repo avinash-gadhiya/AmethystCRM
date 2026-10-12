@@ -94,12 +94,9 @@ export const productService = {
     });
   },
 
-  // DELETE /api/Product?id={id}
+  // DELETE /api/Product/{id}
   async deleteProduct(id) {
-    return request('/Product', {
-      method: 'DELETE',
-      params: { id }
-    });
+    return request(`/Product/${encodeURIComponent(id)}`, { method: 'DELETE' });
   },
 
   // GET /api/Product/ProductDropdown

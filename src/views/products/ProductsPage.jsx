@@ -3,6 +3,7 @@ import { Alert, Badge, Button, Card, Col, Form, InputGroup, Modal, Row, Spinner,
 import {
   CheckCircle2,
   DollarSign,
+  Eye,
   Grid,
   Image as ImageIcon,
   Layers,
@@ -20,6 +21,7 @@ import {
 import productService from 'services/productService';
 import authService from 'services/authService';
 import AnchorPagination from '@/components/common/AnchorPagination';
+import DeleteConfirmModal from '@/components/common/DeleteConfirmModal';
 import { resolveConfiguredPagePermissions } from '@/utils/configuredPagePermissions';
 
 const PAGE_SIZES = [10, 25, 50, 100];
@@ -95,7 +97,7 @@ export default function ProductsPage() {
   const [searchText, setSearchText] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [viewMode, setViewMode] = useState('table'); // 'table' | 'grid'
+  const [viewMode, setViewMode] = useState('grid'); // 'table' | 'grid'
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
@@ -105,6 +107,9 @@ export default function ProductsPage() {
   const [showEditorModal, setShowEditorModal] = useState(false);
   const [editorForm, setEditorForm] = useState(EMPTY_PRODUCT_FORM);
   const [saving, setSaving] = useState(false);
+  const [viewProduct, setViewProduct] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Load Products
   const loadProducts = useCallback(
@@ -253,15 +258,19 @@ export default function ProductsPage() {
     }
   };
 
-  const handleDeleteProduct = async (product) => {
+  const handleDeleteProduct = async () => {
     if (!permissions.canDelete) return;
-    if (!window.confirm(`Are you sure you want to delete product “${product.name}”?`)) return;
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await productService.deleteProduct(product.productId);
-      setSuccess(`Product “${product.name}” deleted successfully.`);
+      await productService.deleteProduct(deleteTarget.productId);
+      setSuccess(`Product “${deleteTarget.name}” deleted successfully.`);
+      setDeleteTarget(null);
       setRefreshKey((k) => k + 1);
     } catch (err) {
       setError(err.message || 'Failed to delete product.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -344,8 +353,8 @@ export default function ProductsPage() {
         <Card.Header className="bg-transparent py-3 border-bottom">
           <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
             <div>
-              <h5 className="mb-1 fw-bold text-gray-800">Product Catalog</h5>
-              <span className="text-muted small">Manage items, pricing, service packages, and digital subscriptions</span>
+              <h5 className="mb-1 fw-bold text-gray-800">Products</h5>
+              <span className="text-muted small">Browse available products like an e-commerce catalog.</span>
             </div>
             <div className="d-flex align-items-center gap-2">
               <Badge bg="light" text="dark" className="border px-3 py-2">
@@ -546,6 +555,15 @@ export default function ProductsPage() {
 
                       {/* Actions */}
                       <td className="text-center text-nowrap">
+                        <Button
+                          size="sm"
+                          variant="outline-info"
+                          className="me-1.5 p-1"
+                          onClick={() => setViewProduct(prod)}
+                          title="View Product"
+                        >
+                          <Eye size={14} />
+                        </Button>
                         {permissions.canUpdate && <Button
                           size="sm"
                           variant="outline-primary"
@@ -559,7 +577,7 @@ export default function ProductsPage() {
                           size="sm"
                           variant="outline-danger"
                           className="p-1"
-                          onClick={() => handleDeleteProduct(prod)}
+                          onClick={() => setDeleteTarget(prod)}
                           title="Delete Product"
                         >
                           <Trash2 size={14} />
@@ -617,6 +635,15 @@ export default function ProductsPage() {
                             {formatCurrency(prod.price)}
                           </span>
                           <div className="d-flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline-info"
+                              className="p-1"
+                              onClick={() => setViewProduct(prod)}
+                              title="View Product"
+                            >
+                              <Eye size={13} />
+                            </Button>
                             {permissions.canUpdate && <Button
                               size="sm"
                               variant="outline-primary"
@@ -630,7 +657,7 @@ export default function ProductsPage() {
                               size="sm"
                               variant="outline-danger"
                               className="p-1"
-                              onClick={() => handleDeleteProduct(prod)}
+                              onClick={() => setDeleteTarget(prod)}
                               title="Delete Product"
                             >
                               <Trash2 size={13} />
@@ -764,6 +791,46 @@ export default function ProductsPage() {
           </Modal.Footer>
         </Form>
       </Modal>
+
+      <Modal show={Boolean(viewProduct)} onHide={() => setViewProduct(null)} centered>
+        <Modal.Header closeButton className="bg-light border-bottom">
+          <Modal.Title className="h5 mb-0">Product Details</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-4">
+          {viewProduct && (
+            <div className="d-grid gap-3">
+              <div className="d-flex align-items-center gap-3">
+                <div className="w-16 h-16 rounded-3 bg-light border d-flex align-items-center justify-content-center overflow-hidden">
+                  {viewProduct.photo ? (
+                    <img src={viewProduct.photo} alt={viewProduct.name} className="w-100 h-100 object-fit-cover" />
+                  ) : (
+                    <span className="fw-bold text-primary fs-4">{String(viewProduct.name || 'P').charAt(0).toUpperCase()}</span>
+                  )}
+                </div>
+                <div>
+                  <h5 className="mb-1">{viewProduct.name}</h5>
+                  <Badge bg={viewProduct.isActive !== false ? 'success' : 'secondary'}>
+                    {viewProduct.isActive !== false ? 'Active' : 'Unavailable'}
+                  </Badge>
+                </div>
+              </div>
+              <div className="rounded-3 border bg-light p-3"><div className="small text-muted">Product Type</div><strong>{viewProduct.productType || 'Service'}</strong></div>
+              <div className="rounded-3 border bg-light p-3"><div className="small text-muted">Price</div><strong>{formatCurrency(viewProduct.price)}</strong></div>
+              <div className="rounded-3 border bg-light p-3"><div className="small text-muted">Description</div><div>{viewProduct.description || 'No description provided.'}</div></div>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer><Button variant="outline-secondary" onClick={() => setViewProduct(null)}>Close</Button></Modal.Footer>
+      </Modal>
+
+      <DeleteConfirmModal
+        open={Boolean(deleteTarget)}
+        title="Delete product"
+        itemName={deleteTarget?.name}
+        loading={deleting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleDeleteProduct}
+      />
     </div>
   );
 }

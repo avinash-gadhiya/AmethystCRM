@@ -145,7 +145,7 @@ export const settingService = {
   },
 
   // POST /Setting
-  async createSetting({ settingId = 0, settingName, settingKey, isActive = true, settingValueDTOs = [] }) {
+  async createSetting({ settingName, settingKey, isActive = true, settingValueDTOs = [] }) {
     const API_URL = getApiBaseUrl();
     const payload = {
       settingId: 0,
@@ -243,7 +243,7 @@ export const settingService = {
   },
 
   // POST /SettingValue
-  async createSettingValue({ settingValueId = 0, settingId, settingValueText, isActive = true }) {
+  async createSettingValue({ settingId, settingValueText, isActive = true }) {
     const API_URL = getApiBaseUrl();
     const payload = {
       settingValueId: 0,

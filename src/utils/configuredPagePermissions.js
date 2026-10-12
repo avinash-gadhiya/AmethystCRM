@@ -39,6 +39,7 @@ const PAGE_ALIASES = {
   customer: ['/customers', '/customer', 'customers', 'customer'],
   ticket: ['/tickets', '/ticket', 'tickets', 'ticket'],
   product: ['/orders/products', '/products', '/product', 'products', 'product'],
+  payment: ['/orders/payments', '/payments', '/payment', 'payments', 'payment'],
   order: ['/orders', '/order', 'orders', 'order']
 };
 

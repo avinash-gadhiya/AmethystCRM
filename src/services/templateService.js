@@ -18,7 +18,9 @@ export const getCurrentUserId = () => {
       const val = localStorage.getItem(key);
       const num = Number(val);
       if (num && num > 0) return num;
-    } catch {}
+    } catch {
+      continue;
+    }
   }
 
   try {
@@ -28,7 +30,9 @@ export const getCurrentUserId = () => {
       const num = Number(u.userId || u.id || u.userID);
       if (num && num > 0) return num;
     }
-  } catch {}
+  } catch {
+    return 1;
+  }
 
   return 1;
 };
@@ -299,7 +303,7 @@ export const templateService = {
             }
           }
         }
-      } catch (err) {
+      } catch {
         // Continue checking candidates
       }
     }

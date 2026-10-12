@@ -1,57 +1,11 @@
-import authService from './authService';
-
-const API_BASE_URL = (import.meta.env.VITE_APP_API_URL || 'https://demoapi.enstasol.com/api').replace(/\/$/, '');
-
-const buildQuery = (params = {}) => {
-  const query = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value === '' || value === null || value === undefined) return;
-    query.set(key, String(value));
-  });
-  return query.toString();
-};
-
-const request = async (path, { method = 'GET', params, data, signal } = {}) => {
-  const token = authService.getToken();
-  if (!token) throw new Error('Your session has expired. Please sign in again.');
-
-  const query = buildQuery(params);
-  const headers = {
-    Accept: 'application/json',
-    Authorization: `Bearer ${token}`
-  };
-  if (data !== undefined) headers['Content-Type'] = 'application/json';
-
-  const response = await fetch(`${API_BASE_URL}${path}${query ? `?${query}` : ''}`, {
-    method,
-    headers,
-    body: data === undefined ? undefined : JSON.stringify(data),
-    signal
-  });
-
-  if (response.status === 204) return { success: true };
-
-  let payload;
-  try {
-    payload = await response.json();
-  } catch {
-    if (response.ok) return { success: true };
-    throw new Error(`Order API returned an invalid response (${response.status}).`);
-  }
-
-  if (!response.ok || payload?.success === false) {
-    const validationMessage = payload?.errors ? Object.values(payload.errors).flat().join(', ') : '';
-    throw new Error(payload?.message || payload?.error || validationMessage || `Order request failed (${response.status}).`);
-  }
-
-  return payload;
-};
+import apiClient from './core/apiClient';
 
 const normalizeList = (payload) => {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.data)) return payload.data;
   if (Array.isArray(payload?.items)) return payload.items;
   if (Array.isArray(payload?.data?.items)) return payload.data.items;
+  if (Array.isArray(payload?.data?.data)) return payload.data.data;
   if (Array.isArray(payload?.result)) return payload.result;
   return [];
 };
@@ -61,80 +15,68 @@ const normalizeSummary = (payload) => {
   return payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data) ? payload.data : payload;
 };
 
-export const orderService = {
-  // GET /api/Order
-  async getOrders(params = {}, signal) {
-    const payload = await request('/Order', {
-      params: {
-        SearchField: params.SearchField || '',
-        Text: params.Text || '',
-        fromDate: params.fromDate || '',
-        toDate: params.toDate || '',
-        CustomerId: params.CustomerId || '',
+const orderQuery = (params = {}, includePaging = true) => ({
+  SearchField: params.SearchField || '',
+  Text: params.Text || '',
+  Date: params.Date || '',
+  FromDate: params.FromDate ?? params.fromDate ?? '',
+  ToDate: params.ToDate ?? params.toDate ?? '',
+  ...(includePaging
+    ? {
         PageNumber: params.PageNumber || 1,
         PageSize: params.PageSize || 10,
         SortProperty: params.SortProperty || 'orderId',
-        IsDescending: params.IsDescending ?? true
-      },
-      signal
-    });
+        IsDescending: params.IsDescending ?? false
+      }
+    : {})
+});
 
+export const orderService = {
+  async getOrders(params = {}, signal) {
+    const payload = await apiClient.get('/Order', orderQuery(params), signal);
     const data = normalizeList(payload);
-    const totalCount = Number(payload?.totalCount ?? payload?.totalRecords ?? data.length) || 0;
-
     return {
       data,
-      totalCount,
+      totalCount: Number(payload?.totalCount ?? payload?.data?.totalCount ?? payload?.totalRecords ?? data.length) || 0,
       raw: payload
     };
   },
 
-  // POST /api/Order
   async createOrder(orderDTO) {
-    return request('/Order', {
-      method: 'POST',
-      data: orderDTO
+    const payload = { ...(orderDTO || {}) };
+    delete payload.payments;
+    return apiClient.post('/Order', {
+      ...payload,
+      payment: payload.payment || {},
+      sharePayments: Array.isArray(payload.sharePayments) ? payload.sharePayments : []
     });
   },
 
-  // PUT /api/Order
   async updateOrder(editOrderDTO) {
-    return request('/Order', {
-      method: 'PUT',
-      data: editOrderDTO
-    });
+    return apiClient.put('/Order', editOrderDTO);
   },
 
-  // DELETE /api/Order?id={id}
   async deleteOrder(id) {
-    return request('/Order', {
-      method: 'DELETE',
-      params: { id }
-    });
+    return apiClient.delete('/Order', { id });
   },
 
-  // GET /api/Order/GetCustomerOrders
   async getCustomerOrders(customerId, ip = '127.0.0.1', signal) {
-    const payload = await request('/Order/GetCustomerOrders', {
-      params: { customerId, ip },
-      signal
-    });
-    return normalizeList(payload);
+    return normalizeList(await apiClient.get('/Order/GetCustomerOrders', { customerId, ip }, signal));
   },
 
-  // GET /api/Order/GetOrderSummary
-  async getOrderSummary(fromDate = '', toDate = '', signal) {
-    const payload = await request('/Order/GetOrderSummary', {
-      params: { fromDate, toDate },
-      signal
-    });
-    return normalizeSummary(payload);
+  async getOrderSummary(params = {}, toDateOrSignal, maybeSignal) {
+    let query = params;
+    let signal = toDateOrSignal;
+    if (typeof params === 'string') {
+      query = { FromDate: params, ToDate: typeof toDateOrSignal === 'string' ? toDateOrSignal : '' };
+      signal = typeof toDateOrSignal === 'string' ? maybeSignal : toDateOrSignal;
+    }
+    return normalizeSummary(await apiClient.get('/Order/GetOrderSummary', orderQuery(query, false), signal));
   },
 
-  // GET /api/Order/{id}
   async getOrderById(id, signal) {
     if (!id) throw new Error('Order ID is required.');
-    const payload = await request(`/Order/${encodeURIComponent(id)}`, { signal });
+    const payload = await apiClient.get(`/Order/${encodeURIComponent(id)}`, undefined, signal);
     return payload?.data ?? payload;
   }
 };

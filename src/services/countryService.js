@@ -97,7 +97,7 @@ export const countryService = {
   },
 
   // POST /Country
-  async createCountry({ countryId = 0, countryName }) {
+  async createCountry({ countryName }) {
     const API_URL = getApiBaseUrl();
     const trimmedName = String(countryName || '').trim();
     const payload = {
@@ -205,7 +205,7 @@ export const countryService = {
   },
 
   // POST /State
-  async createState({ stateId = 0, stateName, countryId, countryName = '' }) {
+  async createState({ stateName, countryId, countryName = '' }) {
     const API_URL = getApiBaseUrl();
     const numCountryId = Number(countryId);
     const resolvedCountryName =

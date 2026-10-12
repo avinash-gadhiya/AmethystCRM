@@ -36,7 +36,9 @@ const LocationPage = lazy(() => import('../views/settings/location/LocationPage'
 const SalesTargetPage = lazy(() => import('../views/settings/sales-target/SalesTargetPage'));
 const MyProfilePage = lazy(() => import('../views/users/MyProfilePage'));
 const OrdersPage = lazy(() => import('../views/orders/OrdersPage'));
+const CreateOrderPage = lazy(() => import('../views/orders/CreateOrderPage'));
 const ProductsPage = lazy(() => import('../views/products/ProductsPage'));
+const PaymentsPage = lazy(() => import('../views/payments/PaymentsPage'));
 const LeadsPage = lazy(() => import('../views/leads/leadpage/LeadsPage'));
 
 const isConfiguredLocationPath = (pathname) => {
@@ -385,21 +387,33 @@ const MainRoutes = {
             // Payments routes
             {
               path: '/Orders/Payments',
-              element: <CRMModuleView moduleName="Payments" />
+              element: <PaymentsPage />
             },
             {
               path: '/orders/payments',
-              element: <CRMModuleView moduleName="Payments" />
+              element: <PaymentsPage />
             },
             {
               path: '/Payments',
-              element: <CRMModuleView moduleName="Payments" />
+              element: <PaymentsPage />
             },
             {
               path: '/payments',
-              element: <CRMModuleView moduleName="Payments" />
+              element: <PaymentsPage />
             },
             // Orders routes
+            {
+              path: '/Orders/CreateOrder',
+              element: <CreateOrderPage />
+            },
+            {
+              path: '/orders/createorder',
+              element: <CreateOrderPage />
+            },
+            {
+              path: '/Order/CreateOrder',
+              element: <CreateOrderPage />
+            },
             {
               path: '/Orders',
               element: <OrdersPage />

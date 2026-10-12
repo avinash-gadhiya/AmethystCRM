@@ -62,7 +62,7 @@ export const blockIpService = {
   },
 
   // POST /BlockIp
-  async createBlockedIp({ id = 0, ip }) {
+  async createBlockedIp({ ip }) {
     const API_URL = getApiBaseUrl();
     const payload = {
       id: 0,
