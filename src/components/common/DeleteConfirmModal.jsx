@@ -27,8 +27,8 @@ const DeleteConfirmModal = ({
   if (!isVisible) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-[#17132a] rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-white/10">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-slate-950/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="my-auto bg-white dark:bg-[#17132a] rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-white/10 animate-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 bg-white/95 dark:bg-[#1d1733] backdrop-blur">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
           <GlassCloseButton onClick={handleCancel} disabled={isLoading} />

@@ -4368,8 +4368,8 @@ const OrdersTable = () => {
 
                 {paymentModalOpen && (
                     <ModalPortal>
-                        <div className="orders-table-modal fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-                            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-4xl h-[90vh] overflow-hidden flex flex-col border border-gray-200 dark:border-slate-700">
+                        <div className="orders-table-modal fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-slate-950/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                            <div className="my-auto bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col border border-gray-200 dark:border-slate-700 animate-in zoom-in-95 duration-200">
                                 <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur">
                                     <div className="min-w-0">
                                         <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 truncate">
@@ -4883,8 +4883,8 @@ const OrdersTable = () => {
 
                 {refundModalOpen && (
                     <ModalPortal>
-                        <div className="orders-table-modal fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-                            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col border border-gray-200 dark:border-slate-700">
+                        <div className="orders-table-modal fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-slate-950/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                            <div className="my-auto bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col border border-gray-200 dark:border-slate-700 animate-in zoom-in-95 duration-200">
                                 <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between bg-white/95 dark:bg-slate-900/95 backdrop-blur">
                                     <div className="min-w-0">
                                         <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 truncate">Refund</h3>
@@ -5047,8 +5047,8 @@ const OrdersTable = () => {
 
                 {mailSuccessModal.open && (
                     <ModalPortal>
-                        <div className="orders-table-modal fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-sm p-4">
-                            <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-emerald-100 dark:border-emerald-500/30 px-6 py-6 text-center">
+                        <div className="orders-table-modal fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-slate-950/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                            <div className="my-auto w-full max-w-md rounded-2xl sm:rounded-3xl bg-white shadow-2xl border border-emerald-100 dark:border-emerald-500/30 px-6 py-6 text-center animate-in zoom-in-95 duration-200">
                                 <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-500/15">
                                     <CheckCircle2 size={30} className="text-emerald-600" />
                                 </div>

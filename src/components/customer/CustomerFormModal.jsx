@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
-import { Check, ChevronsUpDown, RefreshCw, Search } from 'lucide-react';
+import { Check, ChevronsUpDown, RefreshCw, Search, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LiquidGlassButton from '@/components/ui/LiquidGlassButton';
 import GlassCloseButton from '@/components/common/GlassCloseButton';
@@ -9,15 +9,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { IosToggle } from '@/components/ui/ios-toggle';
-import { customerService, countryService, stateService } from '@/services';
+import { customerService, countryService, userService } from '@/services';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { serializeQueryParams } from '@/lib/queryParams';
-import { fetchSalesPersonList, isCurrentUserSalesAgent } from '@/lib/salesRoles';
+import { getAuthHeaders } from '@/services/http';
 import UsPhoneInput from '@/components/common/UsPhoneInput';
 import SelectSearchInput from '@/components/common/SelectSearchInput';
-import UserOptionBadges from '@/components/common/UserOptionBadges';
+import UserOptionBadges, { getUserBadgeSearchText } from '@/components/common/UserOptionBadges';
 import { normalizeDigits, validateOptionalUsPhone, validateUsPhone } from '@/lib/usPhone';
 
 const API_URL = import.meta.env.VITE_APP_API_URL;
@@ -313,19 +313,18 @@ export default function CustomerFormModal({
   mode = 'add',
   initialValues,
   defaultSalesPersonId,
-  // A Sales Agent owns only their own customers, so the picker is shown but
-  // disabled and they are assigned automatically. Everyone else (admins, Sales
-  // Managers) still chooses. A caller can override this either way.
-  canPickSalesPerson = !isCurrentUserSalesAgent(),
+  canPickSalesPerson = true,
   title,
   onSaved,
-  overlayZIndex = 70,
+  overlayZIndex = 9999,
 }) {
   const [formData, setFormData] = useState(emptyForm);
   const [formErrors, setFormErrors] = useState({});
   const [showValidationErrors, setShowValidationErrors] = useState(false);
 
   const [salesPersons, setSalesPersons] = useState([]);
+  const [salesPersonsLoading, setSalesPersonsLoading] = useState(false);
+  const [salesPersonSearchText, setSalesPersonSearchText] = useState('');
   const [states, setStates] = useState([]);
   const [countries, setCountries] = useState([]);
 
@@ -386,10 +385,17 @@ export default function CustomerFormModal({
   const zipKind = useMemo(() => getZipKind(formData.countryName), [formData.countryName]);
 
   const fetchLeads = useCallback(async (text = '') => {
+    const query = String(text || '').trim();
+    if (query.length < 2) {
+      setLeads([]);
+      setLeadsLoading(false);
+      return;
+    }
+
     try {
       setLeadsLoading(true);
-      const params = { searchText: text || '', pageNumber: 1, pageSize: 500 };
-      const response = await axios.get(`${API_URL}/Lead/search`, { params });
+      const params = { searchText: query, pageNumber: 1, pageSize: 100 };
+      const response = await axios.get(`${API_URL}/Lead/search`, { params, headers: getAuthHeaders() });
       setLeads(response.data?.data || []);
     } catch (error) {
       console.error('Failed to load leads:', error);
@@ -607,7 +613,7 @@ export default function CustomerFormModal({
   const rebuildLeadIndex = useCallback(async () => {
     try {
       setLeadsRebuilding(true);
-      await axios.post(`${API_URL}/Lead/index/rebuild`);
+      await axios.post(`${API_URL}/Lead/index/rebuild`, null, { headers: getAuthHeaders() });
       await fetchLeads(leadSearch);
       toast.success('Leads refreshed');
     } catch (error) {
@@ -617,23 +623,36 @@ export default function CustomerFormModal({
     }
   }, [fetchLeads, leadSearch]);
 
-  // Sales Manager + Sales Agent only.
-  //
-  // Deliberately NOT gated on `open`. Loading this with the modal meant the very
-  // first open on a fresh page render had an empty list while the request was in
-  // flight, so the Sales Person field came up on its placeholder; closing and
-  // reopening worked only because the list had arrived by then. Mounting the
-  // fetch here means it is already in hand before the modal is ever opened, and
-  // `fetchSalesPersonList` caches per session so this costs one request.
+  // This picker intentionally uses the general active-user dropdown. Customer
+  // assignment is not restricted to the Sales Agent / Sales Manager role list.
   useEffect(() => {
     let active = true;
 
-    fetchSalesPersonList({ pageSize: 200 })
-      .then((salesUsers) => {
-        if (active) setSalesPersons(salesUsers);
+    setSalesPersonsLoading(true);
+    userService.getUserDropDown({ isActive: true, PageNumber: 1, PageSize: 1000 })
+      .then((users) => {
+        if (!active) return;
+        setSalesPersons(
+          (Array.isArray(users) ? users : [])
+            .map((user) => ({
+              ...user,
+              userId: Number(user?.userId ?? user?.UserId ?? user?.id ?? user?.Id) || 0,
+              firstName: String(user?.firstName ?? user?.FirstName ?? '').trim(),
+              lastName: String(user?.lastName ?? user?.LastName ?? '').trim(),
+              userName: String(user?.userName ?? user?.UserName ?? user?.username ?? '').trim(),
+              fullName:
+                String(user?.fullName ?? user?.FullName ?? user?.name ?? user?.Name ?? '').trim()
+                || [user?.firstName ?? user?.FirstName, user?.lastName ?? user?.LastName].filter(Boolean).join(' '),
+            }))
+            .filter((user) => user.userId > 0),
+        );
       })
       .catch((error) => {
-        console.error('Failed to load sales persons:', error);
+        console.error('Failed to load users for Sales Person:', error);
+        if (active) setSalesPersons([]);
+      })
+      .finally(() => {
+        if (active) setSalesPersonsLoading(false);
       });
 
     return () => {
@@ -641,26 +660,25 @@ export default function CustomerFormModal({
     };
   }, []);
 
-  // States and countries, on mount for the same reason as the sales-person list
-  // above: the State field cannot render a saved value until the states are in,
-  // so fetching them with the modal left it on "Select State" for the whole
-  // first open and only looked right from the second open onwards.
+  // Resolve USA through the Country API, then use its real id for the
+  // country-scoped State API. The UI and payload consistently use "USA" even
+  // when an environment stores the matching country row as "america".
   useEffect(() => {
     let active = true;
 
     const loadLookups = async () => {
       try {
-        const [statesResult, countriesResult] = await Promise.all([
-          // Every state of every country shares this table, so 200 could page
-          // the customer's own state out of the list - which then read as "this
-          // state doesn't exist" and silently blanked the field.
-          stateService.getStates({ PageNumber: 1, PageSize: 1000, SortProperty: 'stateId', IsDescending: false }),
-          countryService.getCountryDropdown(),
-        ]);
+        const countriesResult = await countryService.getCountryDropdown();
+        const countryRows = countriesResult.data || [];
+        const usa = findUsaCountry(countryRows);
+        const usaId = getCountryIdValue(usa);
+        const stateRows = usaId
+          ? await countryService.getStates({ CountryId: usaId, PageNumber: 1, PageSize: 1000, countryName: 'USA' })
+          : [];
 
         if (!active) return;
-        setStates(statesResult.data || []);
-        setCountries(countriesResult.data || []);
+        setCountries(countryRows);
+        setStates(Array.isArray(stateRows) ? stateRows : []);
       } catch (error) {
         console.error('Failed to load customer lookups:', error);
       }
@@ -708,6 +726,7 @@ export default function CustomerFormModal({
     setFormErrors({});
     setShowValidationErrors(false);
     setLeadSearch('');
+    setSalesPersonSearchText('');
     setLeadPickerOpen(false);
 
     setAddressSearch('');
@@ -715,7 +734,6 @@ export default function CustomerFormModal({
     setAddressResults([]);
     addressSessionTokenRef.current = '';
 
-    fetchLeads('');
   }, [open, initialValues, mode, defaultSalesPersonId, canPickSalesPerson, fetchLeads]);
 
   // Country is fixed to USA. Split out of the seeding effect above so it no
@@ -729,7 +747,7 @@ export default function CustomerFormModal({
     if (!usa) return;
 
     const usaId = getCountryIdValue(usa);
-    const usaName = usa.countryName || 'USA';
+    const usaName = 'USA';
 
     setFormData((prev) => {
       const currentStateId = Number(prev.stateId) || 0;
@@ -784,6 +802,21 @@ export default function CustomerFormModal({
     const name = String(formData.salesPersonName || '').trim();
     return [{ userId: id, name: name || `User ${id}` }, ...list];
   }, [salesPersons, formData.salesPerson, formData.salesPersonName]);
+
+  const visibleSalesPersonOptions = useMemo(() => {
+    const query = String(salesPersonSearchText || '').trim().toLowerCase();
+    if (!query) return salesPersonOptions;
+
+    return salesPersonOptions.filter((user) => {
+      const displayName =
+        [user?.firstName, user?.lastName].filter(Boolean).join(' ')
+        || user?.name
+        || user?.fullName
+        || user?.userName
+        || '';
+      return String(displayName).toLowerCase().includes(query) || getUserBadgeSearchText(user).includes(query);
+    });
+  }, [salesPersonOptions, salesPersonSearchText]);
 
   // With the picker locked, no selection ever fills the display name - resolve
   // it from the user list once that has loaded, so the disabled field shows a
@@ -867,7 +900,7 @@ export default function CustomerFormModal({
       setFormData((prev) =>
         Number(prev.countryId) > 0
           ? prev
-          : { ...prev, countryId: usaId, countryName: usa.countryName || prev.countryName || 'USA' },
+          : { ...prev, countryId: usaId, countryName: 'USA' },
       );
       return true;
     };
@@ -1033,33 +1066,48 @@ export default function CustomerFormModal({
     bodyEl?.getAttribute('data-theme-mode') ||
     (isDarkClass ? 'dark' : null);
   const modalRootClass = isDarkClass || themeMode === 'dark' ? 'dark' : undefined;
+  const modalInputClass =
+    'h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 shadow-xs outline-none transition-all placeholder:text-slate-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500';
 
   return createPortal(
     <div
       data-modal-root="true"
       data-theme-mode={themeMode || undefined}
-      className={cn('fixed inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4', modalRootClass)}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="customer-form-modal-title"
+      className={cn('fixed inset-0 flex items-center justify-center overflow-y-auto bg-slate-950/60 p-3 sm:p-6 backdrop-blur-sm animate-in fade-in duration-200', modalRootClass)}
       style={{ zIndex: overlayZIndex }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onOpenChange?.(false);
+      }}
     >
       <div
         data-modal-surface="true"
-        className="customer-form-modal bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-slate-700"
+        className="customer-form-modal relative my-auto flex w-full max-w-4xl max-h-[calc(100dvh-2.5rem)] flex-col overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-200/80 bg-white shadow-[0_25px_70px_-15px_rgba(15,23,42,0.35)] dark:border-white/10 dark:bg-[#141122] animate-in zoom-in-95 duration-200"
         style={{ zIndex: contentZ }}
+        onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">{modalTitle}</h3>
-            <p className="text-sm text-gray-500 dark:text-slate-400">Provide customer details below.</p>
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-200/80 bg-gradient-to-r from-violet-50/70 via-white to-indigo-50/50 px-5 py-4 dark:border-white/10 dark:from-violet-500/10 dark:via-[#141122] dark:to-indigo-500/10 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-md shadow-violet-500/25">
+              <UserPlus size={20} aria-hidden="true" />
+            </div>
+            <div className="min-w-0">
+              <h3 id="customer-form-modal-title" className="truncate text-lg font-bold tracking-tight text-slate-900 dark:text-white">{modalTitle}</h3>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Provide customer details below.</p>
+            </div>
           </div>
-          <GlassCloseButton onClick={() => onOpenChange(false)} />
+          <GlassCloseButton onClick={() => onOpenChange(false)} className="ml-4 shrink-0 !h-9 !w-9 !rounded-xl dark:!border-white/10 dark:!bg-white/5 dark:!text-slate-300" />
         </div>
 
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 overflow-y-auto max-h-[calc(90vh-140px)]">
-          {showValidationErrors && Object.keys(formErrors).length > 0 && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">Please fix the highlighted fields.</div>
-          )}
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto bg-slate-50/40 p-4 dark:bg-black/10 sm:p-6">
+            {showValidationErrors && Object.keys(formErrors).length > 0 && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">Please fix the highlighted fields.</div>
+            )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-x-5 gap-y-4 md:grid-cols-2">
             <div>
               <div className="flex items-center justify-between gap-2 mb-1">
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">Search Lead</label>
@@ -1068,7 +1116,7 @@ export default function CustomerFormModal({
                   onClick={rebuildLeadIndex}
                   disabled={leadsLoading || leadsRebuilding}
                   className={cn(
-                    'inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md border border-gray-300 bg-white hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600',
+                    'inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 shadow-xs transition-all',
                     (leadsLoading || leadsRebuilding) && 'opacity-60 cursor-not-allowed',
                   )}
                   title="Refresh leads"
@@ -1077,79 +1125,92 @@ export default function CustomerFormModal({
                   Refresh
                 </button>
               </div>
-              <Popover open={leadPickerOpen} onOpenChange={setLeadPickerOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={leadPickerOpen}
-                    className={cn(
-                      'customer-form-field w-full justify-between',
-                      !formData.leadId && 'text-muted-foreground',
-                      showValidationErrors && formErrors.leadId && 'border-red-500 focus-visible:ring-red-500',
-                    )}
-                    disabled={leadsLoading}
-                    data-field="leadId"
-                  >
-                    {(() => {
-                      const selected = (leads || []).find((l) => Number(l.leadId) === Number(formData.leadId));
-                      const selectedName = selected?.leadName || selected?.name || selected?.customerName || '';
-                      return formData.leadId
-                        ? `${formData.leadId}${selectedName ? ` - ${selectedName}` : ''}`
-                        : leadsLoading
-                        ? 'Loading leads...'
-                        : 'Select Lead';
-                    })()}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start" style={{ zIndex: popupZ }}>
-                  <Command>
-                    <CommandInput placeholder="Search lead with Name, Email and Phone" value={leadSearch} onValueChange={setLeadSearch} />
-                    <CommandList>
-                      <CommandEmpty>No leads found.</CommandEmpty>
-                      <CommandGroup>
-                        {(leads || []).map((lead) => {
-                          const leadId = Number(lead.leadId) || 0;
-                          const leadName = lead.leadName || lead.name || lead.customerName || '';
-                          const isSelected = Number(formData.leadId) === leadId;
-                          return (
-                            <CommandItem
-                              key={leadId}
-                              value={`${leadId} ${leadName}`}
-                              onSelect={() => {
-                                const pickedName = pickLeadName(lead);
-
-                                setFormData((prev) => {
-                                  // Only the name is auto-filled from the lead; email and
-                                  // phone stay user-entered.
-                                  const next = {
-                                    ...prev,
-                                    leadId,
-                                    name: pickedName || prev.name,
-                                  };
-                                  if (showValidationErrors) setFormErrors(validateCustomerForm(next));
-                                  return next;
-                                });
-                                setLeadPickerOpen(false);
-                              }}
-                            >
-                              <Check className={cn('mr-2 h-4 w-4', isSelected ? 'opacity-100' : 'opacity-0')} />
-                              <span className="truncate">{leadName ? `${leadId} - ${leadName}` : String(leadId)}</span>
-                            </CommandItem>
-                          );
-                        })}
-                      </CommandGroup>
+              <Button
+                type="button"
+                variant="outline"
+                role="combobox"
+                aria-expanded={leadPickerOpen}
+                onClick={() => setLeadPickerOpen((current) => !current)}
+                className={cn(
+                  'customer-form-field h-11 w-full justify-between rounded-xl border-slate-200 bg-white px-3.5 shadow-sm shadow-slate-900/[0.02] hover:bg-white dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-800',
+                  !formData.leadId && 'text-muted-foreground',
+                  showValidationErrors && formErrors.leadId && 'border-red-500 focus-visible:ring-red-500',
+                )}
+                data-field="leadId"
+              >
+                {(() => {
+                  const selected = (leads || []).find((l) => Number(l.leadId) === Number(formData.leadId));
+                  const selectedName = selected?.leadName || selected?.name || selected?.customerName || '';
+                  return formData.leadId
+                    ? `${formData.leadId}${selectedName ? ` - ${selectedName}` : ''}`
+                    : 'Search and select a lead';
+                })()}
+                <ChevronsUpDown className={cn('ml-2 h-4 w-4 shrink-0 opacity-50 transition-transform', leadPickerOpen && 'rotate-180')} />
+              </Button>
+              {leadPickerOpen && (
+                <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg shadow-slate-900/10 dark:border-slate-700 dark:bg-slate-900">
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      autoFocus
+                      placeholder="Search by lead name, email, or phone..."
+                      value={leadSearch}
+                      onValueChange={setLeadSearch}
+                    />
+                    <CommandList className="max-h-52">
+                      {leadSearch.trim().length < 2 ? (
+                        <div className="px-4 py-5 text-center text-sm text-slate-500 dark:text-slate-400">
+                          Enter at least 2 characters to search leads.
+                        </div>
+                      ) : leadsLoading ? (
+                        <div className="flex items-center justify-center gap-2 px-4 py-5 text-sm text-slate-500 dark:text-slate-400">
+                          <RefreshCw className="h-4 w-4 animate-spin" />
+                          Searching leads...
+                        </div>
+                      ) : (leads || []).length === 0 ? (
+                        <div className="px-4 py-5 text-center text-sm text-slate-500 dark:text-slate-400">No leads found.</div>
+                      ) : (
+                        <CommandGroup>
+                          {(leads || []).map((lead) => {
+                            const leadId = Number(lead.leadId) || 0;
+                            const leadName = lead.leadName || lead.name || lead.customerName || '';
+                            const leadMeta = [lead.email, lead.phone].filter(Boolean).join(' • ');
+                            const isSelected = Number(formData.leadId) === leadId;
+                            return (
+                              <CommandItem
+                                key={leadId}
+                                value={String(leadId)}
+                                onSelect={() => {
+                                  const pickedName = pickLeadName(lead);
+                                  setFormData((prev) => {
+                                    const next = { ...prev, leadId, name: pickedName || prev.name };
+                                    if (showValidationErrors) setFormErrors(validateCustomerForm(next));
+                                    return next;
+                                  });
+                                  setLeadPickerOpen(false);
+                                }}
+                                className="rounded-lg px-3 py-2.5"
+                              >
+                                <Check className={cn('h-4 w-4', isSelected ? 'opacity-100 text-violet-600' : 'opacity-0')} />
+                                <div className="min-w-0">
+                                  <div className="truncate font-medium text-slate-800 dark:text-slate-100">
+                                    {leadName || `Lead #${leadId}`}
+                                  </div>
+                                  <div className="truncate text-xs text-slate-500 dark:text-slate-400">
+                                    {[`#${leadId}`, leadMeta].filter(Boolean).join(' · ')}
+                                  </div>
+                                </div>
+                              </CommandItem>
+                            );
+                          })}
+                        </CommandGroup>
+                      )}
                     </CommandList>
                   </Command>
-                </PopoverContent>
-              </Popover>
+                </div>
+              )}
               {showValidationErrors && formErrors.leadId && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{formErrors.leadId}</p>}
             </div>
 
-            {/* A Sales Agent still sees who the customer is filed under - the
-                field is just locked to them rather than hidden. */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Sales Person</label>
               <Select
@@ -1159,7 +1220,7 @@ export default function CustomerFormModal({
               >
                 <SelectTrigger
                   className={cn(
-                    'customer-form-field w-full',
+                    'customer-form-field h-11 w-full rounded-xl border-slate-200 bg-white px-3.5 shadow-sm shadow-slate-900/[0.02] dark:border-slate-700 dark:bg-slate-800',
                     !canPickSalesPerson && 'disabled:opacity-100 disabled:cursor-not-allowed bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-300',
                     showValidationErrors && formErrors.salesPerson && 'border-red-500 focus:ring-red-500',
                   )}
@@ -1167,16 +1228,35 @@ export default function CustomerFormModal({
                 >
                   <SelectValue placeholder="Select Sales Person" />
                 </SelectTrigger>
-                <SelectContent style={{ zIndex: popupZ }}>
-                  {salesPersonOptions.map((user) => (
-                    <SelectItem
-                      key={user.userId}
-                      value={String(user.userId)}
-                      meta={<UserOptionBadges user={user} />}
-                    >
-                      {[user.firstName, user.lastName].filter(Boolean).join(' ') || user.name || user.fullName || user.userName || `User ${user.userId}`}
-                    </SelectItem>
-                  ))}
+                <SelectContent
+                  className="max-h-80"
+                  style={{ zIndex: popupZ }}
+                  search={(
+                    <SelectSearchInput
+                      value={salesPersonSearchText}
+                      onChange={setSalesPersonSearchText}
+                      placeholder="Search users by name, email, or role..."
+                    />
+                  )}
+                >
+                  {salesPersonsLoading ? (
+                    <div className="flex items-center justify-center gap-2 px-3 py-4 text-sm text-slate-500 dark:text-slate-400">
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      Loading users...
+                    </div>
+                  ) : visibleSalesPersonOptions.length === 0 ? (
+                    <div className="px-3 py-4 text-center text-sm text-slate-500 dark:text-slate-400">No users found.</div>
+                  ) : (
+                    visibleSalesPersonOptions.map((user) => (
+                      <SelectItem
+                        key={user.userId}
+                        value={String(user.userId)}
+                        meta={<UserOptionBadges user={user} />}
+                      >
+                        {[user.firstName, user.lastName].filter(Boolean).join(' ') || user.name || user.fullName || user.userName || `User ${user.userId}`}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
               {showValidationErrors && formErrors.salesPerson && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{formErrors.salesPerson}</p>}
@@ -1190,7 +1270,7 @@ export default function CustomerFormModal({
                 onChange={handleInputChange}
                 required
                 className={cn(
-                  'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent dark:bg-slate-700 dark:border-slate-600 dark:text-white',
+                  modalInputClass,
                   showValidationErrors && formErrors.name && 'border-red-500 focus:ring-red-500',
                 )}
               />
@@ -1206,7 +1286,7 @@ export default function CustomerFormModal({
                 onChange={handleInputChange}
                 required
                 className={cn(
-                  'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent dark:bg-slate-700 dark:border-slate-600 dark:text-white',
+                  modalInputClass,
                   showValidationErrors && formErrors.email && 'border-red-500 focus:ring-red-500',
                 )}
               />
@@ -1222,7 +1302,7 @@ export default function CustomerFormModal({
                 onChange={handleUsPhoneChange('phone')}
                 required
                 className={cn(
-                  'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent dark:bg-slate-700 dark:border-slate-600 dark:text-white',
+                  modalInputClass,
                   showValidationErrors && formErrors.phone && 'border-red-500 focus:ring-red-500',
                 )}
               />
@@ -1237,7 +1317,7 @@ export default function CustomerFormModal({
                 value={formData.phone2}
                 onChange={handleUsPhoneChange('phone2')}
                 className={cn(
-                  'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent dark:bg-slate-700 dark:border-slate-600 dark:text-white',
+                  modalInputClass,
                   showValidationErrors && formErrors.phone2 && 'border-red-500 focus:ring-red-500',
                 )}
               />
@@ -1260,7 +1340,7 @@ export default function CustomerFormModal({
                           if (q.length >= 3) setAddressPickerOpen(true);
                         }}
                         className={cn(
-                          'w-full px-3 py-2 pr-9 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent dark:bg-slate-700 dark:border-slate-600 dark:text-white',
+                          `${modalInputClass} pr-10`,
                           showValidationErrors && formErrors.address && 'border-red-500 focus:ring-red-500',
                         )}
                         placeholder="Start typing address..."
@@ -1312,10 +1392,10 @@ export default function CustomerFormModal({
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Country *</label>
               <input
-                value={formData.countryName || 'USA'}
+                value="USA"
                 readOnly
                 className={cn(
-                  'w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-900 focus:outline-none dark:bg-slate-800 dark:border-slate-600 dark:text-white',
+                  `${modalInputClass} cursor-not-allowed bg-slate-100 text-slate-600 dark:bg-slate-900/60 dark:text-slate-300`,
                   showValidationErrors && formErrors.countryId && 'border-red-500',
                 )}
                 data-field="countryId"
@@ -1337,7 +1417,7 @@ export default function CustomerFormModal({
                   if (!nextOpen) setStateSearchText('');
                 }}
               >
-                <SelectTrigger className={cn('customer-form-field w-full', showValidationErrors && formErrors.stateId && 'border-red-500 focus:ring-red-500')} data-field="stateId">
+                <SelectTrigger className={cn('customer-form-field h-11 w-full rounded-xl border-slate-200 bg-white px-3.5 shadow-sm shadow-slate-900/[0.02] dark:border-slate-700 dark:bg-slate-800', showValidationErrors && formErrors.stateId && 'border-red-500 focus:ring-red-500')} data-field="stateId">
                   <SelectValue placeholder="Select State" />
                 </SelectTrigger>
                 <SelectContent
@@ -1373,7 +1453,7 @@ export default function CustomerFormModal({
                 onChange={handleInputChange}
                 required
                 className={cn(
-                  'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent dark:bg-slate-700 dark:border-slate-600 dark:text-white',
+                  modalInputClass,
                   showValidationErrors && formErrors.city && 'border-red-500 focus:ring-red-500',
                 )}
               />
@@ -1392,7 +1472,7 @@ export default function CustomerFormModal({
                 maxLength={zipKind === 'UK' ? 10 : zipKind === 'US' ? 9 : zipKind === 'AU' ? 4 : 10}
                 placeholder={zipKind === 'UK' ? 'SW1A 1AA' : zipKind === 'AU' ? '2000' : '12345'}
                 className={cn(
-                  'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent dark:bg-slate-700 dark:border-slate-600 dark:text-white',
+                  modalInputClass,
                   showValidationErrors && formErrors.zipCode && 'border-red-500 focus:ring-red-500',
                 )}
               />
@@ -1422,12 +1502,21 @@ export default function CustomerFormModal({
             )}
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2 border-t border-gray-200 dark:border-slate-700">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          </div>
+
+          <div className="flex shrink-0 flex-col-reverse gap-2.5 border-t border-slate-200/80 bg-slate-50/50 px-5 py-3.5 dark:border-white/10 dark:bg-[#141122] sm:flex-row sm:items-center sm:justify-end sm:px-6">
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="h-10 px-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-transparent text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 transition-all shadow-xs"
+            >
               Cancel
-            </Button>
-            <LiquidGlassButton type="submit" className="sm:ml-auto text-center">
-              Save
+            </button>
+            <LiquidGlassButton
+              type="submit"
+              className="!h-10 !rounded-xl px-6 text-center !text-sm !font-semibold shadow-md shadow-violet-500/20 hover:shadow-lg hover:shadow-violet-500/30 transition-all"
+            >
+              {mode === 'edit' ? 'Save Changes' : 'Create Customer'}
             </LiquidGlassButton>
           </div>
         </form>

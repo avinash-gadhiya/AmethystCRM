@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ModalPortal } from '@/components/common/page-card';
-import { Button } from '@/components/ui/button';
 import LiquidGlassButton from '@/components/ui/LiquidGlassButton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2 } from 'lucide-react';
+import { AlertCircle, CircleDollarSign, Plus, Receipt, Trash2, UserCheck, Users } from 'lucide-react';
 import GlassCloseButton from '@/components/common/GlassCloseButton';
 import SelectSearchInput from '@/components/common/SelectSearchInput';
 import UserOptionBadges, { getUserBadgeSearchText } from '@/components/common/UserOptionBadges';
@@ -120,20 +119,41 @@ const ShareSaleModal = ({
 
   return (
     <ModalPortal>
-      <div className="fixed inset-0 z-[60] bg-black/45 backdrop-blur-[2px] flex items-center justify-center p-4">
-        <div className="w-full max-w-4xl rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden dark:border-slate-700 dark:bg-slate-900">
-          <div className="px-4 py-3 border-b bg-slate-50 flex items-center justify-between dark:border-slate-700 dark:bg-slate-800">
-            <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Share Sale</h3>
-            <GlassCloseButton onClick={onClose} label="Close share sale" />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="share-sale-modal-title"
+        className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-slate-950/60 p-3 sm:p-6 backdrop-blur-sm animate-in fade-in duration-200"
+        onClick={(e) => {
+          if (e.target === e.currentTarget && !isSaving) onClose?.();
+        }}
+      >
+        <div
+          className="relative my-auto flex w-full max-w-4xl max-h-[calc(100dvh-2.5rem)] flex-col overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-200/80 bg-white shadow-[0_25px_70px_-15px_rgba(15,23,42,0.35)] dark:border-white/10 dark:bg-[#141122] animate-in zoom-in-95 duration-200"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="flex shrink-0 items-center justify-between border-b border-slate-200/80 bg-gradient-to-r from-violet-50/70 via-white to-indigo-50/50 px-5 py-4 dark:border-white/10 dark:from-violet-500/10 dark:via-[#141122] dark:to-indigo-500/10 sm:px-6">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-md shadow-violet-500/25">
+                <CircleDollarSign size={20} aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <h3 id="share-sale-modal-title" className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
+                  Share Sale
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                  Split this sale between eligible team members.
+                </p>
+              </div>
+            </div>
+            <GlassCloseButton onClick={onClose} label="Close share sale" disabled={isSaving} className="ml-4 shrink-0 !h-9 !w-9 !rounded-xl dark:!border-white/10 dark:!bg-white/5 dark:!text-slate-300" />
           </div>
 
-          <div className="p-5 space-y-4 max-h-[70vh] overflow-auto">
-            {/* A share row belongs to one payment, so callers editing an existing
-                order pick which payment the split applies to. While creating an
-                order there is only the payment being created, so this whole card
-                is hidden rather than shown as an empty, disabled picker. */}
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-slate-50/40 p-4 dark:bg-black/10 sm:p-6">
+            {/* Payment Picker (editing existing order) */}
             {hasPaymentPicker && (
-              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-700 dark:bg-slate-800/50">
+              <div className="rounded-2xl border border-slate-200/80 bg-white p-4.5 shadow-xs dark:border-white/10 dark:bg-white/[0.03]">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
                   <div className="lg:col-span-8">
                     <label className={labelClass}>Payment</label>
@@ -145,7 +165,7 @@ const ShareSaleModal = ({
                       <SelectTrigger className={selectTriggerCompactClass}>
                         <SelectValue placeholder="Select payment" />
                       </SelectTrigger>
-                      <SelectContent className="z-[90]">
+                      <SelectContent className="z-[10000]">
                         {(paymentOptions || []).map((payment) => (
                           <SelectItem key={String(payment.id)} value={String(payment.id)}>
                             {payment.label}
@@ -160,7 +180,7 @@ const ShareSaleModal = ({
                       type="text"
                       readOnly
                       value={formatMoney2(orderTotal)}
-                      className={`${inputCompactClass} bg-slate-100 text-slate-700 cursor-not-allowed dark:bg-slate-800 dark:text-slate-300`}
+                      className={`${inputCompactClass} bg-slate-50/80 text-slate-700 cursor-not-allowed border-slate-200 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300`}
                       placeholder="0.00"
                     />
                   </div>
@@ -171,25 +191,41 @@ const ShareSaleModal = ({
               </div>
             )}
 
-            <div className="rounded-md border border-slate-200 bg-white px-3 py-3 text-xs dark:border-slate-700 dark:bg-slate-800">
-              <div className="space-y-1.5 text-sm text-slate-700 dark:text-slate-300">
+            {/* Split Summary / Receipt */}
+            <div className="rounded-2xl border border-violet-100/90 bg-gradient-to-r from-violet-50/70 via-indigo-50/40 to-violet-50/70 p-4 shadow-xs dark:border-violet-500/20 dark:from-violet-500/10 dark:to-indigo-500/10">
+              <div className="mb-2.5 flex items-center justify-between gap-2 border-b border-violet-100 pb-2 dark:border-violet-500/20">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-violet-900 dark:text-violet-300">
+                  <Receipt size={14} className="text-violet-600 dark:text-violet-400" />
+                  <span>Split Summary</span>
+                </div>
+                {orderTotal > 0 && (
+                  <span className="inline-flex items-center rounded-full bg-violet-100/80 px-2.5 py-0.5 text-xs font-semibold text-violet-700 dark:bg-violet-500/20 dark:text-violet-300">
+                    Total: ${formatMoney2(orderTotal)}
+                  </span>
+                )}
+              </div>
+              <div className="space-y-2 text-sm text-slate-700 dark:text-slate-300">
                 {(splitReceiptRows || []).length === 0 ? (
-                  <div className="text-slate-500 dark:text-slate-400">No split rows added.</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400 py-1">No split rows added.</div>
                 ) : (
                   <>
                     {(splitReceiptRows || []).map((row) => (
-                      <div key={String(row.rowId)} className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <div className="truncate">{row.label} - </div>
-                          <div className="text-xs text-slate-500 dark:text-slate-400">{row.splitTypeLabel}</div>
+                      <div key={String(row.rowId)} className="flex items-center justify-between gap-2 py-0.5">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="font-medium text-slate-900 dark:text-slate-100 truncate">{row.label}</span>
+                          <span className="inline-flex items-center rounded-md border border-violet-200/70 bg-white/80 px-2 py-0.5 text-[11px] font-medium text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/15 dark:text-violet-300">
+                            {row.splitTypeLabel}
+                          </span>
                         </div>
-                        <div className="shrink-0 text-right font-medium">${formatMoney2(row.amount)}</div>
+                        <div className="shrink-0 text-right font-semibold text-slate-900 dark:text-white">
+                          ${formatMoney2(row.amount)}
+                        </div>
                       </div>
                     ))}
 
-                    <div className="mt-2 border-t border-dashed border-slate-200 pt-2 flex items-center justify-between dark:border-slate-700">
-                      <span className="font-semibold text-slate-800 dark:text-slate-100">Total Amount</span>
-                      <span className="font-semibold text-slate-900 dark:text-slate-100">
+                    <div className="mt-2.5 border-t border-dashed border-violet-200 pt-2.5 flex items-center justify-between dark:border-violet-500/30">
+                      <span className="font-bold text-slate-800 dark:text-slate-100">Entered Total</span>
+                      <span className="text-base font-bold text-violet-700 dark:text-violet-300">
                         ${formatMoney2((splitReceiptRows || []).reduce((sum, row) => sum + (Number(row?.amount) || 0), 0))}
                       </span>
                     </div>
@@ -198,8 +234,12 @@ const ShareSaleModal = ({
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-700 dark:bg-slate-800/50">
-              <div className="text-xs font-semibold uppercase tracking-wide text-slate-700 mb-2 dark:text-slate-300">Sales Person</div>
+            {/* Sales Person Card */}
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-4.5 shadow-xs dark:border-white/10 dark:bg-white/[0.03]">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-700 mb-3 dark:text-slate-300">
+                <UserCheck size={14} className="text-violet-600 dark:text-violet-400" />
+                <span>Sales Person</span>
+              </div>
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
                 <div className="lg:col-span-5">
                   <label className={labelClass}>Name</label>
@@ -207,7 +247,7 @@ const ShareSaleModal = ({
                     type="text"
                     readOnly
                     value={salesPersonLabel || ''}
-                    className={`${inputCompactClass} bg-slate-100 text-slate-700 cursor-not-allowed dark:bg-slate-800 dark:text-slate-300`}
+                    className={`${inputCompactClass} bg-slate-50/80 text-slate-700 cursor-not-allowed border-slate-200 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300`}
                     placeholder="Sales Person"
                   />
                 </div>
@@ -217,7 +257,7 @@ const ShareSaleModal = ({
                     type="text"
                     readOnly
                     value={formatMoney2(salesPersonAmount)}
-                    className={`${inputCompactClass} bg-slate-100 text-slate-700 cursor-not-allowed dark:bg-slate-800 dark:text-slate-300`}
+                    className={`${inputCompactClass} bg-slate-50/80 text-slate-700 cursor-not-allowed border-slate-200 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300`}
                     placeholder="0.00"
                   />
                 </div>
@@ -228,7 +268,7 @@ const ShareSaleModal = ({
                       type="text"
                       readOnly
                       value="Full"
-                      className={`${inputCompactClass} bg-slate-100 text-slate-700 cursor-not-allowed dark:bg-slate-800 dark:text-slate-300`}
+                      className={`${inputCompactClass} bg-slate-50/80 text-slate-700 cursor-not-allowed border-slate-200 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300`}
                       placeholder="Full"
                     />
                   ) : (
@@ -239,7 +279,7 @@ const ShareSaleModal = ({
                       <SelectTrigger className={selectTriggerCompactClass}>
                         <SelectValue placeholder="Select Sale contribution" />
                       </SelectTrigger>
-                      <SelectContent className="z-[90]">
+                      <SelectContent className="z-[10000]">
                         {nonFullSalesShareTypeOptions.map((opt) => (
                           <SelectItem key={opt.id} value={String(opt.id)}>
                             {opt.name}
@@ -251,31 +291,42 @@ const ShareSaleModal = ({
                 </div>
               </div>
               {isSalesPersonSplitTypeMissing && (
-                <div className="mt-2 text-xs text-red-600 dark:text-red-400">
-                  Sales Person Split Type is required.
+                <div className="mt-2.5 flex items-center gap-1.5 text-xs font-medium text-red-600 dark:text-red-400">
+                  <AlertCircle size={13} className="shrink-0" />
+                  <span>Sales Person Split Type is required.</span>
                 </div>
               )}
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-700 dark:bg-slate-800/50">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-700 dark:text-slate-300">Share Sale</div>
-                <Button type="button" size="sm" variant="outline" className="h-9 border-dashed" onClick={onAddShareSaleRow}>
-                  <Plus size={14} className="mr-1" />
-                  Add User
-                </Button>
+            {/* Share Sale Card */}
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-4.5 shadow-xs dark:border-white/10 dark:bg-white/[0.03]">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  <Users size={14} className="text-violet-600 dark:text-violet-400" />
+                  <span>Share Sale</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={onAddShareSaleRow}
+                  className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-xl border border-violet-200 dark:border-violet-500/30 bg-violet-50/80 hover:bg-violet-100 dark:bg-violet-500/10 dark:hover:bg-violet-500/20 text-violet-700 dark:text-violet-300 text-xs font-semibold shadow-xs transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <Plus size={14} />
+                  <span>Add User</span>
+                </button>
               </div>
 
               {rows.length === 0 ? (
-                <div className="text-xs text-slate-500 dark:text-slate-400">No share users added yet. Click Add User to create split rows.</div>
+                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-4 text-center text-xs text-slate-500 dark:border-white/10 dark:bg-white/[0.01] dark:text-slate-400">
+                  No share users added yet. Click <span className="font-semibold text-violet-600 dark:text-violet-400">Add User</span> to split this sale.
+                </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {rows.map((row) => {
                     const isExistingPostRow = saveMode === 'post' && Number(row?.id) > 0;
                     const isAmountDisabled = isExistingPostRow || Number(row?.shareWithId) <= 0;
 
                     return (
-                    <div key={row.rowId} className="grid grid-cols-1 lg:grid-cols-12 gap-3 rounded-xl border border-slate-200 bg-white p-3 items-end shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                    <div key={row.rowId} className="grid grid-cols-1 items-end gap-3 rounded-xl border border-slate-200/90 bg-slate-50/60 p-3.5 lg:grid-cols-12 dark:border-white/10 dark:bg-white/[0.02] transition-colors hover:border-slate-300 dark:hover:border-white/20">
                       <div className="lg:col-span-4 min-w-0">
                         <label className={labelClass}>Sale With <span className="text-red-600 dark:text-red-400">*</span></label>
                         <Select
@@ -287,7 +338,7 @@ const ShareSaleModal = ({
                             <SelectValue placeholder="Select user" />
                           </SelectTrigger>
                           <SelectContent
-                            className="z-[90] max-h-72"
+                            className="z-[10000] max-h-72"
                             search={(
                               <SelectSearchInput
                                 value={userSearchText}
@@ -320,7 +371,7 @@ const ShareSaleModal = ({
                           value={row.amount ?? ''}
                           onChange={(e) => onUpdateShareSaleRow(row.rowId, 'amount', e.target.value)}
                           placeholder={Number(row?.shareWithId) > 0 ? 'Enter Sale amount' : 'Select user first'}
-                          className={`${inputCompactClass} ${isAmountDisabled ? 'bg-slate-100 text-slate-700 cursor-not-allowed dark:bg-slate-800 dark:text-slate-300' : ''}`}
+                          className={`${inputCompactClass} ${isAmountDisabled ? 'bg-slate-50/80 text-slate-700 cursor-not-allowed border-slate-200 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300' : ''}`}
                           disabled={isAmountDisabled}
                         />
                       </div>
@@ -335,7 +386,7 @@ const ShareSaleModal = ({
                           <SelectTrigger className={selectTriggerCompactClass}>
                             <SelectValue placeholder="Select Sale Contribution" />
                           </SelectTrigger>
-                          <SelectContent className="z-[90]">
+                          <SelectContent className="z-[10000]">
                             {nonFullSalesShareTypeOptions.map((opt) => (
                               <SelectItem key={opt.id} value={String(opt.id)}>
                                 {opt.name}
@@ -346,23 +397,22 @@ const ShareSaleModal = ({
                       </div>
 
                       <div className="lg:col-span-1 flex justify-end">
-                        <Button
+                        <button
                           type="button"
-                          size="sm"
-                          variant="outline"
-                          className="h-10 w-10 p-0 rounded-lg border-red-200 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 hover:border-red-300 dark:border-red-500/30 dark:bg-red-500/15 dark:text-red-300 dark:hover:bg-red-500/25 dark:hover:text-red-200 dark:hover:border-red-500/50"
+                          className="h-10 w-10 flex items-center justify-center rounded-xl border border-red-200/80 bg-red-50/70 text-red-600 hover:bg-red-100 hover:text-red-700 hover:border-red-300 dark:border-red-500/30 dark:bg-red-500/15 dark:text-red-300 dark:hover:bg-red-500/25 dark:hover:text-red-200 dark:hover:border-red-500/50 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
                           onClick={() => onRemoveShareSaleRow(row.rowId)}
                           aria-label="Delete split row"
                           title="Delete"
                           disabled={isExistingPostRow}
                         >
                           <Trash2 size={16} />
-                        </Button>
+                        </button>
                       </div>
 
                       {!isExistingPostRow && (Number(row?.shareWithId) <= 0 || Number(row?.amount) <= 0 || Number(row?.splitTypeId) <= 0) && (
-                        <div className="lg:col-span-12 text-xs text-red-600 dark:text-red-400">
-                          Sale With, Amount, and Sale Contribution are required.
+                        <div className="lg:col-span-12 mt-1 flex items-center gap-1.5 text-xs font-medium text-red-600 dark:text-red-400">
+                          <AlertCircle size={13} className="shrink-0" />
+                          <span>Sale With, Amount, and Sale Contribution are required.</span>
                         </div>
                       )}
                     </div>
@@ -373,36 +423,34 @@ const ShareSaleModal = ({
 
           </div>
 
-          <div className="px-4 py-3 border-t bg-slate-50 flex justify-end dark:border-slate-700 dark:bg-slate-800">
-            {typeof onSave === 'function' ? (
-              <div className="flex items-center gap-3">
-                {disableDone && (
-                  <div className="text-xs text-red-600 dark:text-red-400">
-                    {validationMessage}
-                  </div>
-                )}
-                <Button type="button" variant="outline" onClick={onClose} disabled={!!isSaving}>Close</Button>
-                <LiquidGlassButton
-                  type="button"
-                  onClick={onSave}
-                  disabled={disableDone || !!isSaving}
-                  className="text-center"
-                >
-                  {isSaving ? 'Saving...' : (saveButtonLabel || 'Save')}
-                </LiquidGlassButton>
-              </div>
-            ) : (
-              <div className="flex items-center gap-3">
-                {disableDone && (
-                  <div className="text-xs text-red-600 dark:text-red-400">
-                    {validationMessage || 'Complete all required fields before Done.'}
-                  </div>
-                )}
-                <LiquidGlassButton type="button" onClick={onClose} disabled={disableDone} className="text-center">
-                  {doneButtonLabel || 'Done'}
-                </LiquidGlassButton>
-              </div>
-            )}
+          {/* Footer */}
+          <div className="flex shrink-0 flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-slate-200/80 bg-slate-50/50 px-5 py-3.5 dark:border-white/10 dark:bg-[#141122] sm:px-6">
+            <div className="min-w-0">
+              {disableDone && validationMessage && (
+                <div className="inline-flex items-center gap-1.5 rounded-lg border border-red-200/70 bg-red-50/80 px-2.5 py-1 text-xs font-medium text-red-600 dark:border-red-500/25 dark:bg-red-500/15 dark:text-red-300">
+                  <AlertCircle size={13} className="shrink-0" />
+                  <span className="truncate">{validationMessage}</span>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={!!isSaving}
+                className="h-10 px-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-transparent text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 transition-all shadow-xs disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <LiquidGlassButton
+                type="button"
+                onClick={typeof onSave === 'function' ? onSave : onClose}
+                disabled={disableDone || !!isSaving}
+                className="!h-10 !rounded-xl px-6 text-center !text-sm !font-semibold shadow-md shadow-violet-500/20 hover:shadow-lg hover:shadow-violet-500/30 transition-all"
+              >
+                {isSaving ? 'Saving...' : (saveButtonLabel || doneButtonLabel || 'Save & Continue')}
+              </LiquidGlassButton>
+            </div>
           </div>
         </div>
       </div>
@@ -411,5 +459,4 @@ const ShareSaleModal = ({
 };
 
 export default ShareSaleModal;
-
 

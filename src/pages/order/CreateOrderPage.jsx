@@ -2631,7 +2631,7 @@ const CreateOrderPage = () => {
 
     const usa = (customerCountries || []).find((c) => {
       const n = String(c?.countryName || '').trim().toLowerCase();
-      return n === 'usa' || n === 'us' || n.includes('united states');
+      return n === 'usa' || n === 'us' || n === 'america' || n.includes('united states');
     });
 
     setCustomerFormData({
@@ -2645,7 +2645,7 @@ const CreateOrderPage = () => {
         (salesPersons || []).find((u) => Number(u.userId) === defaultSalesPerson),
       ),
       countryId: Number(usa?.countryId) || 0,
-      countryName: usa?.countryName || '',
+      countryName: 'USA',
       stateId: 0,
       stateName: '',
     });
@@ -2706,7 +2706,7 @@ const CreateOrderPage = () => {
   }
 
   return (
-    <div className="create-order-page relative min-h-full w-full overflow-x-hidden bg-transparent p-4 sm:p-6">
+    <div className="create-order-page relative min-h-full w-full overflow-x-clip bg-transparent p-4 sm:p-6">
       <PageHeader
         title={isEditMode ? `Edit Payment #${payment.paymentId || paymentIdForEdit}` : isAddPaymentMode ? `Add Payment to Order #${payment.orderId || orderDataFromState?.orderId || numericOrderId}` : 'Create Order'}
         description={isEditMode ? 'Update payment details for this order.' : isAddPaymentMode ? 'Add a new payment using the order’s existing details.' : 'Build the order, capture payment, and review the receipt before saving.'}
@@ -2725,8 +2725,8 @@ const CreateOrderPage = () => {
       {/* Customer details modal */}
       {!isAddPaymentMode && showCustomerDetailsModal && selectedCustomer && (
         <ModalPortal>
-          <div className="create-order-modal fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-            <div className="create-order-modal-surface w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-200 mx-4 overflow-hidden">
+          <div className="create-order-modal fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-slate-950/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="create-order-modal-surface my-auto w-full max-w-md bg-white dark:bg-[#17132a] rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-200 dark:border-white/10 mx-4 overflow-hidden animate-in zoom-in-95 duration-200">
               <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 bg-gray-50/90 backdrop-blur">
                 <h3 className="text-sm font-semibold text-gray-800">Customer Details</h3>
                 <button
@@ -2798,8 +2798,8 @@ const CreateOrderPage = () => {
       {/* Select customer modal */}
       {!isAddPaymentMode && customerModalOpen && (
         <ModalPortal>
-          <div className="create-order-modal fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-            <div className="create-order-modal-surface w-full max-w-3xl bg-white rounded-2xl shadow-xl border border-gray-200 mx-4 overflow-hidden max-h-[90vh] flex flex-col">
+          <div className="create-order-modal fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-slate-950/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="create-order-modal-surface my-auto w-full max-w-3xl bg-white dark:bg-[#17132a] rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-200 dark:border-white/10 mx-4 overflow-hidden max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200">
               <div className="flex items-center justify-between px-5 py-4 border-b bg-gray-50/90 backdrop-blur">
                 <div>
                   <h3 className="text-sm font-semibold text-gray-800">Select Customer</h3>
@@ -2979,8 +2979,8 @@ const CreateOrderPage = () => {
           mode="add"
           initialValues={customerFormData}
           defaultSalesPersonId={Number(selectedSalesPersonId) || 0}
-          canPickSalesPerson={canPickSalesPerson}
-          overlayZIndex={60}
+          canPickSalesPerson
+          overlayZIndex={9999}
           onSaved={(created) => {
             clearError('customerId');
             setSelectedCustomer(created);
@@ -2995,8 +2995,8 @@ const CreateOrderPage = () => {
       {/* Products modal */}
       {productsModalOpen && !isEditMode && !isAddPaymentMode && (
         <ModalPortal>
-          <div className="create-order-modal fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-            <div className="create-order-modal-surface w-full max-w-3xl bg-white rounded-2xl shadow-xl border border-gray-200 mx-4 overflow-hidden max-h-[90vh] flex flex-col">
+          <div className="create-order-modal fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-slate-950/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="create-order-modal-surface my-auto w-full max-w-3xl bg-white dark:bg-[#17132a] rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-200 dark:border-white/10 mx-4 overflow-hidden max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200">
               <div className="flex items-center justify-between px-5 py-4 border-b bg-gray-50/90 backdrop-blur">
                 <div>
                   <h3 className="text-sm font-semibold text-gray-800">Browse Products</h3>
@@ -3241,927 +3241,1197 @@ const CreateOrderPage = () => {
       )}
 
       <div className="w-full rounded-2xl border border-slate-200 bg-white/75 p-3 shadow-sm backdrop-blur dark:border-white/10 dark:bg-[#100d1d]/70 sm:p-4">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
-            {/* Left: products & order summary */} 
-            <div className="order-first flex min-w-0 flex-1 flex-col gap-4">
-              {!isEditMode && !isAddPaymentMode && (
-                <div className="create-order-section overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#17132a]">
-                  <div className="flex flex-col gap-3 border-b border-slate-200 bg-gradient-to-r from-violet-50 via-white to-indigo-50 px-4 py-3 dark:border-white/10 dark:from-violet-500/15 dark:via-transparent dark:to-indigo-500/10">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 p-2 shadow-sm">
-                        <Package size={16} className="text-white" />
-                      </div>
-                      <h2 className={`text-sm font-semibold ${getError('orderItems') ? 'text-red-700 dark:text-red-300' : 'text-gray-800'}`}>Products</h2>
+        <div className="create-order-layout flex min-w-0 flex-col gap-4 xl:flex-row xl:items-start">
+          {/* Left: products & order summary */}
+          <div className="order-first flex min-w-0 flex-1 flex-col gap-4">
+            {!isEditMode && !isAddPaymentMode && (
+              <div className="create-order-section overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#17132a]">
+                <div className="flex flex-col gap-3 border-b border-slate-200 bg-gradient-to-r from-violet-50 via-white to-indigo-50 px-4 py-3 dark:border-white/10 dark:from-violet-500/15 dark:via-transparent dark:to-indigo-500/10">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 p-2 shadow-sm">
+                      <Package size={16} className="text-white" />
                     </div>
-
-                    {/* Show the product dropdown for every role (Sales Agent included). */}
-                    <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
-                        <div className="min-w-0 w-full sm:w-[340px] shrink">
-                          <Select
-                            value={selectedProductDropdownId}
-                            onValueChange={handleProductDropdownSelect}
-                            disabled={loadingProductDropdown}
-                          >
-                            <SelectTrigger className={selectTriggerCompactClass}>
-                              <SelectValue
-                                placeholder={loadingProductDropdown ? 'Loading products...' : 'Select product'}
-                              />
-                            </SelectTrigger>
-                            <SelectContent
-                              search={(
-                                <SelectSearchInput
-                                  value={productSelectSearchText}
-                                  onChange={setProductSelectSearchText}
-                                  placeholder="Search products..."
-                                />
-                              )}
-                            >
-                              {filteredProductDropdownItems.length === 0 ? (
-                                <div className="px-3 py-3 text-center text-xs text-slate-500 dark:text-slate-400">
-                                  {loadingProductDropdown ? 'Loading products...' : 'No products found.'}
-                                </div>
-                              ) : filteredProductDropdownItems.map((p) => (
-                                <SelectItem
-                                  key={p.productId}
-                                  value={String(p.productId)}
-                                  textValue={p.name || 'Unnamed Product'}
-                                >
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <div className="w-8 h-8 rounded-md bg-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
-                                      <ProductThumbnail src={p.photo} name={p.name} />
-                                    </div>
-                                    <div className="min-w-0">
-                                      <div className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">
-                                        {p.name || 'Unnamed Product'}
-                                      </div>
-                                      <div className="truncate text-xs text-slate-500 dark:text-slate-400">
-                                        {(p.productType || 'Product')} · ${Number(p.price || 0).toFixed(2)}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto sm:justify-end shrink-0">
-                          <LiquidGlassButton
-                            type="button"
-                            onClick={() => setProductsModalOpen(true)}
-                            className="!w-full sm:!w-auto !px-3 sm:!px-4 !py-2 !text-xs !font-semibold whitespace-nowrap"
-                          >
-                            {selectedProductCount > 0
-                              ? `Browse Products (${selectedProductCount})`
-                              : 'Browse Products'}
-                          </LiquidGlassButton>
-
-                          {canAddCustomItem ? (
-                            <LiquidGlassButton
-                              type="button"
-                              onClick={() => setCustomItemModalOpen(true)}
-                              className="!w-full sm:!w-auto !px-3 sm:!px-4 !py-2 !text-xs !font-semibold whitespace-nowrap"
-                            >
-                              + Add Custom Item
-                            </LiquidGlassButton>
-                          ) : null}
-                        </div>
-                      </div>
+                    <h2 className={`text-sm font-semibold ${getError('orderItems') ? 'text-red-700 dark:text-red-300' : 'text-gray-800'}`}>Products</h2>
                   </div>
 
-                  {getError('orderItems') && (
-                    <div className="px-4 pt-2 text-xs font-medium text-red-600 dark:text-red-400">
-                      {getError('orderItems')}
+                  {/* Show the product dropdown for every role (Sales Agent included). */}
+                  <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+                    <div className="min-w-0 w-full sm:w-[340px] shrink">
+                      <Select
+                        value={selectedProductDropdownId}
+                        onValueChange={handleProductDropdownSelect}
+                        disabled={loadingProductDropdown}
+                      >
+                        <SelectTrigger className={selectTriggerCompactClass}>
+                          <SelectValue
+                            placeholder={loadingProductDropdown ? 'Loading products...' : 'Select product'}
+                          />
+                        </SelectTrigger>
+                        <SelectContent
+                          search={(
+                            <SelectSearchInput
+                              value={productSelectSearchText}
+                              onChange={setProductSelectSearchText}
+                              placeholder="Search products..."
+                            />
+                          )}
+                        >
+                          {filteredProductDropdownItems.length === 0 ? (
+                            <div className="px-3 py-3 text-center text-xs text-slate-500 dark:text-slate-400">
+                              {loadingProductDropdown ? 'Loading products...' : 'No products found.'}
+                            </div>
+                          ) : filteredProductDropdownItems.map((p) => (
+                            <SelectItem
+                              key={p.productId}
+                              value={String(p.productId)}
+                              textValue={p.name || 'Unnamed Product'}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div className="w-8 h-8 rounded-md bg-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                  <ProductThumbnail src={p.photo} name={p.name} />
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">
+                                    {p.name || 'Unnamed Product'}
+                                  </div>
+                                  <div className="truncate text-xs text-slate-500 dark:text-slate-400">
+                                    {(p.productType || 'Product')} · ${Number(p.price || 0).toFixed(2)}
+                                  </div>
+                                </div>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto sm:justify-end shrink-0">
+                      <LiquidGlassButton
+                        type="button"
+                        onClick={() => setProductsModalOpen(true)}
+                        className="!w-full sm:!w-auto !px-3 sm:!px-4 !py-2 !text-xs !font-semibold whitespace-nowrap"
+                      >
+                        {selectedProductCount > 0
+                          ? `Browse Products (${selectedProductCount})`
+                          : 'Browse Products'}
+                      </LiquidGlassButton>
+
+                      {canAddCustomItem ? (
+                        <LiquidGlassButton
+                          type="button"
+                          onClick={() => setCustomItemModalOpen(true)}
+                          className="!w-full sm:!w-auto !px-3 sm:!px-4 !py-2 !text-xs !font-semibold whitespace-nowrap"
+                        >
+                          + Add Custom Item
+                        </LiquidGlassButton>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+
+                {getError('orderItems') && (
+                  <div className="px-4 pt-2 text-xs font-medium text-red-600 dark:text-red-400">
+                    {getError('orderItems')}
+                  </div>
+                )}
+
+                <div className="p-4 space-y-3 max-h-80 overflow-y-auto">
+                  {customItems.length === 0 && selectedProductLines.length === 0 && (
+                    <div className="text-sm text-gray-500">
+                      No items yet. Use <span className="font-semibold">Browse Products</span> or the
+                      <span className="font-semibold"> product dropdown</span> to add
+                      {canAddCustomItem ? (
+                        <>
+                          from your catalog or <span className="font-semibold">+ Add Custom Item</span> for
+                          a one-off item.
+                        </>
+                      ) : (
+                        <>from your catalog.</>
+                      )}
                     </div>
                   )}
 
-                  <div className="p-4 space-y-3 max-h-80 overflow-y-auto">
-                    {customItems.length === 0 && selectedProductLines.length === 0 && (
-                      <div className="text-sm text-gray-500">
-                        No items yet. Use <span className="font-semibold">Browse Products</span> or the
-                        <span className="font-semibold"> product dropdown</span> to add
-                        {canAddCustomItem ? (
-                          <>
-                            from your catalog or <span className="font-semibold">+ Add Custom Item</span> for
-                            a one-off item.
-                          </>
-                        ) : (
-                          <>from your catalog.</>
-                        )}
-                      </div>
-                    )}
-
-                    {selectedProductLines.length > 0 &&
-                      selectedProductLines.map((p) => {
-                        const qty = quantities[p.productId] || p.quantity || 0;
-                        const totalPrice = qty * (Number(p.paidPrice ?? p.price) || 0);
-                        const priceDisplay =
-                          productPriceOverrides?.[p.productId] !== undefined
-                            ? productPriceOverrides[p.productId]
-                            : String(p.price ?? '');
-                        const priceWidthCh = Math.min(
-                          14,
-                          Math.max(7, String(priceDisplay || '0.00').length + 3),
-                        );
-                        return (
-                          <div
-                            key={p.productId}
-                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border rounded-lg px-3 py-2 bg-gray-50"
-                          >
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className="w-12 h-12 rounded-md bg-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
-                                <ProductThumbnail src={p.photo} name={p.name} />
-                              </div>
-                              <div className="min-w-0">
-                                <div className="text-sm font-semibold text-gray-800 truncate">{p.name}</div>
-                                <div className="text-xs text-gray-500 truncate">{p.productType || 'Product'}</div>
-                              </div>
+                  {selectedProductLines.length > 0 &&
+                    selectedProductLines.map((p) => {
+                      const qty = quantities[p.productId] || p.quantity || 0;
+                      const totalPrice = qty * (Number(p.paidPrice ?? p.price) || 0);
+                      const priceDisplay =
+                        productPriceOverrides?.[p.productId] !== undefined
+                          ? productPriceOverrides[p.productId]
+                          : String(p.price ?? '');
+                      const priceWidthCh = Math.min(
+                        14,
+                        Math.max(7, String(priceDisplay || '0.00').length + 3),
+                      );
+                      return (
+                        <div
+                          key={p.productId}
+                          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border rounded-lg px-3 py-2 bg-gray-50"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-12 h-12 rounded-md bg-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                              <ProductThumbnail src={p.photo} name={p.name} />
                             </div>
-                            <div className="w-full sm:w-auto grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:gap-3">
-                              <div className="col-span-2 sm:col-span-1 justify-self-start flex items-center gap-1 bg-white rounded-full border px-2 py-1">
-                                <button
-                                  type="button"
-                                  className="p-1 text-gray-600"
-                                  onClick={() => handleQtyChange(p.productId, -1)}
-                                >
-                                  <Minus size={14} />
-                                </button>
-                                <span className="w-6 text-center text-sm font-semibold">{qty}</span>
-                                <button
-                                  type="button"
-                                  className="p-1 text-gray-600"
-                                  onClick={() => handleQtyChange(p.productId, 1)}
-                                >
-                                  <Plus size={14} />
-                                </button>
-                              </div>
-                              <div className="text-left sm:text-right text-sm min-w-0">
-                                <div className="flex justify-start sm:justify-end">
-                                  <div className="relative inline-block w-full max-w-[130px] sm:w-auto" style={{ width: `${priceWidthCh}ch` }}>
-                                    <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-gray-500">
-                                      $
-                                    </span>
-                                    <input
-                                      value={priceDisplay}
-                                      onClick={() => handleProductPriceOverrideClick(p.productId)}
-                                      onChange={(e) => handleProductPriceOverrideChange(p.productId, e.target.value)}
-                                      onBlur={() => handleProductPriceOverrideBlur(p.productId)}
-                                      className="h-8 w-full pl-5 pr-2 rounded-md border border-slate-200 bg-white text-sm text-slate-900 text-right focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500"
-                                      placeholder="0.00"
-                                      inputMode="decimal"
-                                    />
-                                  </div>
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-gray-800 truncate">{p.name}</div>
+                              <div className="text-xs text-gray-500 truncate">{p.productType || 'Product'}</div>
+                            </div>
+                          </div>
+                          <div className="w-full sm:w-auto grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:gap-3">
+                            <div className="col-span-2 sm:col-span-1 justify-self-start flex items-center gap-1 bg-white rounded-full border px-2 py-1">
+                              <button
+                                type="button"
+                                className="p-1 text-gray-600"
+                                onClick={() => handleQtyChange(p.productId, -1)}
+                              >
+                                <Minus size={14} />
+                              </button>
+                              <span className="w-6 text-center text-sm font-semibold">{qty}</span>
+                              <button
+                                type="button"
+                                className="p-1 text-gray-600"
+                                onClick={() => handleQtyChange(p.productId, 1)}
+                              >
+                                <Plus size={14} />
+                              </button>
+                            </div>
+                            <div className="text-left sm:text-right text-sm min-w-0">
+                              <div className="flex justify-start sm:justify-end">
+                                <div className="relative inline-block w-full max-w-[130px] sm:w-auto" style={{ width: `${priceWidthCh}ch` }}>
+                                  <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-gray-500">
+                                    $
+                                  </span>
+                                  <input
+                                    value={priceDisplay}
+                                    onClick={() => handleProductPriceOverrideClick(p.productId)}
+                                    onChange={(e) => handleProductPriceOverrideChange(p.productId, e.target.value)}
+                                    onBlur={() => handleProductPriceOverrideBlur(p.productId)}
+                                    className="h-8 w-full pl-5 pr-2 rounded-md border border-slate-200 bg-white text-sm text-slate-900 text-right focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500"
+                                    placeholder="0.00"
+                                    inputMode="decimal"
+                                  />
                                 </div>
                               </div>
-                              <div className="text-left sm:text-right text-sm min-w-0 flex items-center sm:block">
-                                <div className="font-semibold text-gray-800"> Total : ${totalPrice}</div>
-                              </div>
+                            </div>
+                            <div className="text-left sm:text-right text-sm min-w-0 flex items-center sm:block">
+                              <div className="font-semibold text-gray-800"> Total : ${totalPrice}</div>
+                            </div>
+                            <button
+                              type="button"
+                              className="col-span-2 sm:col-span-1 justify-self-end p-1 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-400"
+                              onClick={() => clearSelectedProduct(p.productId)}
+                              title="Remove product"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                  {customItems.length > 0 &&
+                    customItems.map((item) => {
+                      const qty = item.quantity || 0;
+                      const totalPrice = qty * (item.price || 0);
+                      return (
+                        <div
+                          key={item.id}
+                          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border rounded-lg px-3 py-2 bg-gray-50"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-md bg-gray-200 flex items-center justify-center overflow-hidden">
+                              <ProductThumbnail src={item.imageUrl} name={item.name} />
+                            </div>
+                            <div>
+                              <div className="text-sm font-semibold text-gray-800">{item.name}</div>
+                              <div className="text-xs text-gray-500">{item.productType || 'Custom Item'}</div>
+                            </div>
+                          </div>
+                          <div className="w-full sm:w-auto grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:gap-3">
+                            <div className="col-span-2 sm:col-span-1 justify-self-start flex items-center gap-1 bg-white rounded-full border px-2 py-1">
                               <button
                                 type="button"
-                                className="col-span-2 sm:col-span-1 justify-self-end p-1 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-400"
-                                onClick={() => clearSelectedProduct(p.productId)}
-                                title="Remove product"
+                                className="p-1 text-gray-600"
+                                onClick={() => handleCustomItemQtyChange(item.id, -1)}
                               >
-                                <Trash2 size={16} />
+                                <Minus size={14} />
                               </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-
-                    {customItems.length > 0 &&
-                      customItems.map((item) => {
-                        const qty = item.quantity || 0;
-                        const totalPrice = qty * (item.price || 0);
-                        return (
-                          <div
-                            key={item.id}
-                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border rounded-lg px-3 py-2 bg-gray-50"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="w-12 h-12 rounded-md bg-gray-200 flex items-center justify-center overflow-hidden">
-                                <ProductThumbnail src={item.imageUrl} name={item.name} />
-                              </div>
-                              <div>
-                                <div className="text-sm font-semibold text-gray-800">{item.name}</div>
-                                <div className="text-xs text-gray-500">{item.productType || 'Custom Item'}</div>
-                              </div>
-                            </div>
-                            <div className="w-full sm:w-auto grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:gap-3">
-                              <div className="col-span-2 sm:col-span-1 justify-self-start flex items-center gap-1 bg-white rounded-full border px-2 py-1">
-                                <button
-                                  type="button"
-                                  className="p-1 text-gray-600"
-                                  onClick={() => handleCustomItemQtyChange(item.id, -1)}
-                                >
-                                  <Minus size={14} />
-                                </button>
-                                <span className="w-6 text-center text-sm font-semibold">{qty}</span>
-                                <button
-                                  type="button"
-                                  className="p-1 text-gray-600"
-                                  onClick={() => handleCustomItemQtyChange(item.id, 1)}
-                                >
-                                  <Plus size={14} />
-                                </button>
-                              </div>
-                              <div className="text-left sm:text-right text-sm min-w-0">
-                                <div className="text-gray-500">Price</div>
-                                <div className="font-semibold text-gray-800">${item.price ?? 0}</div>
-                              </div>
-                              <div className="text-left sm:text-right text-sm min-w-0">
-                                <div className="text-gray-500">Total</div>
-                                <div className="font-semibold text-gray-800">${totalPrice}</div>
-                              </div>
+                              <span className="w-6 text-center text-sm font-semibold">{qty}</span>
                               <button
                                 type="button"
-                                className="col-span-2 sm:col-span-1 justify-self-end p-1 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-400"
-                                onClick={() => handleRemoveCustomItem(item.id)}
-                                title="Remove item"
+                                className="p-1 text-gray-600"
+                                onClick={() => handleCustomItemQtyChange(item.id, 1)}
                               >
-                                <Trash2 size={16} />
+                                <Plus size={14} />
                               </button>
                             </div>
-                          </div>
-                        );
-                      })}
-                  </div>
-                </div>
-              )}
-
-              {!isEditMode && !isAddPaymentMode && (
-                <div className="create-order-section overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#17132a]">
-                  <div className="border-b border-slate-200 bg-gradient-to-r from-violet-50 via-white to-indigo-50 px-4 py-3 dark:border-white/10 dark:from-violet-500/15 dark:via-transparent dark:to-indigo-500/10">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 p-2 shadow-sm">
-                        <BadgePercent size={16} className="text-white" />
-                      </div>
-                      <h3 className="text-sm font-semibold text-gray-800">Discounts</h3>
-                    </div>
-                  </div>
-
-                  <div className="p-4">
-
-                    {/* Discount Input Fields */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4 text-sm">
-                      <div>
-                        <label className={labelClass}>Discount Type</label>
-                        {discountTypeOptions.length > 0 ? (
-                          <Select
-                            value={discountType || ''}
-                            onValueChange={(value) => {
-                              setDiscountType(value);
-                            }}
-                            disabled={productSavings > 0}
-                          >
-                            <SelectTrigger className={selectTriggerClass}>
-                              <SelectValue placeholder="Select Discount Type" />
-                            </SelectTrigger>
-                            <SelectContent className="w-[var(--radix-select-trigger-width)]">
-                              {discountTypeOptions.map((opt) => (
-                                <SelectItem key={opt.id} value={opt.name}>
-                                  {opt.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <input
-                            type="text"
-                            value={discountType}
-                            onChange={(e) => setDiscountType(e.target.value)}
-                            className={inputClass}
-                            placeholder="Discount type"
-                            readOnly={productSavings > 0}
-                          />
-                        )}
-                      </div>
-                      <div>
-                        {isPercentDiscount ? (
-                          <div className="flex flex-col sm:flex-row gap-3">
-                            <div className="flex-1 min-w-0">
-                              <label className={labelClass}>Discount Amount ($)</label>
-                              <input
-                                type="text"
-                                value={orderSummary.discount.toFixed(2)}
-                                readOnly
-                                className={`${inputClass} bg-slate-50`}
-                                placeholder="0.00"
-                              />
+                            <div className="text-left sm:text-right text-sm min-w-0">
+                              <div className="text-gray-500">Price</div>
+                              <div className="font-semibold text-gray-800">${item.price ?? 0}</div>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <label className={labelClass}>Discount (%)</label>
-                              <input
-                                type="number"
-                                value={discountPercent}
-                                onChange={(e) => setDiscountPercent(e.target.value)}
-                                className={inputClass}
-                                placeholder="0"
-                                min="0"
-                                max="100"
-                                step="0.01"
-                              />
+                            <div className="text-left sm:text-right text-sm min-w-0">
+                              <div className="text-gray-500">Total</div>
+                              <div className="font-semibold text-gray-800">${totalPrice}</div>
                             </div>
+                            <button
+                              type="button"
+                              className="col-span-2 sm:col-span-1 justify-self-end p-1 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-400"
+                              onClick={() => handleRemoveCustomItem(item.id)}
+                              title="Remove item"
+                            >
+                              <Trash2 size={16} />
+                            </button>
                           </div>
-                        ) : (
-                          <>
-                            <label className={labelClass}>Discount Amount ($)</label>
-                            <input
-                              type="number"
-                              value={discountAmount}
-                              onFocus={() => {
-                                // Clear the placeholder 0 so typing replaces it
-                                // instead of appending to it.
-                                if (Number(discountAmount) === 0) setDiscountAmount('');
-                              }}
-                              onBlur={() => {
-                                // Left empty: fall back to 0 rather than a blank field.
-                                if (String(discountAmount).trim() === '') setDiscountAmount(0);
-                              }}
-                              onChange={(e) => {
-                                setDiscountAmount(e.target.value);
-                                applyAutoDiscountCode(e.target.value);
-                              }}
-                              className={productSavings > 0 ? `${inputClass} bg-slate-50` : inputClass}
-                              placeholder="0.00"
-                              min="0"
-                              step="0.01"
-                              readOnly={productSavings > 0}
-                            />
-                            {productSavings > 0 && (
-                              <div className="mt-1 text-[11px] text-slate-500">Auto-applied from product price reduction</div>
-                            )}
-                          </>
-                        )}
-                      </div>
-                      <div>
-                        <label className={labelClass}>Discount Code</label>
-                        <input
-                          type="text"
-                          value={discountCode}
-                          onChange={(e) => setDiscountCode(e.target.value)}
-                          className={productSavings > 0 ? `${inputClass} bg-slate-50` : inputClass}
-                          placeholder="Promo code"
-                          readOnly={productSavings > 0}
-                        />
-                      </div>
-                    </div>
-
-                  </div>
+                        </div>
+                      );
+                    })}
                 </div>
-              )}
+              </div>
+            )}
 
-              {!isEditMode && !isAddPaymentMode && (
-                <div className="create-order-section overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#17132a]">
-                  <div className="border-b border-slate-200 bg-gradient-to-r from-violet-50 via-white to-indigo-50 px-4 py-3 dark:border-white/10 dark:from-violet-500/15 dark:via-transparent dark:to-indigo-500/10">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 p-2 shadow-sm">
-                        <CalendarClock size={16} className="text-white" />
-                      </div>
-                      <h3 className="text-sm font-semibold text-gray-800">Subscription</h3>
-                    </div>
-                  </div>
-
-                  <div className="p-4">
-                    <label className={labelClass}>Subscription (Months)<RequiredMark /></label>
-
-                    <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-7 gap-2">
-                      {SUBSCRIPTION_MONTH_OPTIONS.map((months) => {
-                        const isSelected = !subscriptionCustom && Number(subscriptionMonths) === months;
-
-                        return (
-                          <button
-                            key={months}
-                            type="button"
-                            onClick={() => {
-                              clearError('subscriptionMonths');
-                              setSubscriptionCustom(false);
-                              setSubscriptionMonths(months);
-                            }}
-                            className={cn(
-                              'h-10 rounded-lg border text-sm font-semibold transition-colors',
-                              isSelected
-                                ? 'border-purple-500 bg-purple-500 text-white shadow-sm'
-                                : 'border-slate-200 bg-white text-slate-700 dark:text-slate-300 hover:border-purple-300 dark:hover:border-purple-500/40 hover:bg-purple-50 dark:hover:bg-purple-500/15',
-                            )}
-                          >
-                            {months}
-                          </button>
-                        );
-                      })}
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          clearError('subscriptionMonths');
-                          setSubscriptionCustom(true);
-                          setSubscriptionMonths('');
-                        }}
-                        className={cn(
-                          'h-10 rounded-lg border text-sm font-semibold transition-colors',
-                          subscriptionCustom
-                            ? 'border-purple-500 bg-purple-500 text-white shadow-sm'
-                            : 'border-dashed border-slate-300 dark:border-slate-600 bg-white text-slate-600 hover:border-purple-300 dark:hover:border-purple-500/40 hover:bg-purple-50 dark:hover:bg-purple-500/15',
-                        )}
-                      >
-                        Custom
-                      </button>
-                    </div>
-
-                    {subscriptionCustom && (
-                      <div className="mt-3 max-w-[220px]">
-                        <input
-                          type="number"
-                          min="1"
-                          step="1"
-                          autoFocus
-                          value={subscriptionMonths}
-                          onChange={(e) => {
-                            clearError('subscriptionMonths');
-                            const raw = e.target.value;
-                            if (raw === '') {
-                              setSubscriptionMonths('');
-                              return;
-                            }
-                            const next = Number(raw);
-                            setSubscriptionMonths(Number.isFinite(next) ? Math.max(0, Math.trunc(next)) : '');
-                          }}
-                          className={withErrorClass(inputClass, getError('subscriptionMonths'))}
-                          placeholder="Enter months"
-                        />
-                      </div>
-                    )}
-
-                    <FieldError errorKey="subscriptionMonths" />
-                  </div>
-                </div>
-              )}
-
-              {/* Payment Information now below order summary */}
+            {!isEditMode && !isAddPaymentMode && (
               <div className="create-order-section overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#17132a]">
                 <div className="border-b border-slate-200 bg-gradient-to-r from-violet-50 via-white to-indigo-50 px-4 py-3 dark:border-white/10 dark:from-violet-500/15 dark:via-transparent dark:to-indigo-500/10">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 p-2 shadow-sm">
-                        <CreditCard size={16} className="text-white" />
-                      </div>
-                      <h3 className="text-sm font-semibold text-gray-800 truncate">
-                        {isEditMode ? 'Payment Information (Edit)' : isAddPaymentMode ? 'Add Payment' : 'Payment Information'}
-                      </h3>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 p-2 shadow-sm">
+                      <BadgePercent size={16} className="text-white" />
                     </div>
-                    <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end">
-                      {(isEditMode || isAddPaymentMode) && (
+                    <h3 className="text-sm font-semibold text-gray-800">Discounts</h3>
+                  </div>
+                </div>
+
+                <div className="p-4">
+
+                  {/* Discount Input Fields */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4 text-sm">
+                    <div>
+                      <label className={labelClass}>Discount Type</label>
+                      {discountTypeOptions.length > 0 ? (
+                        <Select
+                          value={discountType || ''}
+                          onValueChange={(value) => {
+                            setDiscountType(value);
+                          }}
+                          disabled={productSavings > 0}
+                        >
+                          <SelectTrigger className={selectTriggerClass}>
+                            <SelectValue placeholder="Select Discount Type" />
+                          </SelectTrigger>
+                          <SelectContent className="w-[var(--radix-select-trigger-width)]">
+                            {discountTypeOptions.map((opt) => (
+                              <SelectItem key={opt.id} value={opt.name}>
+                                {opt.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <input
+                          type="text"
+                          value={discountType}
+                          onChange={(e) => setDiscountType(e.target.value)}
+                          className={inputClass}
+                          placeholder="Discount type"
+                          readOnly={productSavings > 0}
+                        />
+                      )}
+                    </div>
+                    <div>
+                      {isPercentDiscount ? (
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <div className="flex-1 min-w-0">
+                            <label className={labelClass}>Discount Amount ($)</label>
+                            <input
+                              type="text"
+                              value={orderSummary.discount.toFixed(2)}
+                              readOnly
+                              className={`${inputClass} bg-slate-50`}
+                              placeholder="0.00"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <label className={labelClass}>Discount (%)</label>
+                            <input
+                              type="number"
+                              value={discountPercent}
+                              onChange={(e) => setDiscountPercent(e.target.value)}
+                              className={inputClass}
+                              placeholder="0"
+                              min="0"
+                              max="100"
+                              step="0.01"
+                            />
+                          </div>
+                        </div>
+                      ) : (
                         <>
-                          {isEditMode && (
-                            <span className="text-xs text-gray-700 bg-white/60 dark:bg-white/10 border border-gray-200 dark:border-white/15 px-2 py-1 rounded-full">
-                              Payment #{payment.paymentId || paymentIdForEdit}
-                            </span>
-                          )}
-                          <span className="text-xs text-gray-700 bg-white/60 dark:bg-white/10 border border-gray-200 dark:border-white/15 px-2 py-1 rounded-full">
-                            Order #{payment.orderId || orderDataFromState?.orderId || ''}
-                          </span>
-                          <span className="text-xs text-gray-600">
-                            Current: <span className="font-semibold capitalize">{activeTab}</span>
-                          </span>
-                          {isEditMode && (
-                            <span className="text-xs bg-green-500 text-white px-2 py-1 rounded-full font-medium">
-                              Editable Section
-                            </span>
+                          <label className={labelClass}>Discount Amount ($)</label>
+                          <input
+                            type="number"
+                            value={discountAmount}
+                            onFocus={() => {
+                              // Clear the placeholder 0 so typing replaces it
+                              // instead of appending to it.
+                              if (Number(discountAmount) === 0) setDiscountAmount('');
+                            }}
+                            onBlur={() => {
+                              // Left empty: fall back to 0 rather than a blank field.
+                              if (String(discountAmount).trim() === '') setDiscountAmount(0);
+                            }}
+                            onChange={(e) => {
+                              setDiscountAmount(e.target.value);
+                              applyAutoDiscountCode(e.target.value);
+                            }}
+                            className={productSavings > 0 ? `${inputClass} bg-slate-50` : inputClass}
+                            placeholder="0.00"
+                            min="0"
+                            step="0.01"
+                            readOnly={productSavings > 0}
+                          />
+                          {productSavings > 0 && (
+                            <div className="mt-1 text-[11px] text-slate-500">Auto-applied from product price reduction</div>
                           )}
                         </>
                       )}
-
-                      {/* Amount lives in the header, tinted with the same
-                          green-to-emerald wash as the header bar itself. */}
-                      <div className="flex h-9 items-center gap-2 rounded-full border border-violet-200 bg-white/80 px-3 py-1 shadow-sm dark:border-violet-500/30 dark:bg-white/[0.06]">
-                        <span className="whitespace-nowrap text-xs font-bold text-violet-700 dark:text-violet-300">Amount: ${formatMoney2(payment.amount)}</span>
-                      </div>
+                    </div>
+                    <div>
+                      <label className={labelClass}>Discount Code</label>
+                      <input
+                        type="text"
+                        value={discountCode}
+                        onChange={(e) => setDiscountCode(e.target.value)}
+                        className={productSavings > 0 ? `${inputClass} bg-slate-50` : inputClass}
+                        placeholder="Promo code"
+                        readOnly={productSavings > 0}
+                      />
                     </div>
                   </div>
-                  {isEditMode && (
-                    <p className="text-xs text-gray-600 mt-1">You can update payment details and change payment type below</p>
+
+                </div>
+              </div>
+            )}
+
+            {!isEditMode && !isAddPaymentMode && (
+              <div className="create-order-section overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#17132a]">
+                <div className="border-b border-slate-200 bg-gradient-to-r from-violet-50 via-white to-indigo-50 px-4 py-3 dark:border-white/10 dark:from-violet-500/15 dark:via-transparent dark:to-indigo-500/10">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 p-2 shadow-sm">
+                      <CalendarClock size={16} className="text-white" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-gray-800">Subscription</h3>
+                  </div>
+                </div>
+
+                <div className="p-4">
+                  <label className={labelClass}>Subscription (Months)<RequiredMark /></label>
+
+                  <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-7 gap-2">
+                    {SUBSCRIPTION_MONTH_OPTIONS.map((months) => {
+                      const isSelected = !subscriptionCustom && Number(subscriptionMonths) === months;
+
+                      return (
+                        <button
+                          key={months}
+                          type="button"
+                          onClick={() => {
+                            clearError('subscriptionMonths');
+                            setSubscriptionCustom(false);
+                            setSubscriptionMonths(months);
+                          }}
+                          className={cn(
+                            'h-10 rounded-lg border text-sm font-semibold transition-colors',
+                            isSelected
+                              ? 'border-purple-500 bg-purple-500 text-white shadow-sm'
+                              : 'border-slate-200 bg-white text-slate-700 dark:text-slate-300 hover:border-purple-300 dark:hover:border-purple-500/40 hover:bg-purple-50 dark:hover:bg-purple-500/15',
+                          )}
+                        >
+                          {months}
+                        </button>
+                      );
+                    })}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        clearError('subscriptionMonths');
+                        setSubscriptionCustom(true);
+                        setSubscriptionMonths('');
+                      }}
+                      className={cn(
+                        'h-10 rounded-lg border text-sm font-semibold transition-colors',
+                        subscriptionCustom
+                          ? 'border-purple-500 bg-purple-500 text-white shadow-sm'
+                          : 'border-dashed border-slate-300 dark:border-slate-600 bg-white text-slate-600 hover:border-purple-300 dark:hover:border-purple-500/40 hover:bg-purple-50 dark:hover:bg-purple-500/15',
+                      )}
+                    >
+                      Custom
+                    </button>
+                  </div>
+
+                  {subscriptionCustom && (
+                    <div className="mt-3 max-w-[220px]">
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        autoFocus
+                        value={subscriptionMonths}
+                        onChange={(e) => {
+                          clearError('subscriptionMonths');
+                          const raw = e.target.value;
+                          if (raw === '') {
+                            setSubscriptionMonths('');
+                            return;
+                          }
+                          const next = Number(raw);
+                          setSubscriptionMonths(Number.isFinite(next) ? Math.max(0, Math.trunc(next)) : '');
+                        }}
+                        className={withErrorClass(inputClass, getError('subscriptionMonths'))}
+                        placeholder="Enter months"
+                      />
+                    </div>
+                  )}
+
+                  <FieldError errorKey="subscriptionMonths" />
+                </div>
+              </div>
+            )}
+
+            {/* Payment Information now below order summary */}
+            <div className="create-order-section overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#17132a]">
+              <div className="border-b border-slate-200 bg-gradient-to-r from-violet-50 via-white to-indigo-50 px-4 py-3 dark:border-white/10 dark:from-violet-500/15 dark:via-transparent dark:to-indigo-500/10">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 p-2 shadow-sm">
+                      <CreditCard size={16} className="text-white" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-gray-800 truncate">
+                      {isEditMode ? 'Payment Information (Edit)' : isAddPaymentMode ? 'Add Payment' : 'Payment Information'}
+                    </h3>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end">
+                    {(isEditMode || isAddPaymentMode) && (
+                      <>
+                        {isEditMode && (
+                          <span className="text-xs text-gray-700 bg-white/60 dark:bg-white/10 border border-gray-200 dark:border-white/15 px-2 py-1 rounded-full">
+                            Payment #{payment.paymentId || paymentIdForEdit}
+                          </span>
+                        )}
+                        <span className="text-xs text-gray-700 bg-white/60 dark:bg-white/10 border border-gray-200 dark:border-white/15 px-2 py-1 rounded-full">
+                          Order #{payment.orderId || orderDataFromState?.orderId || ''}
+                        </span>
+                        <span className="text-xs text-gray-600">
+                          Current: <span className="font-semibold capitalize">{activeTab}</span>
+                        </span>
+                        {isEditMode && (
+                          <span className="text-xs bg-green-500 text-white px-2 py-1 rounded-full font-medium">
+                            Editable Section
+                          </span>
+                        )}
+                      </>
+                    )}
+
+                    {/* Amount lives in the header, tinted with the same
+                          green-to-emerald wash as the header bar itself. */}
+                    <div className="flex h-9 items-center gap-2 rounded-full border border-violet-200 bg-white/80 px-3 py-1 shadow-sm dark:border-violet-500/30 dark:bg-white/[0.06]">
+                      <span className="whitespace-nowrap text-xs font-bold text-violet-700 dark:text-violet-300">Amount: ${formatMoney2(payment.amount)}</span>
+                    </div>
+                  </div>
+                </div>
+                {isEditMode && (
+                  <p className="text-xs text-gray-600 mt-1">You can update payment details and change payment type below</p>
+                )}
+              </div>
+              <div className="px-4 pt-3">
+                <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 text-sm sm:grid-cols-3 sm:gap-3 sm:text-base md:grid-cols-5 dark:border-white/10 dark:bg-white/[0.03]">
+                  {isPaymentTabAllowed('card') && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('card')}
+                      className={`w-full rounded-xl px-3 py-2 border text-center flex items-center justify-center transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/30 ${activeTab === 'card'
+                        ? 'border-violet-500 bg-gradient-to-br from-violet-600 to-indigo-600 text-white ring-2 ring-violet-500/15 shadow-violet-500/20'
+                        : 'bg-white text-slate-700 dark:text-slate-300 border-slate-200 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'
+                        }`}
+                    >
+                      <span className="inline-flex flex-row items-center justify-center gap-1.5">
+                        <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ${activeTab === 'card' ? 'bg-white/15 text-white' : 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300'}`}>
+                          <CreditCard size={18} aria-hidden="true" />
+                        </span>
+                        <span className="font-semibold leading-none">Card</span>
+                      </span>
+                    </button>
+                  )}
+                  {isPaymentTabAllowed('bank') && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('bank')}
+                      className={`w-full rounded-xl px-3 py-2 border text-center flex items-center justify-center transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/30 ${activeTab === 'bank'
+                        ? 'border-violet-500 bg-gradient-to-br from-violet-600 to-indigo-600 text-white ring-2 ring-violet-500/15 shadow-violet-500/20'
+                        : 'bg-white text-slate-700 dark:text-slate-300 border-slate-200 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'
+                        }`}
+                    >
+                      <span className="inline-flex flex-row items-center justify-center gap-1.5">
+                        <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ${activeTab === 'bank' ? 'bg-white/15 text-white' : 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300'}`}>
+                          <Landmark size={18} aria-hidden="true" />
+                        </span>
+                        <span className="font-semibold leading-none">Bank</span>
+                      </span>
+                    </button>
+                  )}
+                  {isPaymentTabAllowed('cheque') && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('cheque')}
+                      className={`w-full rounded-xl px-3 py-2 border text-center flex items-center justify-center transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/30 ${activeTab === 'cheque'
+                        ? 'border-violet-500 bg-gradient-to-br from-violet-600 to-indigo-600 text-white ring-2 ring-violet-500/15 shadow-violet-500/20'
+                        : 'bg-white text-slate-700 dark:text-slate-300 border-slate-200 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'
+                        }`}
+                    >
+                      <span className="inline-flex flex-row items-center justify-center gap-1.5">
+                        <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ${activeTab === 'cheque' ? 'bg-white/15 text-white' : 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300'}`}>
+                          <FileCheck2 size={18} aria-hidden="true" />
+                        </span>
+                        <span className="font-semibold leading-none">Cheque</span>
+                      </span>
+                    </button>
+                  )}
+                  {isPaymentTabAllowed('zelle') && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('zelle')}
+                      className={`w-full rounded-xl px-3 py-2 border text-center flex items-center justify-center transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/30 ${activeTab === 'zelle'
+                        ? 'border-violet-500 bg-gradient-to-br from-violet-600 to-indigo-600 text-white ring-2 ring-violet-500/15 shadow-violet-500/20'
+                        : 'bg-white text-slate-700 dark:text-slate-300 border-slate-200 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'
+                        }`}
+                    >
+                      <span className="inline-flex flex-row items-center justify-center gap-1.5">
+                        <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ${activeTab === 'zelle' ? 'bg-white/15 text-white' : 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300'}`}>
+                          <Zap size={18} aria-hidden="true" />
+                        </span>
+                        <span className="font-semibold leading-none">Zelle</span>
+                      </span>
+                    </button>
+                  )}
+                  {isPaymentTabAllowed('paypal') && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('paypal')}
+                      className={`w-full rounded-xl px-3 py-2 border text-center flex items-center justify-center transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/30 ${activeTab === 'paypal'
+                        ? 'border-violet-500 bg-gradient-to-br from-violet-600 to-indigo-600 text-white ring-2 ring-violet-500/15 shadow-violet-500/20'
+                        : 'bg-white text-slate-700 dark:text-slate-300 border-slate-200 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'
+                        }`}
+                    >
+                      <span className="inline-flex flex-row items-center justify-center gap-1.5">
+                        <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ${activeTab === 'paypal' ? 'bg-white/15 text-white' : 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300'}`}>
+                          <WalletCards size={18} aria-hidden="true" />
+                        </span>
+                        <span className="font-semibold leading-none">PayPal</span>
+                      </span>
+                    </button>
                   )}
                 </div>
-                <div className="px-4 pt-3">
-                  <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 text-sm sm:grid-cols-3 sm:gap-3 sm:text-base md:grid-cols-5 dark:border-white/10 dark:bg-white/[0.03]">
-                    {isPaymentTabAllowed('card') && (
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab('card')}
-                        className={`w-full rounded-xl px-3 py-2 border text-center flex items-center justify-center transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/30 ${activeTab === 'card'
-                          ? 'border-violet-500 bg-gradient-to-br from-violet-600 to-indigo-600 text-white ring-2 ring-violet-500/15 shadow-violet-500/20'
-                          : 'bg-white text-slate-700 dark:text-slate-300 border-slate-200 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'
-                          }`}
-                      >
-                        <span className="inline-flex flex-row items-center justify-center gap-1.5">
-                          <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ${activeTab === 'card' ? 'bg-white/15 text-white' : 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300'}`}>
-                            <CreditCard size={18} aria-hidden="true" />
-                          </span>
-                          <span className="font-semibold leading-none">Card</span>
-                        </span>
-                      </button>
-                    )}
-                    {isPaymentTabAllowed('bank') && (
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab('bank')}
-                        className={`w-full rounded-xl px-3 py-2 border text-center flex items-center justify-center transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/30 ${activeTab === 'bank'
-                          ? 'border-violet-500 bg-gradient-to-br from-violet-600 to-indigo-600 text-white ring-2 ring-violet-500/15 shadow-violet-500/20'
-                          : 'bg-white text-slate-700 dark:text-slate-300 border-slate-200 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'
-                          }`}
-                      >
-                        <span className="inline-flex flex-row items-center justify-center gap-1.5">
-                          <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ${activeTab === 'bank' ? 'bg-white/15 text-white' : 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300'}`}>
-                            <Landmark size={18} aria-hidden="true" />
-                          </span>
-                          <span className="font-semibold leading-none">Bank</span>
-                        </span>
-                      </button>
-                    )}
-                    {isPaymentTabAllowed('cheque') && (
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab('cheque')}
-                        className={`w-full rounded-xl px-3 py-2 border text-center flex items-center justify-center transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/30 ${activeTab === 'cheque'
-                          ? 'border-violet-500 bg-gradient-to-br from-violet-600 to-indigo-600 text-white ring-2 ring-violet-500/15 shadow-violet-500/20'
-                          : 'bg-white text-slate-700 dark:text-slate-300 border-slate-200 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'
-                          }`}
-                      >
-                        <span className="inline-flex flex-row items-center justify-center gap-1.5">
-                          <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ${activeTab === 'cheque' ? 'bg-white/15 text-white' : 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300'}`}>
-                            <FileCheck2 size={18} aria-hidden="true" />
-                          </span>
-                          <span className="font-semibold leading-none">Cheque</span>
-                        </span>
-                      </button>
-                    )}
-                    {isPaymentTabAllowed('zelle') && (
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab('zelle')}
-                        className={`w-full rounded-xl px-3 py-2 border text-center flex items-center justify-center transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/30 ${activeTab === 'zelle'
-                          ? 'border-violet-500 bg-gradient-to-br from-violet-600 to-indigo-600 text-white ring-2 ring-violet-500/15 shadow-violet-500/20'
-                          : 'bg-white text-slate-700 dark:text-slate-300 border-slate-200 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'
-                          }`}
-                      >
-                        <span className="inline-flex flex-row items-center justify-center gap-1.5">
-                          <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ${activeTab === 'zelle' ? 'bg-white/15 text-white' : 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300'}`}>
-                            <Zap size={18} aria-hidden="true" />
-                          </span>
-                          <span className="font-semibold leading-none">Zelle</span>
-                        </span>
-                      </button>
-                    )}
-                    {isPaymentTabAllowed('paypal') && (
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab('paypal')}
-                        className={`w-full rounded-xl px-3 py-2 border text-center flex items-center justify-center transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/30 ${activeTab === 'paypal'
-                          ? 'border-violet-500 bg-gradient-to-br from-violet-600 to-indigo-600 text-white ring-2 ring-violet-500/15 shadow-violet-500/20'
-                          : 'bg-white text-slate-700 dark:text-slate-300 border-slate-200 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'
-                          }`}
-                      >
-                        <span className="inline-flex flex-row items-center justify-center gap-1.5">
-                          <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ${activeTab === 'paypal' ? 'bg-white/15 text-white' : 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300'}`}>
-                            <WalletCards size={18} aria-hidden="true" />
-                          </span>
-                          <span className="font-semibold leading-none">PayPal</span>
-                        </span>
-                      </button>
-                    )}
-                  </div>
-                  <FieldError errorKey="payment.paymentType" />
+                <FieldError errorKey="payment.paymentType" />
 
-                  <div className="mb-3">
-                    {(isEditMode || isAddPaymentMode) && (
-                      <div className="mb-3">
-                        <p className="text-xs font-semibold text-gray-600 mb-1">Payment Status</p>
-                        <div className="flex flex-wrap gap-2 text-xs">
-                          <button
-                            type="button"
-                            onClick={handlePaymentStatusToggle('isVoid')}
-                            className={`px-3 py-1 rounded-full border ${payment.isVoid
-                              ? 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-400'
-                              : 'bg-white text-gray-700 border-gray-200'
-                              }`}
-                          >
-                            Void
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handlePaymentStatusToggle('isChargeBack')}
-                            className={`px-3 py-1 rounded-full border ${payment.isChargeBack
-                              ? 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-400'
-                              : 'bg-white text-gray-700 border-gray-200'
-                              }`}
-                          >
-                            Chargeback
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handlePaymentStatusToggle('isRetrieval')}
-                            className={`px-3 py-1 rounded-full border ${payment.isRetrieval
-                              ? 'bg-amber-50 text-amber-600 border-amber-400'
-                              : 'bg-white text-gray-700 border-gray-200'
-                              }`}
-                          >
-                            Retrieval
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handlePaymentStatusToggle('isAlert')}
-                            className={`px-3 py-1 rounded-full border ${payment.isAlert
-                              ? 'bg-amber-50 text-amber-600 border-amber-400'
-                              : 'bg-white text-gray-700 border-gray-200'
-                              }`}
-                          >
-                            Alert
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {(Number(payment?.brandId) > 0 || Number(payment?.gatewayId) > 0) && (
-                      <div className="mb-2 flex justify-end">
+                <div className="mb-3">
+                  {(isEditMode || isAddPaymentMode) && (
+                    <div className="mb-3">
+                      <p className="text-xs font-semibold text-gray-600 mb-1">Payment Status</p>
+                      <div className="flex flex-wrap gap-2 text-xs">
                         <button
                           type="button"
-                          onClick={clearPaymentBrandAndGateway}
-                          title="Clear the selected brand and gateway"
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-sm transition-colors hover:border-rose-300 dark:hover:border-rose-500/40 hover:bg-rose-50 dark:hover:bg-rose-500/15 hover:text-rose-700 dark:hover:text-rose-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/30"
+                          onClick={handlePaymentStatusToggle('isVoid')}
+                          className={`px-3 py-1 rounded-full border ${payment.isVoid
+                            ? 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-400'
+                            : 'bg-white text-gray-700 border-gray-200'
+                            }`}
                         >
-                          <Eraser size={13} />
-                          Clear Brand &amp; Gateway
+                          Void
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handlePaymentStatusToggle('isChargeBack')}
+                          className={`px-3 py-1 rounded-full border ${payment.isChargeBack
+                            ? 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-400'
+                            : 'bg-white text-gray-700 border-gray-200'
+                            }`}
+                        >
+                          Chargeback
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handlePaymentStatusToggle('isRetrieval')}
+                          className={`px-3 py-1 rounded-full border ${payment.isRetrieval
+                            ? 'bg-amber-50 text-amber-600 border-amber-400'
+                            : 'bg-white text-gray-700 border-gray-200'
+                            }`}
+                        >
+                          Retrieval
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handlePaymentStatusToggle('isAlert')}
+                          className={`px-3 py-1 rounded-full border ${payment.isAlert
+                            ? 'bg-amber-50 text-amber-600 border-amber-400'
+                            : 'bg-white text-gray-700 border-gray-200'
+                            }`}
+                        >
+                          Alert
                         </button>
                       </div>
-                    )}
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 text-sm">
-                      <div className="lg:col-span-6">
-                        <label className={labelClass}>Brand<RequiredMark /></label>
-                        <Select
-                          value={payment.brandId ? String(payment.brandId) : ''}
-                          onValueChange={(value) => {
-                            const id = value ? Number(value) : 0;
-                            clearError('payment.brandId');
-                            clearError('payment.gatewayId');
-                            clearError('payment.paymentType');
-                            setPayment((prev) => {
-                              const prevBrandId = Number(prev?.brandId) || 0;
-                              const next = { ...prev, brandId: id };
-                              if (prevBrandId !== id) next.gatewayId = 0;
-                              return next;
-                            });
-                          }}
-                        >
-                          <SelectTrigger className={withErrorClass(selectTriggerCompactClass, getError('payment.brandId'))}>
-                            <SelectValue placeholder="Select Brand" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {paymentBrands.length > 0 ? (
-                              paymentBrands.map((brand) => {
-                                const brandId = Number(brand?.brandId ?? brand?.BrandId ?? brand?.id) || 0;
-                                if (!brandId) return null;
-                                const brandLabel =
-                                  brand?.brandDisplayName ||
-                                  brand?.brandName ||
-                                  brand?.BrandName ||
-                                  brand?.name ||
-                                  `Brand ${brandId}`;
-
-                                return (
-                                  <SelectItem key={brandId} value={String(brandId)}>
-                                    {brandLabel}
-                                  </SelectItem>
-                                );
-                              })
-                            ) : (
-                              <div className="px-3 py-2 text-xs text-slate-500">No brands found with active payment types</div>
-                            )}
-                          </SelectContent>
-                        </Select>
-                        <FieldError errorKey="payment.brandId" />
-                      </div>
-
-                      <div className="lg:col-span-6">
-                        <label className={labelClass}>Gateway<RequiredMark /></label>
-                        <Select
-                          value={payment.gatewayId ? String(payment.gatewayId) : ''}
-                          onValueChange={(value) => {
-                            const id = value ? Number(value) : 0;
-                            clearError('payment.gatewayId');
-                            clearError('payment.paymentType');
-                            const nextGateway = (gateways || []).find((gateway) => getGatewayIdValue(gateway) === id);
-                            // Picking a gateway fills the brand in. The map is
-                            // tried first because it also covers gateways whose
-                            // brand only appears on the payment-type records.
-                            const nextBrandId = gatewayBrandIdByGatewayId.get(id) || getGatewayBrandIdValue(nextGateway);
-                            clearError('payment.brandId');
-                            setPayment((prev) => ({
-                              ...prev,
-                              gatewayId: id,
-                              brandId: nextBrandId || prev.brandId,
-                            }));
-                          }}
-                        >
-                          <SelectTrigger className={withErrorClass(selectTriggerCompactClass, getError('payment.gatewayId'))}>
-                            <SelectValue placeholder="Select Gateway" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {filteredGateways.length > 0 ? (
-                              filteredGateways.map((gateway) => (
-                                <SelectItem key={getGatewayIdValue(gateway)} value={String(getGatewayIdValue(gateway))}>
-                                  {getGatewayNameValue(gateway) || `Gateway ${getGatewayIdValue(gateway)}`}
-                                </SelectItem>
-                              ))
-                            ) : (
-                              <div className="px-3 py-2 text-xs text-slate-500">
-                                {Number(payment?.brandId)
-                                  ? `No gateways for this brand accept ${paymentTypeFromTab(activeTab) || 'this payment type'}`
-                                  : `No gateways accept ${paymentTypeFromTab(activeTab) || 'this payment type'}`}
-                              </div>
-                            )}
-                          </SelectContent>
-                        </Select>
-                        <FieldError errorKey="payment.gatewayId" />
-                      </div>
-
-                      {/* Amount moved up into the section header. */}
-                      <div className="lg:col-span-12">
-                        <FieldError errorKey="payment.amount" />
-                      </div>
-
                     </div>
+                  )}
+
+                  {(Number(payment?.brandId) > 0 || Number(payment?.gatewayId) > 0) && (
+                    <div className="mb-2 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={clearPaymentBrandAndGateway}
+                        title="Clear the selected brand and gateway"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-sm transition-colors hover:border-rose-300 dark:hover:border-rose-500/40 hover:bg-rose-50 dark:hover:bg-rose-500/15 hover:text-rose-700 dark:hover:text-rose-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/30"
+                      >
+                        <Eraser size={13} />
+                        Clear Brand &amp; Gateway
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 text-sm">
+                    <div className="lg:col-span-6">
+                      <label className={labelClass}>Brand<RequiredMark /></label>
+                      <Select
+                        value={payment.brandId ? String(payment.brandId) : ''}
+                        onValueChange={(value) => {
+                          const id = value ? Number(value) : 0;
+                          clearError('payment.brandId');
+                          clearError('payment.gatewayId');
+                          clearError('payment.paymentType');
+                          setPayment((prev) => {
+                            const prevBrandId = Number(prev?.brandId) || 0;
+                            const next = { ...prev, brandId: id };
+                            if (prevBrandId !== id) next.gatewayId = 0;
+                            return next;
+                          });
+                        }}
+                      >
+                        <SelectTrigger className={withErrorClass(selectTriggerCompactClass, getError('payment.brandId'))}>
+                          <SelectValue placeholder="Select Brand" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {paymentBrands.length > 0 ? (
+                            paymentBrands.map((brand) => {
+                              const brandId = Number(brand?.brandId ?? brand?.BrandId ?? brand?.id) || 0;
+                              if (!brandId) return null;
+                              const brandLabel =
+                                brand?.brandDisplayName ||
+                                brand?.brandName ||
+                                brand?.BrandName ||
+                                brand?.name ||
+                                `Brand ${brandId}`;
+
+                              return (
+                                <SelectItem key={brandId} value={String(brandId)}>
+                                  {brandLabel}
+                                </SelectItem>
+                              );
+                            })
+                          ) : (
+                            <div className="px-3 py-2 text-xs text-slate-500">No brands found with active payment types</div>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <FieldError errorKey="payment.brandId" />
+                    </div>
+
+                    <div className="lg:col-span-6">
+                      <label className={labelClass}>Gateway<RequiredMark /></label>
+                      <Select
+                        value={payment.gatewayId ? String(payment.gatewayId) : ''}
+                        onValueChange={(value) => {
+                          const id = value ? Number(value) : 0;
+                          clearError('payment.gatewayId');
+                          clearError('payment.paymentType');
+                          const nextGateway = (gateways || []).find((gateway) => getGatewayIdValue(gateway) === id);
+                          // Picking a gateway fills the brand in. The map is
+                          // tried first because it also covers gateways whose
+                          // brand only appears on the payment-type records.
+                          const nextBrandId = gatewayBrandIdByGatewayId.get(id) || getGatewayBrandIdValue(nextGateway);
+                          clearError('payment.brandId');
+                          setPayment((prev) => ({
+                            ...prev,
+                            gatewayId: id,
+                            brandId: nextBrandId || prev.brandId,
+                          }));
+                        }}
+                      >
+                        <SelectTrigger className={withErrorClass(selectTriggerCompactClass, getError('payment.gatewayId'))}>
+                          <SelectValue placeholder="Select Gateway" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {filteredGateways.length > 0 ? (
+                            filteredGateways.map((gateway) => (
+                              <SelectItem key={getGatewayIdValue(gateway)} value={String(getGatewayIdValue(gateway))}>
+                                {getGatewayNameValue(gateway) || `Gateway ${getGatewayIdValue(gateway)}`}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <div className="px-3 py-2 text-xs text-slate-500">
+                              {Number(payment?.brandId)
+                                ? `No gateways for this brand accept ${paymentTypeFromTab(activeTab) || 'this payment type'}`
+                                : `No gateways accept ${paymentTypeFromTab(activeTab) || 'this payment type'}`}
+                            </div>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <FieldError errorKey="payment.gatewayId" />
+                    </div>
+
+                    {/* Amount moved up into the section header. */}
+                    <div className="lg:col-span-12">
+                      <FieldError errorKey="payment.amount" />
+                    </div>
+
                   </div>
+                </div>
 
-                  {/* Tab-specific fields styled like real cards */}
-                  <div className="space-y-3 text-sm pb-4">
-                    {activeTab === 'card' && (
-                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                        <div className="flex items-center justify-center xl:justify-center">
-                          <div
-                            className="w-full max-w-md rounded-2xl overflow-hidden shadow-md border border-slate-200"
-                            style={{ aspectRatio: '1.586 / 1' }}
+                {/* Tab-specific fields styled like real cards */}
+                <div className="space-y-3 text-sm pb-4">
+                  {activeTab === 'card' && (
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                      <div className="flex items-center justify-center xl:justify-center">
+                        <div
+                          className="w-full max-w-md rounded-2xl overflow-hidden shadow-md border border-slate-200"
+                          style={{ aspectRatio: '1.586 / 1' }}
+                        >
+                          <div className="relative h-full w-full bg-gradient-to-br from-violet-700 via-indigo-700 to-slate-950">
+                            <div className="absolute inset-0 opacity-40 bg-[radial-gradient(ellipse_at_top_left,rgba(255,255,255,0.25),transparent_55%)]" />
+                            <div className="absolute inset-0 opacity-40 bg-[radial-gradient(ellipse_at_bottom_right,rgba(139, 92, 246,0.25),transparent_55%)]" />
+
+                            <div className="relative h-full w-full p-5 flex flex-col justify-between text-white">
+                              <div className="flex items-start justify-between">
+                                <div className="text-sm font-semibold tracking-wide opacity-95">
+                                  {cardPreview.type || 'Card'}
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <svg
+                                    width="22"
+                                    height="22"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="opacity-90"
+                                  >
+                                    <path
+                                      d="M2 9.5C6.4 6.2 10.8 6.2 15.2 9.5"
+                                      stroke="currentColor"
+                                      strokeWidth="1.6"
+                                      strokeLinecap="round"
+                                    />
+                                    <path
+                                      d="M2 13C6 10.4 10 10.4 14 13"
+                                      stroke="currentColor"
+                                      strokeWidth="1.6"
+                                      strokeLinecap="round"
+                                    />
+                                    <path
+                                      d="M2 16.5C5.2 14.6 8.4 14.6 11.6 16.5"
+                                      stroke="currentColor"
+                                      strokeWidth="1.6"
+                                      strokeLinecap="round"
+                                    />
+                                  </svg>
+                                  {cardPreview.type === 'Mastercard' ? (
+                                    <div className="relative h-8 w-14">
+                                      <span className="absolute left-1 top-0 h-8 w-8 rounded-full bg-[#EB001B]/90" />
+                                      <span className="absolute left-5 top-0 h-8 w-8 rounded-full bg-[#F79E1B]/90 mix-blend-screen" />
+                                    </div>
+                                  ) : cardPreview.type === 'Visa' ? (
+                                    <div className="text-sm font-bold tracking-widest">VISA</div>
+                                  ) : cardPreview.type === 'American Express' ? (
+                                    <div className="text-xs font-bold tracking-widest">AMEX</div>
+                                  ) : cardPreview.type === 'Discover' ? (
+                                    <div className="text-xs font-bold tracking-widest">DISCOVER</div>
+                                  ) : (
+                                    <div className="text-xs font-semibold tracking-widest">CARD</div>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-between">
+                                <div className="h-9 w-12 rounded-md bg-gradient-to-br from-yellow-200/90 to-amber-400/90 border border-yellow-100/40" />
+                              </div>
+
+                              <div className="text-lg sm:text-2xl font-semibold tracking-[0.12em] sm:tracking-[0.18em] leading-tight break-words">
+                                {cardPreview.displayNumber}
+                              </div>
+
+                              <div className="flex items-end justify-between text-xs sm:text-sm tracking-wide">
+                                <div className="min-w-0">
+                                  <div className="text-[10px] uppercase opacity-75">Cardholder</div>
+                                  <div className="font-semibold truncate">{cardPreview.displayName}</div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-[10px] uppercase opacity-75">Expiry</div>
+                                  <div className="font-semibold">{cardPreview.displayExpiry}</div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="md:col-span-2">
+                          <label className={labelClass}>Card Number<RequiredMark /></label>
+                          <input
+                            value={formattedCardNumber}
+                            onChange={handleCardNumberChange}
+                            className={withErrorClass(inputClass, getError('payment.cardNumber'))}
+                            placeholder="0000 0000 0000 0000"
+                            inputMode="numeric"
+                            autoComplete="cc-number"
+                            maxLength={19}
+                          />
+                          <FieldError errorKey="payment.cardNumber" />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className={labelClass}>Card Type<RequiredMark /></label>
+                          <Select
+                            value={payment.cardType || ''}
+                            onValueChange={(value) => {
+                              setCardTypeTouched(true);
+                              clearError('payment.cardType');
+                              setPayment((prev) => ({ ...prev, cardType: value }));
+                            }}
                           >
-                            <div className="relative h-full w-full bg-gradient-to-br from-violet-700 via-indigo-700 to-slate-950">
-                              <div className="absolute inset-0 opacity-40 bg-[radial-gradient(ellipse_at_top_left,rgba(255,255,255,0.25),transparent_55%)]" />
-                              <div className="absolute inset-0 opacity-40 bg-[radial-gradient(ellipse_at_bottom_right,rgba(139, 92, 246,0.25),transparent_55%)]" />
+                            <SelectTrigger className={withErrorClass(selectTriggerClass, getError('payment.cardType'))}>
+                              <SelectValue placeholder="Select Card Type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {cardTypes.length > 0 ? (
+                                cardTypes.map((type) => (
+                                  <SelectItem key={type.id || type.name} value={type.name}>
+                                    {type.name}
+                                  </SelectItem>
+                                ))
+                              ) : (
+                                <div className="px-3 py-2 text-xs text-slate-500">No active card types found</div>
+                              )}
+                            </SelectContent>
+                          </Select>
+                          <FieldError errorKey="payment.cardType" />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className={labelClass}>Name on Card<RequiredMark /></label>
+                          <input
+                            value={payment.nameOnCard || ''}
+                            onChange={handleNameOnCardChange}
+                            className={withErrorClass(inputClass, getError('payment.nameOnCard'))}
+                            placeholder="Cardholder Name"
+                            autoComplete="cc-name"
+                          />
+                          <FieldError errorKey="payment.nameOnCard" />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Expiry<RequiredMark /></label>
+                          <input
+                            value={payment.cardExpiryDate || ''}
+                            onChange={handleExpiryChange}
+                            className={withErrorClass(inputClass, getError('payment.cardExpiryDate'))}
+                            placeholder="MM/YY"
+                            inputMode="numeric"
+                            autoComplete="cc-exp"
+                          />
+                          <FieldError errorKey="payment.cardExpiryDate" />
+                        </div>
+                        <div>
+                          <label className={labelClass}>CVV<RequiredMark /></label>
+                          <input
+                            value={payment.cvv || ''}
+                            onChange={handleCvvChange}
+                            className={withErrorClass(inputClass, getError('payment.cvv'))}
+                            placeholder={(payment.cardType || cardPreview.type) === 'American Express' ? '1234' : '123'}
+                            inputMode="numeric"
+                            autoComplete="cc-csc"
+                          />
+                          <FieldError errorKey="payment.cvv" />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className={labelClass}>Auth Code</label>
+                          <input
+                            value={payment.authCode || ''}
+                            onChange={handlePaymentField('authCode')}
+                            className={inputClass}
+                            placeholder="Auth code"
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className={labelClass}>Transaction ID</label>
+                          <input
+                            value={payment.transactionId || ''}
+                            onChange={handlePaymentField('transactionId')}
+                            className={withErrorClass(inputClass, getError('payment.transactionId'))}
+                            placeholder="Transaction ID"
+                          />
+                          <FieldError errorKey="payment.transactionId" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
-                              <div className="relative h-full w-full p-5 flex flex-col justify-between text-white">
-                                <div className="flex items-start justify-between">
-                                  <div className="text-sm font-semibold tracking-wide opacity-95">
-                                    {cardPreview.type || 'Card'}
-                                  </div>
-                                  <div className="flex items-center gap-3">
-                                    <svg
-                                      width="22"
-                                      height="22"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      xmlns="http://www.w3.org/2000/svg"
-                                      className="opacity-90"
-                                    >
-                                      <path
-                                        d="M2 9.5C6.4 6.2 10.8 6.2 15.2 9.5"
-                                        stroke="currentColor"
-                                        strokeWidth="1.6"
-                                        strokeLinecap="round"
-                                      />
-                                      <path
-                                        d="M2 13C6 10.4 10 10.4 14 13"
-                                        stroke="currentColor"
-                                        strokeWidth="1.6"
-                                        strokeLinecap="round"
-                                      />
-                                      <path
-                                        d="M2 16.5C5.2 14.6 8.4 14.6 11.6 16.5"
-                                        stroke="currentColor"
-                                        strokeWidth="1.6"
-                                        strokeLinecap="round"
-                                      />
-                                    </svg>
-                                    {cardPreview.type === 'Mastercard' ? (
-                                      <div className="relative h-8 w-14">
-                                        <span className="absolute left-1 top-0 h-8 w-8 rounded-full bg-[#EB001B]/90" />
-                                        <span className="absolute left-5 top-0 h-8 w-8 rounded-full bg-[#F79E1B]/90 mix-blend-screen" />
-                                      </div>
-                                    ) : cardPreview.type === 'Visa' ? (
-                                      <div className="text-sm font-bold tracking-widest">VISA</div>
-                                    ) : cardPreview.type === 'American Express' ? (
-                                      <div className="text-xs font-bold tracking-widest">AMEX</div>
-                                    ) : cardPreview.type === 'Discover' ? (
-                                      <div className="text-xs font-bold tracking-widest">DISCOVER</div>
-                                    ) : (
-                                      <div className="text-xs font-semibold tracking-widest">CARD</div>
-                                    )}
+                  {activeTab === 'bank' && (
+                    <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                      <div className="flex items-center justify-center rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50/80 to-indigo-50/60 p-4 dark:border-violet-500/20 dark:from-violet-500/[0.08] dark:to-indigo-500/[0.04] sm:p-6">
+                        <div
+                          className="relative min-h-[220px] w-full max-w-md overflow-hidden rounded-2xl border border-violet-300/40 bg-gradient-to-br from-slate-950 via-violet-950 to-indigo-950 shadow-xl shadow-violet-950/15 sm:min-h-[240px]"
+                        >
+                          <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full border border-white/10 bg-violet-400/10" />
+                          <div className="absolute -bottom-24 -left-16 h-56 w-56 rounded-full border border-white/10 bg-indigo-400/10" />
+                          <div className="relative w-full p-5 text-white sm:p-6">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-200">
+                                  Bank Transfer
+                                </div>
+                                <div className="mt-1 truncate text-base font-semibold text-white">
+                                  {bankPreview.holder || 'Account holder'}
+                                </div>
+                              </div>
+                              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-violet-100 shadow-sm backdrop-blur-sm">
+                                <Landmark size={21} aria-hidden="true" />
+                              </div>
+                            </div>
+
+                            <div className="mt-5 grid grid-cols-1 gap-3 text-sm">
+                              <div className="min-w-0 rounded-xl border border-white/10 bg-white/[0.08] px-4 py-3 backdrop-blur-sm">
+                                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-200">Account Number</div>
+                                <div className="mt-1 min-h-[20px] break-words font-mono font-semibold tracking-[0.12em] text-white">
+                                  {bankPreview.acctDisplay || '•••• •••• ••••'}
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <div className="min-w-0 rounded-xl border border-white/10 bg-white/[0.08] px-4 py-3 backdrop-blur-sm">
+                                  <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-200">Routing / IFSC</div>
+                                  <div className="mt-1 min-h-[20px] break-words font-semibold text-white">
+                                    {bankPreview.routingOrIfsc || 'Not entered'}
                                   </div>
                                 </div>
-
-                                <div className="flex items-center justify-between">
-                                  <div className="h-9 w-12 rounded-md bg-gradient-to-br from-yellow-200/90 to-amber-400/90 border border-yellow-100/40" />
-                                </div>
-
-                                <div className="text-lg sm:text-2xl font-semibold tracking-[0.12em] sm:tracking-[0.18em] leading-tight break-words">
-                                  {cardPreview.displayNumber}
-                                </div>
-
-                                <div className="flex items-end justify-between text-xs sm:text-sm tracking-wide">
-                                  <div className="min-w-0">
-                                    <div className="text-[10px] uppercase opacity-75">Cardholder</div>
-                                    <div className="font-semibold truncate">{cardPreview.displayName}</div>
-                                  </div>
-                                  <div className="text-right">
-                                    <div className="text-[10px] uppercase opacity-75">Expiry</div>
-                                    <div className="font-semibold">{cardPreview.displayExpiry}</div>
+                                <div className="min-w-0 rounded-xl border border-white/10 bg-white/[0.08] px-4 py-3 backdrop-blur-sm">
+                                  <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-200">Reference</div>
+                                  <div className="mt-1 min-h-[20px] break-words font-semibold text-white">
+                                    {bankPreview.reference || 'Not entered'}
                                   </div>
                                 </div>
                               </div>
                             </div>
                           </div>
                         </div>
+                      </div>
 
+                      <div className="create-order-section rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#17132a]">
+                        <div className="mb-4 flex items-start gap-3 border-b border-slate-100 pb-4 dark:border-white/10">
+                          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">
+                            <Landmark size={19} aria-hidden="true" />
+                          </span>
+                          <div>
+                            <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Bank transfer details</div>
+                            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Enter the receiving account and routing information.</p>
+                          </div>
+                        </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <div className="md:col-span-2">
-                            <label className={labelClass}>Card Number<RequiredMark /></label>
-                            <input
-                              value={formattedCardNumber}
-                              onChange={handleCardNumberChange}
-                              className={withErrorClass(inputClass, getError('payment.cardNumber'))}
-                              placeholder="0000 0000 0000 0000"
-                              inputMode="numeric"
-                              autoComplete="cc-number"
-                              maxLength={19}
-                            />
-                            <FieldError errorKey="payment.cardNumber" />
-                          </div>
-                          <div className="md:col-span-2">
-                            <label className={labelClass}>Card Type<RequiredMark /></label>
-                            <Select
-                              value={payment.cardType || ''}
-                              onValueChange={(value) => {
-                                setCardTypeTouched(true);
-                                clearError('payment.cardType');
-                                setPayment((prev) => ({ ...prev, cardType: value }));
-                              }}
-                            >
-                              <SelectTrigger className={withErrorClass(selectTriggerClass, getError('payment.cardType'))}>
-                                <SelectValue placeholder="Select Card Type" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {cardTypes.length > 0 ? (
-                                  cardTypes.map((type) => (
-                                    <SelectItem key={type.id || type.name} value={type.name}>
-                                      {type.name}
-                                    </SelectItem>
-                                  ))
-                                ) : (
-                                  <div className="px-3 py-2 text-xs text-slate-500">No active card types found</div>
-                                )}
-                              </SelectContent>
-                            </Select>
-                            <FieldError errorKey="payment.cardType" />
-                          </div>
-                          <div className="md:col-span-2">
-                            <label className={labelClass}>Name on Card<RequiredMark /></label>
+                            <label className={labelClass}>Account Holder Name<RequiredMark /></label>
                             <input
                               value={payment.nameOnCard || ''}
                               onChange={handleNameOnCardChange}
                               className={withErrorClass(inputClass, getError('payment.nameOnCard'))}
-                              placeholder="Cardholder Name"
-                              autoComplete="cc-name"
+                              placeholder="Account holder name"
+                            />
+                            <FieldError errorKey="payment.nameOnCard" />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className={labelClass}>Account Number<RequiredMark /></label>
+                            <input
+                              value={bankAccountNumberFormatted}
+                              onChange={handleBankAccountNumberChange}
+                              className={withErrorClass(inputClass, getError('payment.cardNumber'))}
+                              placeholder="Account number"
+                              inputMode="numeric"
+                            />
+                            <FieldError errorKey="payment.cardNumber" />
+                          </div>
+                          <div>
+                            <label className={labelClass}>Routing / IFSC<RequiredMark /></label>
+                            <input
+                              value={payment.chequeRoutingNo || ''}
+                              onChange={handleBankRoutingIfscChange}
+                              className={withErrorClass(inputClass, getError('payment.chequeRoutingNo'))}
+                              placeholder="Routing number or IFSC"
+                            />
+                            <FieldError errorKey="payment.chequeRoutingNo" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === 'cheque' && (
+                    <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                      <div className="flex items-center justify-center rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50/80 to-indigo-50/60 p-4 dark:border-violet-500/20 dark:from-violet-500/[0.08] dark:to-indigo-500/[0.04] sm:p-6">
+                        <div
+                          className="w-full max-w-xl overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-xl shadow-violet-950/10 dark:border-violet-500/25 dark:bg-slate-900"
+                          style={{ aspectRatio: '2.35 / 1' }}
+                        >
+                          <div className="relative h-full w-full bg-gradient-to-br from-white via-violet-50 to-indigo-100 dark:from-slate-900 dark:via-violet-950/50 dark:to-indigo-950">
+                            <div className="absolute inset-0 opacity-60 bg-[linear-gradient(135deg,rgba(139,92,246,0.10)_0%,rgba(139,92,246,0.10)_18%,transparent_18%,transparent_35%,rgba(99,102,241,0.08)_35%,rgba(99,102,241,0.08)_55%,transparent_55%,transparent_100%)]" />
+                            <div className="relative h-full w-full p-4 text-slate-800 dark:text-slate-200">
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 text-white shadow-sm">
+                                    <FileCheck2 size={15} aria-hidden="true" />
+                                  </span>
+                                  <div>
+                                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-700 dark:text-violet-300">DashboardKit</div>
+                                    <div className="text-[9px] font-semibold uppercase tracking-wide opacity-65">Payment cheque</div>
+                                  </div>
+                                </div>
+                                <div className="w-24 sm:w-[120px] text-right">
+                                  <div className="text-[10px] font-semibold uppercase tracking-wide opacity-70">DATE</div>
+                                  <div className="mt-0.5 text-xs font-semibold">
+                                    {chequePreview.date || 'MM/DD/YYYY'}
+                                  </div>
+                                  <div className="h-[1px] bg-slate-700/25 mt-1" />
+                                </div>
+                              </div>
+
+                              <div className="mt-3 flex items-center gap-2">
+                                <div className="text-[10px] font-semibold uppercase tracking-wide opacity-70 whitespace-nowrap">
+                                  PAY TO THE ORDER OF
+                                </div>
+                                <div className="flex-1">
+                                  <div className="text-xs font-semibold truncate min-h-[16px]">{chequePreview.payee || 'Payee name'}</div>
+                                  <div className="h-[1px] bg-slate-700/25 mt-1" />
+                                </div>
+                              </div>
+
+                              <div className="mt-3 flex items-center gap-2">
+                                <div className="text-[10px] font-semibold uppercase tracking-wide opacity-70">$</div>
+                                <div className="w-44">
+                                  <div className="text-xs font-semibold min-h-[16px] text-right">{chequePreview.amount || '0.00'}</div>
+                                  <div className="h-[1px] bg-slate-700/25 mt-1" />
+                                </div>
+                                <div className="flex-1 text-right">
+                                  <div className="text-[10px] font-semibold uppercase tracking-wide opacity-70">DOLLARS</div>
+                                </div>
+                              </div>
+
+                              <div className="mt-3 flex items-center gap-2">
+                                <div className="text-[10px] font-semibold uppercase tracking-wide opacity-70">FOR</div>
+                                <div className="flex-1">
+                                  <div className="text-xs font-semibold truncate min-h-[16px]">{chequePreview.memo || 'Payment reference'}</div>
+                                  <div className="h-[1px] bg-slate-700/25 mt-1" />
+                                </div>
+                                <div className="text-[10px] font-semibold uppercase tracking-wide opacity-70">
+                                  {payment.isChequeCleared ? 'CLEARED' : ''}
+                                </div>
+                              </div>
+
+                              <div className="absolute left-4 right-4 bottom-4">
+                                <div className="flex items-center justify-between gap-3 text-sm">
+                                  <div className="font-mono tracking-wider">
+                                    {chequePreview.routing ? `|:${chequePreview.routing}:|` : ''}
+                                  </div>
+                                  <div className="flex-1 font-mono tracking-wider text-center truncate">
+                                    {chequePreview.accountOrTracking ? `|:${chequePreview.accountOrTracking}:|` : ''}
+                                  </div>
+                                  <div className="font-mono tracking-wider">
+                                    {chequePreview.chequeNo ? `|${chequePreview.chequeNo}|` : ''}
+                                  </div>
+                                </div>
+                                <div className="h-[1px] bg-slate-900/15 mt-1" />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="create-order-section rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#17132a]">
+                        <div className="mb-4 flex flex-col gap-3 border-b border-slate-100 pb-4 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex items-start gap-3">
+                            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">
+                              <FileCheck2 size={19} aria-hidden="true" />
+                            </span>
+                            <div>
+                              <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Cheque details</div>
+                              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Record cheque and clearing information.</p>
+                            </div>
+                          </div>
+                          <label className="inline-flex w-fit items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-300">
+                            <Checkbox
+                              size="sm"
+                              checked={!!payment.isChequeCleared}
+                              onCheckedChange={(checked) => {
+                                clearError('payment.isChequeCleared');
+                                setPayment((prev) => ({ ...prev, isChequeCleared: !!checked }));
+                              }}
+                            />
+                            Cheque Cleared
+                          </label>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="md:col-span-2">
+                            <label className={labelClass}>Pay To (Name)<RequiredMark /></label>
+                            <input
+                              value={payment.nameOnCard || ''}
+                              onChange={handleNameOnCardChange}
+                              className={withErrorClass(inputClass, getError('payment.nameOnCard'))}
+                              placeholder="Payee name"
                             />
                             <FieldError errorKey="payment.nameOnCard" />
                           </div>
                           <div>
-                            <label className={labelClass}>Expiry<RequiredMark /></label>
+                            <label className={labelClass}>Cheque Date<RequiredMark /></label>
                             <input
-                              value={payment.cardExpiryDate || ''}
-                              onChange={handleExpiryChange}
-                              className={withErrorClass(inputClass, getError('payment.cardExpiryDate'))}
-                              placeholder="MM/YY"
-                              inputMode="numeric"
-                              autoComplete="cc-exp"
+                              type="date"
+                              value={paymentDateForInput}
+                              onChange={(e) => {
+                                clearError('payment.paymentDate');
+                                setPayment((prev) => ({ ...prev, paymentDate: e.target.value }));
+                              }}
+                              className={withErrorClass(inputClass, getError('payment.paymentDate'))}
                             />
-                            <FieldError errorKey="payment.cardExpiryDate" />
+                            <FieldError errorKey="payment.paymentDate" />
                           </div>
                           <div>
-                            <label className={labelClass}>CVV<RequiredMark /></label>
+                            <label className={labelClass}>Routing No<RequiredMark /></label>
                             <input
-                              value={payment.cvv || ''}
-                              onChange={handleCvvChange}
-                              className={withErrorClass(inputClass, getError('payment.cvv'))}
-                              placeholder={(payment.cardType || cardPreview.type) === 'American Express' ? '1234' : '123'}
+                              value={payment.chequeRoutingNo || ''}
+                              onChange={handleChequeRoutingChange}
+                              className={withErrorClass(inputClass, getError('payment.chequeRoutingNo'))}
+                              placeholder="Routing number"
                               inputMode="numeric"
-                              autoComplete="cc-csc"
                             />
-                            <FieldError errorKey="payment.cvv" />
+                            <FieldError errorKey="payment.chequeRoutingNo" />
+                          </div>
+                          <div>
+                            <label className={labelClass}>Cheque No<RequiredMark /></label>
+                            <input
+                              value={payment.chequeNo || ''}
+                              onChange={handleChequeNoChange}
+                              className={withErrorClass(inputClass, getError('payment.chequeNo'))}
+                              placeholder="Cheque number"
+                              inputMode="numeric"
+                              maxLength={6}
+                            />
+                            <FieldError errorKey="payment.chequeNo" />
                           </div>
                           <div className="md:col-span-2">
-                            <label className={labelClass}>Auth Code</label>
+                            <label className={labelClass}>Account / Tracking No</label>
                             <input
-                              value={payment.authCode || ''}
-                              onChange={handlePaymentField('authCode')}
+                              value={payment.chequeTrackingNo || ''}
+                              onChange={handleChequeTrackingChange}
                               className={inputClass}
-                              placeholder="Auth code"
+                              placeholder="Account or tracking number"
                             />
                           </div>
                           <div className="md:col-span-2">
@@ -4176,777 +4446,507 @@ const CreateOrderPage = () => {
                           </div>
                         </div>
                       </div>
-                    )}
-
-                    {activeTab === 'bank' && (
-                      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                        <div className="flex items-center justify-center rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50/80 to-indigo-50/60 p-4 dark:border-violet-500/20 dark:from-violet-500/[0.08] dark:to-indigo-500/[0.04] sm:p-6">
-                          <div
-                            className="relative min-h-[220px] w-full max-w-md overflow-hidden rounded-2xl border border-violet-300/40 bg-gradient-to-br from-slate-950 via-violet-950 to-indigo-950 shadow-xl shadow-violet-950/15 sm:min-h-[240px]"
-                          >
-                            <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full border border-white/10 bg-violet-400/10" />
-                            <div className="absolute -bottom-24 -left-16 h-56 w-56 rounded-full border border-white/10 bg-indigo-400/10" />
-                            <div className="relative w-full p-5 text-white sm:p-6">
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="min-w-0">
-                                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-200">
-                                    Bank Transfer
-                                  </div>
-                                  <div className="mt-1 truncate text-base font-semibold text-white">
-                                    {bankPreview.holder || 'Account holder'}
-                                  </div>
-                                </div>
-                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-violet-100 shadow-sm backdrop-blur-sm">
-                                  <Landmark size={21} aria-hidden="true" />
-                                </div>
-                              </div>
-
-                              <div className="mt-5 grid grid-cols-1 gap-3 text-sm">
-                                <div className="min-w-0 rounded-xl border border-white/10 bg-white/[0.08] px-4 py-3 backdrop-blur-sm">
-                                  <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-200">Account Number</div>
-                                  <div className="mt-1 min-h-[20px] break-words font-mono font-semibold tracking-[0.12em] text-white">
-                                    {bankPreview.acctDisplay || '•••• •••• ••••'}
-                                  </div>
-                                </div>
-                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                  <div className="min-w-0 rounded-xl border border-white/10 bg-white/[0.08] px-4 py-3 backdrop-blur-sm">
-                                    <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-200">Routing / IFSC</div>
-                                    <div className="mt-1 min-h-[20px] break-words font-semibold text-white">
-                                      {bankPreview.routingOrIfsc || 'Not entered'}
-                                    </div>
-                                  </div>
-                                  <div className="min-w-0 rounded-xl border border-white/10 bg-white/[0.08] px-4 py-3 backdrop-blur-sm">
-                                    <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-200">Reference</div>
-                                    <div className="mt-1 min-h-[20px] break-words font-semibold text-white">
-                                      {bankPreview.reference || 'Not entered'}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="create-order-section rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#17132a]">
-                          <div className="mb-4 flex items-start gap-3 border-b border-slate-100 pb-4 dark:border-white/10">
-                            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">
-                              <Landmark size={19} aria-hidden="true" />
-                            </span>
-                            <div>
-                              <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Bank transfer details</div>
-                              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Enter the receiving account and routing information.</p>
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div className="md:col-span-2">
-                              <label className={labelClass}>Account Holder Name<RequiredMark /></label>
-                              <input
-                                value={payment.nameOnCard || ''}
-                                onChange={handleNameOnCardChange}
-                                className={withErrorClass(inputClass, getError('payment.nameOnCard'))}
-                                placeholder="Account holder name"
-                              />
-                              <FieldError errorKey="payment.nameOnCard" />
-                            </div>
-                            <div className="md:col-span-2">
-                              <label className={labelClass}>Account Number<RequiredMark /></label>
-                              <input
-                                value={bankAccountNumberFormatted}
-                                onChange={handleBankAccountNumberChange}
-                                className={withErrorClass(inputClass, getError('payment.cardNumber'))}
-                                placeholder="Account number"
-                                inputMode="numeric"
-                              />
-                              <FieldError errorKey="payment.cardNumber" />
-                            </div>
-                            <div>
-                              <label className={labelClass}>Routing / IFSC<RequiredMark /></label>
-                              <input
-                                value={payment.chequeRoutingNo || ''}
-                                onChange={handleBankRoutingIfscChange}
-                                className={withErrorClass(inputClass, getError('payment.chequeRoutingNo'))}
-                                placeholder="Routing number or IFSC"
-                              />
-                              <FieldError errorKey="payment.chequeRoutingNo" />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {activeTab === 'cheque' && (
-                      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                        <div className="flex items-center justify-center rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50/80 to-indigo-50/60 p-4 dark:border-violet-500/20 dark:from-violet-500/[0.08] dark:to-indigo-500/[0.04] sm:p-6">
-                          <div
-                            className="w-full max-w-xl overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-xl shadow-violet-950/10 dark:border-violet-500/25 dark:bg-slate-900"
-                            style={{ aspectRatio: '2.35 / 1' }}
-                          >
-                            <div className="relative h-full w-full bg-gradient-to-br from-white via-violet-50 to-indigo-100 dark:from-slate-900 dark:via-violet-950/50 dark:to-indigo-950">
-                              <div className="absolute inset-0 opacity-60 bg-[linear-gradient(135deg,rgba(139,92,246,0.10)_0%,rgba(139,92,246,0.10)_18%,transparent_18%,transparent_35%,rgba(99,102,241,0.08)_35%,rgba(99,102,241,0.08)_55%,transparent_55%,transparent_100%)]" />
-                              <div className="relative h-full w-full p-4 text-slate-800 dark:text-slate-200">
-                                <div className="flex items-start justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 text-white shadow-sm">
-                                      <FileCheck2 size={15} aria-hidden="true" />
-                                    </span>
-                                    <div>
-                                      <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-700 dark:text-violet-300">DashboardKit</div>
-                                      <div className="text-[9px] font-semibold uppercase tracking-wide opacity-65">Payment cheque</div>
-                                    </div>
-                                  </div>
-                                  <div className="w-24 sm:w-[120px] text-right">
-                                    <div className="text-[10px] font-semibold uppercase tracking-wide opacity-70">DATE</div>
-                                    <div className="mt-0.5 text-xs font-semibold">
-                                      {chequePreview.date || 'MM/DD/YYYY'}
-                                    </div>
-                                    <div className="h-[1px] bg-slate-700/25 mt-1" />
-                                  </div>
-                                </div>
-
-                                <div className="mt-3 flex items-center gap-2">
-                                  <div className="text-[10px] font-semibold uppercase tracking-wide opacity-70 whitespace-nowrap">
-                                    PAY TO THE ORDER OF
-                                  </div>
-                                  <div className="flex-1">
-                                    <div className="text-xs font-semibold truncate min-h-[16px]">{chequePreview.payee || 'Payee name'}</div>
-                                    <div className="h-[1px] bg-slate-700/25 mt-1" />
-                                  </div>
-                                </div>
-
-                                <div className="mt-3 flex items-center gap-2">
-                                  <div className="text-[10px] font-semibold uppercase tracking-wide opacity-70">$</div>
-                                  <div className="w-44">
-                                    <div className="text-xs font-semibold min-h-[16px] text-right">{chequePreview.amount || '0.00'}</div>
-                                    <div className="h-[1px] bg-slate-700/25 mt-1" />
-                                  </div>
-                                  <div className="flex-1 text-right">
-                                    <div className="text-[10px] font-semibold uppercase tracking-wide opacity-70">DOLLARS</div>
-                                  </div>
-                                </div>
-
-                                <div className="mt-3 flex items-center gap-2">
-                                  <div className="text-[10px] font-semibold uppercase tracking-wide opacity-70">FOR</div>
-                                  <div className="flex-1">
-                                    <div className="text-xs font-semibold truncate min-h-[16px]">{chequePreview.memo || 'Payment reference'}</div>
-                                    <div className="h-[1px] bg-slate-700/25 mt-1" />
-                                  </div>
-                                  <div className="text-[10px] font-semibold uppercase tracking-wide opacity-70">
-                                    {payment.isChequeCleared ? 'CLEARED' : ''}
-                                  </div>
-                                </div>
-
-                                <div className="absolute left-4 right-4 bottom-4">
-                                  <div className="flex items-center justify-between gap-3 text-sm">
-                                    <div className="font-mono tracking-wider">
-                                      {chequePreview.routing ? `|:${chequePreview.routing}:|` : ''}
-                                    </div>
-                                    <div className="flex-1 font-mono tracking-wider text-center truncate">
-                                      {chequePreview.accountOrTracking ? `|:${chequePreview.accountOrTracking}:|` : ''}
-                                    </div>
-                                    <div className="font-mono tracking-wider">
-                                      {chequePreview.chequeNo ? `|${chequePreview.chequeNo}|` : ''}
-                                    </div>
-                                  </div>
-                                  <div className="h-[1px] bg-slate-900/15 mt-1" />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="create-order-section rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#17132a]">
-                          <div className="mb-4 flex flex-col gap-3 border-b border-slate-100 pb-4 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="flex items-start gap-3">
-                              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">
-                                <FileCheck2 size={19} aria-hidden="true" />
-                              </span>
-                              <div>
-                                <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Cheque details</div>
-                                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Record cheque and clearing information.</p>
-                              </div>
-                            </div>
-                            <label className="inline-flex w-fit items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-300">
-                              <Checkbox
-                                size="sm"
-                                checked={!!payment.isChequeCleared}
-                                onCheckedChange={(checked) => {
-                                  clearError('payment.isChequeCleared');
-                                  setPayment((prev) => ({ ...prev, isChequeCleared: !!checked }));
-                                }}
-                              />
-                              Cheque Cleared
-                            </label>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div className="md:col-span-2">
-                              <label className={labelClass}>Pay To (Name)<RequiredMark /></label>
-                              <input
-                                value={payment.nameOnCard || ''}
-                                onChange={handleNameOnCardChange}
-                                className={withErrorClass(inputClass, getError('payment.nameOnCard'))}
-                                placeholder="Payee name"
-                              />
-                              <FieldError errorKey="payment.nameOnCard" />
-                            </div>
-                            <div>
-                              <label className={labelClass}>Cheque Date<RequiredMark /></label>
-                              <input
-                                type="date"
-                                value={paymentDateForInput}
-                                onChange={(e) => {
-                                  clearError('payment.paymentDate');
-                                  setPayment((prev) => ({ ...prev, paymentDate: e.target.value }));
-                                }}
-                                className={withErrorClass(inputClass, getError('payment.paymentDate'))}
-                              />
-                              <FieldError errorKey="payment.paymentDate" />
-                            </div>
-                            <div>
-                              <label className={labelClass}>Routing No<RequiredMark /></label>
-                              <input
-                                value={payment.chequeRoutingNo || ''}
-                                onChange={handleChequeRoutingChange}
-                                className={withErrorClass(inputClass, getError('payment.chequeRoutingNo'))}
-                                placeholder="Routing number"
-                                inputMode="numeric"
-                              />
-                              <FieldError errorKey="payment.chequeRoutingNo" />
-                            </div>
-                            <div>
-                              <label className={labelClass}>Cheque No<RequiredMark /></label>
-                              <input
-                                value={payment.chequeNo || ''}
-                                onChange={handleChequeNoChange}
-                                className={withErrorClass(inputClass, getError('payment.chequeNo'))}
-                                placeholder="Cheque number"
-                                inputMode="numeric"
-                                maxLength={6}
-                              />
-                              <FieldError errorKey="payment.chequeNo" />
-                            </div>
-                            <div className="md:col-span-2">
-                              <label className={labelClass}>Account / Tracking No</label>
-                              <input
-                                value={payment.chequeTrackingNo || ''}
-                                onChange={handleChequeTrackingChange}
-                                className={inputClass}
-                                placeholder="Account or tracking number"
-                              />
-                            </div>
-                            <div className="md:col-span-2">
-                              <label className={labelClass}>Transaction ID</label>
-                              <input
-                                value={payment.transactionId || ''}
-                                onChange={handlePaymentField('transactionId')}
-                                className={withErrorClass(inputClass, getError('payment.transactionId'))}
-                                placeholder="Transaction ID"
-                              />
-                              <FieldError errorKey="payment.transactionId" />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {activeTab === 'zelle' && (
-                      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                        <div className="flex items-center justify-center rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50/80 to-indigo-50/60 p-4 dark:border-violet-500/20 dark:from-violet-500/[0.08] dark:to-indigo-500/[0.04] sm:p-6">
-                          <div
-                            className="relative min-h-[220px] w-full max-w-md overflow-hidden rounded-2xl border border-violet-300/40 bg-gradient-to-br from-slate-950 via-violet-950 to-indigo-950 shadow-xl shadow-violet-950/15 sm:min-h-[240px]"
-                          >
-                            <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full border border-white/10 bg-violet-400/10" />
-                            <div className="absolute -bottom-24 -left-16 h-56 w-56 rounded-full border border-white/10 bg-indigo-400/10" />
-                            <div className="relative w-full p-5 text-white sm:p-6">
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="min-w-0">
-                                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-200">Digital payment</div>
-                                  <div className="mt-1 min-h-[20px] truncate text-base font-semibold text-white">
-                                    {payment.zelleId || 'Email or phone number'}
-                                  </div>
-                                </div>
-                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-violet-100 shadow-sm backdrop-blur-sm">
-                                  <Zap size={21} aria-hidden="true" />
-                                </div>
-                              </div>
-
-                              <div className="mt-5 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-                                <div className="rounded-xl border border-white/10 bg-white/[0.08] px-4 py-3 backdrop-blur-sm">
-                                  <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-200">Amount</div>
-                                  <div className="mt-1 min-h-[20px] font-semibold text-white">
-                                    {chequeAmount > 0 ? `$${formatMoney2(chequeAmount)}` : '$0.00'}
-                                  </div>
-                                </div>
-                                <div className="rounded-xl border border-white/10 bg-white/[0.08] px-4 py-3 backdrop-blur-sm">
-                                  <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-200">Date</div>
-                                  <div className="mt-1 min-h-[20px] font-semibold text-white">
-                                    {formatDateMMDDYYYY(payment.paymentDate) || 'MM/DD/YYYY'}
-                                  </div>
-                                </div>
-                                <div className="min-w-0 rounded-xl border border-white/10 bg-white/[0.08] px-4 py-3 backdrop-blur-sm sm:col-span-2">
-                                  <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-200">Transaction ID</div>
-                                  <div className="mt-1 min-h-[20px] truncate font-semibold text-white">
-                                    {payment.transactionId || 'Not entered'}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="create-order-section rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#17132a]">
-                          <div className="mb-4 flex items-start gap-3 border-b border-slate-100 pb-4 dark:border-white/10">
-                            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">
-                              <Zap size={19} aria-hidden="true" />
-                            </span>
-                            <div>
-                              <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Zelle payment</div>
-                              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Record the sender and transfer confirmation.</p>
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div className="md:col-span-2">
-                              <label className={labelClass}>Zelle ID (Email/Phone)<RequiredMark /></label>
-                              <input
-                                value={payment.zelleId || ''}
-                                onChange={handlePaymentField('zelleId')}
-                                className={withErrorClass(inputClass, getError('payment.zelleId'))}
-                                placeholder="Email address or phone number"
-                              />
-                              <FieldError errorKey="payment.zelleId" />
-                            </div>
-                            <div className="md:col-span-2">
-                              <label className={labelClass}>Payment Date<RequiredMark /></label>
-                              <input
-                                type="date"
-                                value={paymentDateForInput}
-                                onChange={(e) => {
-                                  clearError('payment.paymentDate');
-                                  setPayment((prev) => ({ ...prev, paymentDate: e.target.value }));
-                                }}
-                                className={withErrorClass(inputClass, getError('payment.paymentDate'))}
-                              />
-                              <FieldError errorKey="payment.paymentDate" />
-                            </div>
-                            <div className="md:col-span-2">
-                              <label className={labelClass}>Transaction ID<RequiredMark /></label>
-                              <input
-                                value={payment.transactionId || ''}
-                                onChange={handlePaymentField('transactionId')}
-                                className={withErrorClass(inputClass, getError('payment.transactionId'))}
-                                placeholder="Transaction ID"
-                              />
-                              <FieldError errorKey="payment.transactionId" />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {activeTab === 'paypal' && (
-                      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                        <div className="flex items-center justify-center rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50/80 to-indigo-50/60 p-4 dark:border-violet-500/20 dark:from-violet-500/[0.08] dark:to-indigo-500/[0.04] sm:p-6">
-                          <div
-                            className="relative min-h-[220px] w-full max-w-md overflow-hidden rounded-2xl border border-violet-300/40 bg-gradient-to-br from-slate-950 via-violet-950 to-indigo-950 shadow-xl shadow-violet-950/15 sm:min-h-[240px]"
-                          >
-                            <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full border border-white/10 bg-violet-400/10" />
-                            <div className="absolute -bottom-24 -left-16 h-56 w-56 rounded-full border border-white/10 bg-indigo-400/10" />
-                            <div className="relative w-full p-5 text-white sm:p-6">
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="min-w-0">
-                                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-200">Digital wallet</div>
-                                  <div className="mt-1 min-h-[20px] truncate text-base font-semibold text-white">
-                                    {payment.zelleId || 'Email or phone number'}
-                                  </div>
-                                </div>
-                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-violet-100 shadow-sm backdrop-blur-sm">
-                                  <WalletCards size={21} aria-hidden="true" />
-                                </div>
-                              </div>
-
-                              <div className="mt-5 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-                                <div className="rounded-xl border border-white/10 bg-white/[0.08] px-4 py-3 backdrop-blur-sm">
-                                  <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-200">Amount</div>
-                                  <div className="mt-1 min-h-[20px] font-semibold text-white">
-                                    {chequeAmount > 0 ? `$${formatMoney2(chequeAmount)}` : '$0.00'}
-                                  </div>
-                                </div>
-                                <div className="rounded-xl border border-white/10 bg-white/[0.08] px-4 py-3 backdrop-blur-sm">
-                                  <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-200">Date</div>
-                                  <div className="mt-1 min-h-[20px] font-semibold text-white">
-                                    {formatDateMMDDYYYY(payment.paymentDate) || 'MM/DD/YYYY'}
-                                  </div>
-                                </div>
-                                <div className="min-w-0 rounded-xl border border-white/10 bg-white/[0.08] px-4 py-3 backdrop-blur-sm sm:col-span-2">
-                                  <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-200">Transaction ID</div>
-                                  <div className="mt-1 min-h-[20px] truncate font-semibold text-white">
-                                    {payment.transactionId || 'Not entered'}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="create-order-section rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#17132a]">
-                          <div className="mb-4 flex items-start gap-3 border-b border-slate-100 pb-4 dark:border-white/10">
-                            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">
-                              <WalletCards size={19} aria-hidden="true" />
-                            </span>
-                            <div>
-                              <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">PayPal payment</div>
-                              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Record the wallet account and transaction confirmation.</p>
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div className="md:col-span-2">
-                              <label className={labelClass}>PayPal Account (Email/Phone)<RequiredMark /></label>
-                              <input
-                                value={payment.zelleId || ''}
-                                onChange={handlePaymentField('zelleId')}
-                                className={withErrorClass(inputClass, getError('payment.zelleId'))}
-                                placeholder="PayPal email or phone number"
-                              />
-                              <FieldError errorKey="payment.zelleId" />
-                            </div>
-                            <div className="md:col-span-2">
-                              <label className={labelClass}>Payment Date<RequiredMark /></label>
-                              <input
-                                type="date"
-                                value={paymentDateForInput}
-                                onChange={(e) => {
-                                  clearError('payment.paymentDate');
-                                  setPayment((prev) => ({ ...prev, paymentDate: e.target.value }));
-                                }}
-                                className={withErrorClass(inputClass, getError('payment.paymentDate'))}
-                              />
-                              <FieldError errorKey="payment.paymentDate" />
-                            </div>
-                            <div className="md:col-span-2">
-                              <label className={labelClass}>Transaction ID<RequiredMark /></label>
-                              <input
-                                value={payment.transactionId || ''}
-                                onChange={handlePaymentField('transactionId')}
-                                className={withErrorClass(inputClass, getError('payment.transactionId'))}
-                                placeholder="Transaction ID"
-                              />
-                              <FieldError errorKey="payment.transactionId" />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                </div>
-              </div>
-              {(isEditMode || isAddPaymentMode) && (
-                <div className="flex justify-end">
-                  <Button
-                    type="button"
-                    className="bg-gradient-to-r from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700"
-                    onClick={handleSavePayment}
-                    disabled={
-                      loadingPayment
-                      || permissionsLoading
-                      || ordersCodesLoading
-                      || (isEditMode ? (!canUpdate || !canUpdateOrderPayment) : (!canUpdate || !canAddOrderPayment))
-                    }
-                  >
-                    {loadingPayment ? 'Saving...' : isEditMode ? 'Update Payment' : 'Add Payment'}
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            {/* Right: Order info, notes & customer (like design image) */}
-            {!isEditMode && !isAddPaymentMode && (
-              <div className="create-order-section w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#17132a] xl:sticky xl:top-24 xl:w-[400px] xl:self-start">
-                <div className="border-b border-slate-200 bg-gradient-to-r from-violet-50 via-white to-indigo-50 px-4 py-3 dark:border-white/10 dark:from-violet-500/15 dark:via-transparent dark:to-indigo-500/10">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 p-2 shadow-sm">
-                      <ClipboardList size={16} className="text-white" />
-                    </div>
-                    <h3 className="text-sm font-semibold text-gray-800">Order Info</h3>
-                  </div>
-                </div>
-
-                <div className="p-4 space-y-3 text-sm">
-                  <div>
-                    <div className="flex items-center justify-between gap-2">
-                      <label className={labelClass}>Customer<RequiredMark /></label>
-                      {!isAddPaymentMode && canCreateCustomer && (
-                        <button
-                          type="button"
-                          onClick={openAddCustomerModal}
-                          className="mb-1 inline-flex items-center gap-1 rounded-md border border-slate-300 dark:border-slate-600 bg-white px-2 py-1 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
-                          title="Add customer"
-                        >
-                          + Add Customer
-                        </button>
-                      )}
-                    </div>
-                    <div className="relative">
-                      <button
-                        type="button"
-                        onClick={() => setCustomerModalOpen(true)}
-                        className={withErrorClass(
-                          `${selectTriggerCompactClass} flex items-center justify-between gap-2 pr-16 text-left`,
-                          getError('customerId'),
-                        )}
-                      >
-                        <span className="truncate">
-                          {selectedCustomer
-                            ? `${selectedCustomer.customerId || ''}. ${selectedCustomer.customerName ||
-                            selectedCustomer.fullName ||
-                            selectedCustomer.name ||
-                            'Customer'
-                            }`
-                            : 'Select Customer'}
-                        </span>
-                      </button>
-                      <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center gap-1">
-                        {selectedCustomer && (
-                          <button
-                            type="button"
-                            className="pointer-events-auto rounded-md p-1 hover:bg-slate-100 dark:hover:bg-slate-700"
-                            onClick={() => {
-                              clearError('customerId');
-                              clearSelectedCustomer();
-                            }}
-                            aria-label="Clear customer"
-                          >
-                            <X size={14} className="text-slate-400" />
-                          </button>
-                        )}
-                        <ChevronDown size={16} className="shrink-0 text-slate-400" />
-                      </span>
-                    </div>
-                    <FieldError errorKey="customerId" />
-                  </div>
-
-                  {canPickSalesPerson && (
-                    <div>
-                      <label className={labelClass}>Sales Person<RequiredMark /></label>
-                      <Select
-                        value={selectedSalesPersonId ? String(selectedSalesPersonId) : ''}
-                        onValueChange={(value) => {
-                          clearError('salesPersonId');
-                          setSalesPersonSearchText('');
-                          setSelectedSalesPersonId(Number(value) || 0);
-                        }}
-                      >
-                        <SelectTrigger className={withErrorClass(selectTriggerCompactClass, getError('salesPersonId'))}>
-                          <SelectValue placeholder="Select Sales Person" />
-                        </SelectTrigger>
-                        <SelectContent
-                          className="max-h-72"
-                          search={(
-                            <SelectSearchInput
-                              value={salesPersonSearchText}
-                              onChange={setSalesPersonSearchText}
-                              placeholder="Search sales person..."
-                            />
-                          )}
-                        >
-                          {filteredSalesPersons.length === 0 ? (
-                            <div className="px-2 py-2 text-xs text-slate-500">No users found.</div>
-                          ) : (
-                            filteredSalesPersons.map((u) => (
-                              <SelectItem
-                                key={u.userId}
-                                value={String(u.userId)}
-                                meta={<UserOptionBadges user={u} />}
-                              >
-                                {getSalesPersonLabel(u)}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                      <FieldError errorKey="salesPersonId" />
                     </div>
                   )}
 
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">Share Sale</div>
-                      <div className="flex items-center gap-2">
-                        {showShareSale && hasManualShareSaleRows && (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="destructive"
-                            className="h-8"
-                            onClick={disableShareSale}
-                          >
-                            Clear
-                          </Button>
-                        )}
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant={showShareSale ? 'default' : 'outline'}
-                          className="h-8"
-                          onClick={openShareSaleModal}
+                  {activeTab === 'zelle' && (
+                    <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                      <div className="flex items-center justify-center rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50/80 to-indigo-50/60 p-4 dark:border-violet-500/20 dark:from-violet-500/[0.08] dark:to-indigo-500/[0.04] sm:p-6">
+                        <div
+                          className="relative min-h-[220px] w-full max-w-md overflow-hidden rounded-2xl border border-violet-300/40 bg-gradient-to-br from-slate-950 via-violet-950 to-indigo-950 shadow-xl shadow-violet-950/15 sm:min-h-[240px]"
                         >
-                          {showShareSale ? 'Edit Share Sale' : 'Share Sale'}
-                        </Button>
-                      </div>
-                    </div>
-
-                    {showShareSale && (
-                      <div className="mt-3 rounded-md border border-slate-200 bg-white px-3 py-3 text-xs">
-                        <div className="mb-2 text-sm font-semibold text-slate-800 dark:text-slate-200">Split Receipt</div>
-                        <div className="space-y-1.5 text-sm text-slate-700 dark:text-slate-300">
-                          {shareSaleReceiptRows.length === 0 ? (
-                            <div className="text-slate-500">No split rows added.</div>
-                          ) : (
-                            <>
-                              {shareSaleReceiptRows.map((row) => (
-                                <div key={String(row.rowId)} className="flex items-start justify-between gap-2">
-                                  <div className="min-w-0 flex-1">
-                                    <div className="truncate">{row.label}</div>
-                                    <div className="text-xs text-slate-500">{row.splitTypeLabel}</div>
-                                  </div>
-                                  <div className="shrink-0 text-right font-medium">${formatMoney2(row.amount)}</div>
+                          <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full border border-white/10 bg-violet-400/10" />
+                          <div className="absolute -bottom-24 -left-16 h-56 w-56 rounded-full border border-white/10 bg-indigo-400/10" />
+                          <div className="relative w-full p-5 text-white sm:p-6">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-200">Digital payment</div>
+                                <div className="mt-1 min-h-[20px] truncate text-base font-semibold text-white">
+                                  {payment.zelleId || 'Email or phone number'}
                                 </div>
-                              ))}
-
-                              <div className="mt-2 border-t border-dashed border-slate-200 pt-2 flex items-center justify-between">
-                                <span className="font-semibold text-slate-800 dark:text-slate-200">Total Amount</span>
-                                <span className="font-semibold text-slate-900">
-                                  ${formatMoney2((shareSaleReceiptRows || []).reduce((sum, row) => sum + (Number(row?.amount) || 0), 0))}
-                                </span>
                               </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className={labelClass}>Order Notes</label>
-                    <textarea
-                      value={orderNotes || ''}
-                      onChange={(e) => setOrderNotes(e.target.value)}
-                      rows={4}
-                      className={textareaClass}
-                      placeholder="Add notes (optional)"
-                    />
-                  </div>
-
-                  <div className="border-t border-slate-200 pt-3 dark:border-white/10">
-                    <div className="relative overflow-hidden rounded-2xl border border-violet-100 bg-gradient-to-b from-white to-violet-50/60 px-4 py-4 shadow-inner dark:border-violet-500/20 dark:from-white/[0.06] dark:to-violet-500/10">
-                      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-500 via-indigo-500 to-purple-500" aria-hidden="true" />
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex min-w-0 items-center gap-2.5">
-                          <div className="flex h-9 w-28 shrink-0 items-center justify-center rounded-xl border border-violet-100 bg-white px-2 shadow-sm dark:border-white/10 dark:bg-white/10">
-                            <img src={dashboardKitLogo} alt="DashboardKit" className="h-5 w-full object-contain dark:brightness-0 dark:invert" />
-                          </div>
-                          <div className="min-w-0">
-                            <div className="truncate text-xs font-bold tracking-[0.18em] text-slate-800 dark:text-slate-100">ORDER RECEIPT</div>
-                            <div className="text-[10px] text-slate-500 dark:text-slate-400">DashboardKit CRM</div>
-                          </div>
-                        </div>
-                        <div className="text-[11px] text-slate-500">
-                          {orderSummary.items} items
-                        </div>
-                      </div>
-
-                      <div className="mt-2 border-t border-dashed border-slate-300 dark:border-slate-600" />
-
-                      <div className="mt-3 max-h-40 space-y-2 overflow-auto pr-1 text-[12px] text-slate-700 dark:text-slate-300">
-                        {orderLines.length === 0 ? (
-                          <div className="text-slate-500">No items selected</div>
-                        ) : (
-                          orderLines.map((line, idx) => {
-                            const lineName =
-                              line?.productName ||
-                              line?.name ||
-                              line?.itemName ||
-                              line?.title ||
-                              `Item ${idx + 1}`;
-                            const qty = Number(line?.quantity) || 0;
-                            const unit = Number(line?.price) || 0;
-                            const lineTotal = Number(line?.totalPrice) || 0;
-                            return (
-                              <div key={`${String(line?.productId ?? line?.id ?? idx)}-${idx}`} className="flex items-start justify-between gap-2">
-                                <div className="min-w-0 flex-1">
-                                  <div className="truncate flex items-center gap-1">
-                                    <Package size={11} className="shrink-0 text-slate-400" />
-                                    {lineName}
-                                  </div>
-                                  <div className="text-[11px] text-slate-500">
-                                    {qty} x ${formatMoney2(unit)}
-                                  </div>
-                                </div>
-                                <div className="shrink-0 text-right">${formatMoney2(lineTotal)}</div>
+                              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-violet-100 shadow-sm backdrop-blur-sm">
+                                <Zap size={21} aria-hidden="true" />
                               </div>
-                            );
-                          })
-                        )}
-
-                        {Number(orderSummary.subscriptionMonths) > 0 && (
-                          <div className="pt-1 mt-1 border-t border-dashed border-slate-200 flex items-start justify-between gap-2">
-                            <div className="min-w-0 flex-1">
-                              <div className="truncate">Subscription (Months)</div>
                             </div>
-                            <div className="shrink-0 text-right">{orderSummary.subscriptionMonths}</div>
-                          </div>
-                        )}
 
+                            <div className="mt-5 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+                              <div className="rounded-xl border border-white/10 bg-white/[0.08] px-4 py-3 backdrop-blur-sm">
+                                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-200">Amount</div>
+                                <div className="mt-1 min-h-[20px] font-semibold text-white">
+                                  {chequeAmount > 0 ? `$${formatMoney2(chequeAmount)}` : '$0.00'}
+                                </div>
+                              </div>
+                              <div className="rounded-xl border border-white/10 bg-white/[0.08] px-4 py-3 backdrop-blur-sm">
+                                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-200">Date</div>
+                                <div className="mt-1 min-h-[20px] font-semibold text-white">
+                                  {formatDateMMDDYYYY(payment.paymentDate) || 'MM/DD/YYYY'}
+                                </div>
+                              </div>
+                              <div className="min-w-0 rounded-xl border border-white/10 bg-white/[0.08] px-4 py-3 backdrop-blur-sm sm:col-span-2">
+                                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-200">Transaction ID</div>
+                                <div className="mt-1 min-h-[20px] truncate font-semibold text-white">
+                                  {payment.transactionId || 'Not entered'}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="mt-2 border-t border-dashed border-slate-300 dark:border-slate-600" />
-
-                      <div className="mt-3 space-y-2 text-[12px]">
-                        <div className="flex justify-between text-slate-700 dark:text-slate-300">
-                          <span>SUBTOTAL</span>
-                          <span>${formatMoney2(orderSummary.subtotal)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-700 dark:text-slate-300">DISCOUNT</span>
-                          <span className="text-orange-700 dark:text-orange-300">-${formatMoney2(orderSummary.discount)}</span>
-                        </div>
-                        {discountCode && (
-                          <div className="flex justify-between items-center">
-                            <span className="text-slate-500">CODE</span>
-                            <span className="text-emerald-700 font-semibold tracking-wide">{discountCode}</span>
+                      <div className="create-order-section rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#17132a]">
+                        <div className="mb-4 flex items-start gap-3 border-b border-slate-100 pb-4 dark:border-white/10">
+                          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">
+                            <Zap size={19} aria-hidden="true" />
+                          </span>
+                          <div>
+                            <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Zelle payment</div>
+                            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Record the sender and transfer confirmation.</p>
                           </div>
-                        )}
-                        <div className="mt-2 border-t border-dashed border-slate-300 dark:border-slate-600" />
-                        <div className="flex justify-between rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-3 py-2.5 text-sm font-bold text-white shadow-sm">
-                          <span>TOTAL</span>
-                          <span>${formatMoney2(orderSummary.total)}</span>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="md:col-span-2">
+                            <label className={labelClass}>Zelle ID (Email/Phone)<RequiredMark /></label>
+                            <input
+                              value={payment.zelleId || ''}
+                              onChange={handlePaymentField('zelleId')}
+                              className={withErrorClass(inputClass, getError('payment.zelleId'))}
+                              placeholder="Email address or phone number"
+                            />
+                            <FieldError errorKey="payment.zelleId" />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className={labelClass}>Payment Date<RequiredMark /></label>
+                            <input
+                              type="date"
+                              value={paymentDateForInput}
+                              onChange={(e) => {
+                                clearError('payment.paymentDate');
+                                setPayment((prev) => ({ ...prev, paymentDate: e.target.value }));
+                              }}
+                              className={withErrorClass(inputClass, getError('payment.paymentDate'))}
+                            />
+                            <FieldError errorKey="payment.paymentDate" />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className={labelClass}>Transaction ID<RequiredMark /></label>
+                            <input
+                              value={payment.transactionId || ''}
+                              onChange={handlePaymentField('transactionId')}
+                              className={withErrorClass(inputClass, getError('payment.transactionId'))}
+                              placeholder="Transaction ID"
+                            />
+                            <FieldError errorKey="payment.transactionId" />
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  )}
+
+                  {activeTab === 'paypal' && (
+                    <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                      <div className="flex items-center justify-center rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50/80 to-indigo-50/60 p-4 dark:border-violet-500/20 dark:from-violet-500/[0.08] dark:to-indigo-500/[0.04] sm:p-6">
+                        <div
+                          className="relative min-h-[220px] w-full max-w-md overflow-hidden rounded-2xl border border-violet-300/40 bg-gradient-to-br from-slate-950 via-violet-950 to-indigo-950 shadow-xl shadow-violet-950/15 sm:min-h-[240px]"
+                        >
+                          <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full border border-white/10 bg-violet-400/10" />
+                          <div className="absolute -bottom-24 -left-16 h-56 w-56 rounded-full border border-white/10 bg-indigo-400/10" />
+                          <div className="relative w-full p-5 text-white sm:p-6">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-200">Digital wallet</div>
+                                <div className="mt-1 min-h-[20px] truncate text-base font-semibold text-white">
+                                  {payment.zelleId || 'Email or phone number'}
+                                </div>
+                              </div>
+                              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-violet-100 shadow-sm backdrop-blur-sm">
+                                <WalletCards size={21} aria-hidden="true" />
+                              </div>
+                            </div>
+
+                            <div className="mt-5 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+                              <div className="rounded-xl border border-white/10 bg-white/[0.08] px-4 py-3 backdrop-blur-sm">
+                                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-200">Amount</div>
+                                <div className="mt-1 min-h-[20px] font-semibold text-white">
+                                  {chequeAmount > 0 ? `$${formatMoney2(chequeAmount)}` : '$0.00'}
+                                </div>
+                              </div>
+                              <div className="rounded-xl border border-white/10 bg-white/[0.08] px-4 py-3 backdrop-blur-sm">
+                                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-200">Date</div>
+                                <div className="mt-1 min-h-[20px] font-semibold text-white">
+                                  {formatDateMMDDYYYY(payment.paymentDate) || 'MM/DD/YYYY'}
+                                </div>
+                              </div>
+                              <div className="min-w-0 rounded-xl border border-white/10 bg-white/[0.08] px-4 py-3 backdrop-blur-sm sm:col-span-2">
+                                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-200">Transaction ID</div>
+                                <div className="mt-1 min-h-[20px] truncate font-semibold text-white">
+                                  {payment.transactionId || 'Not entered'}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="create-order-section rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#17132a]">
+                        <div className="mb-4 flex items-start gap-3 border-b border-slate-100 pb-4 dark:border-white/10">
+                          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">
+                            <WalletCards size={19} aria-hidden="true" />
+                          </span>
+                          <div>
+                            <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">PayPal payment</div>
+                            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Record the wallet account and transaction confirmation.</p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="md:col-span-2">
+                            <label className={labelClass}>PayPal Account (Email/Phone)<RequiredMark /></label>
+                            <input
+                              value={payment.zelleId || ''}
+                              onChange={handlePaymentField('zelleId')}
+                              className={withErrorClass(inputClass, getError('payment.zelleId'))}
+                              placeholder="PayPal email or phone number"
+                            />
+                            <FieldError errorKey="payment.zelleId" />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className={labelClass}>Payment Date<RequiredMark /></label>
+                            <input
+                              type="date"
+                              value={paymentDateForInput}
+                              onChange={(e) => {
+                                clearError('payment.paymentDate');
+                                setPayment((prev) => ({ ...prev, paymentDate: e.target.value }));
+                              }}
+                              className={withErrorClass(inputClass, getError('payment.paymentDate'))}
+                            />
+                            <FieldError errorKey="payment.paymentDate" />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className={labelClass}>Transaction ID<RequiredMark /></label>
+                            <input
+                              value={payment.transactionId || ''}
+                              onChange={handlePaymentField('transactionId')}
+                              className={withErrorClass(inputClass, getError('payment.transactionId'))}
+                              placeholder="Transaction ID"
+                            />
+                            <FieldError errorKey="payment.transactionId" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                <div className="px-4 pb-4 flex flex-col sm:flex-row gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="flex-1"
-                    onClick={handleDiscardOrder}
-                  >
-                    Discard
-                  </Button>
-                  <LiquidGlassButton
-                    type="button"
-                    className="flex-1 w-full text-center"
-                    onClick={handleSavePayment}
-                    disabled={loadingPayment || permissionsLoading || ordersCodesLoading || (!canAdd && !canAddOrdersByCode)}
-                  >
-                    {loadingPayment ? 'Saving...' : 'Create Order'}
-                  </LiquidGlassButton>
-                </div>
+              </div>
+            </div>
+            {(isEditMode || isAddPaymentMode) && (
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  className="bg-gradient-to-r from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700"
+                  onClick={handleSavePayment}
+                  disabled={
+                    loadingPayment
+                    || permissionsLoading
+                    || ordersCodesLoading
+                    || (isEditMode ? (!canUpdate || !canUpdateOrderPayment) : (!canUpdate || !canAddOrderPayment))
+                  }
+                >
+                  {loadingPayment ? 'Saving...' : isEditMode ? 'Update Payment' : 'Add Payment'}
+                </Button>
               </div>
             )}
           </div>
+
+          {/* Right: Order info, notes & customer (like design image) */}
+          {!isEditMode && !isAddPaymentMode && (
+            <div className="create-order-aside create-order-section w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#17132a] xl:sticky xl:top-24 xl:w-[400px] xl:self-start">
+              <div className="border-b border-slate-200 bg-gradient-to-r from-violet-50 via-white to-indigo-50 px-4 py-3 dark:border-white/10 dark:from-violet-500/15 dark:via-transparent dark:to-indigo-500/10">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 p-2 shadow-sm">
+                    <ClipboardList size={16} className="text-white" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-gray-800">Order Info</h3>
+                </div>
+              </div>
+
+              <div className="p-4 space-y-3 text-sm">
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <label className={labelClass}>Customer<RequiredMark /></label>
+                    {!isAddPaymentMode && canCreateCustomer && (
+                      <button
+                        type="button"
+                        onClick={openAddCustomerModal}
+                        className="mb-1 inline-flex items-center gap-1 rounded-md border border-slate-300 dark:border-slate-600 bg-white px-2 py-1 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+                        title="Add customer"
+                      >
+                        + Add Customer
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setCustomerModalOpen(true)}
+                      className={withErrorClass(
+                        `${selectTriggerCompactClass} flex items-center justify-between gap-2 pr-16 text-left`,
+                        getError('customerId'),
+                      )}
+                    >
+                      <span className="truncate">
+                        {selectedCustomer
+                          ? `${selectedCustomer.customerId || ''}. ${selectedCustomer.customerName ||
+                          selectedCustomer.fullName ||
+                          selectedCustomer.name ||
+                          'Customer'
+                          }`
+                          : 'Select Customer'}
+                      </span>
+                    </button>
+                    <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center gap-1">
+                      {selectedCustomer && (
+                        <button
+                          type="button"
+                          className="pointer-events-auto rounded-md p-1 hover:bg-slate-100 dark:hover:bg-slate-700"
+                          onClick={() => {
+                            clearError('customerId');
+                            clearSelectedCustomer();
+                          }}
+                          aria-label="Clear customer"
+                        >
+                          <X size={14} className="text-slate-400" />
+                        </button>
+                      )}
+                      <ChevronDown size={16} className="shrink-0 text-slate-400" />
+                    </span>
+                  </div>
+                  <FieldError errorKey="customerId" />
+                </div>
+
+                {canPickSalesPerson && (
+                  <div>
+                    <label className={labelClass}>Sales Person<RequiredMark /></label>
+                    <Select
+                      value={selectedSalesPersonId ? String(selectedSalesPersonId) : ''}
+                      onValueChange={(value) => {
+                        clearError('salesPersonId');
+                        setSalesPersonSearchText('');
+                        setSelectedSalesPersonId(Number(value) || 0);
+                      }}
+                    >
+                      <SelectTrigger className={withErrorClass(selectTriggerCompactClass, getError('salesPersonId'))}>
+                        <SelectValue placeholder="Select Sales Person" />
+                      </SelectTrigger>
+                      <SelectContent
+                        className="max-h-72"
+                        search={(
+                          <SelectSearchInput
+                            value={salesPersonSearchText}
+                            onChange={setSalesPersonSearchText}
+                            placeholder="Search sales person..."
+                          />
+                        )}
+                      >
+                        {filteredSalesPersons.length === 0 ? (
+                          <div className="px-2 py-2 text-xs text-slate-500">No users found.</div>
+                        ) : (
+                          filteredSalesPersons.map((u) => (
+                            <SelectItem
+                              key={u.userId}
+                              value={String(u.userId)}
+                              meta={<UserOptionBadges user={u} />}
+                            >
+                              {getSalesPersonLabel(u)}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <FieldError errorKey="salesPersonId" />
+                  </div>
+                )}
+
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">Share Sale</div>
+                    <div className="flex items-center gap-2">
+                      {showShareSale && hasManualShareSaleRows && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="destructive"
+                          className="h-8"
+                          onClick={disableShareSale}
+                        >
+                          Clear
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={showShareSale ? 'default' : 'outline'}
+                        className="h-8"
+                        onClick={openShareSaleModal}
+                      >
+                        {showShareSale ? 'Edit Share Sale' : 'Share Sale'}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {showShareSale && (
+                    <div className="mt-3 rounded-md border border-slate-200 bg-white px-3 py-3 text-xs">
+                      <div className="mb-2 text-sm font-semibold text-slate-800 dark:text-slate-200">Split Receipt</div>
+                      <div className="space-y-1.5 text-sm text-slate-700 dark:text-slate-300">
+                        {shareSaleReceiptRows.length === 0 ? (
+                          <div className="text-slate-500">No split rows added.</div>
+                        ) : (
+                          <>
+                            {shareSaleReceiptRows.map((row) => (
+                              <div key={String(row.rowId)} className="flex items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <div className="truncate">{row.label}</div>
+                                  <div className="text-xs text-slate-500">{row.splitTypeLabel}</div>
+                                </div>
+                                <div className="shrink-0 text-right font-medium">${formatMoney2(row.amount)}</div>
+                              </div>
+                            ))}
+
+                            <div className="mt-2 border-t border-dashed border-slate-200 pt-2 flex items-center justify-between">
+                              <span className="font-semibold text-slate-800 dark:text-slate-200">Total Amount</span>
+                              <span className="font-semibold text-slate-900">
+                                ${formatMoney2((shareSaleReceiptRows || []).reduce((sum, row) => sum + (Number(row?.amount) || 0), 0))}
+                              </span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className={labelClass}>Order Notes</label>
+                  <textarea
+                    value={orderNotes || ''}
+                    onChange={(e) => setOrderNotes(e.target.value)}
+                    rows={4}
+                    className={textareaClass}
+                    placeholder="Add notes (optional)"
+                  />
+                </div>
+
+                <div className="border-t border-slate-200 pt-3 dark:border-white/10">
+                  <div className="relative overflow-hidden rounded-2xl border border-violet-100 bg-gradient-to-b from-white to-violet-50/60 px-4 py-4 shadow-inner dark:border-violet-500/20 dark:from-white/[0.06] dark:to-violet-500/10">
+                    <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-500 via-indigo-500 to-purple-500" aria-hidden="true" />
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <div className="flex h-9 w-28 shrink-0 items-center justify-center rounded-xl border border-violet-100 bg-white px-2 shadow-sm dark:border-white/10 dark:bg-white/10">
+                          <img src={dashboardKitLogo} alt="DashboardKit" className="h-5 w-full object-contain dark:brightness-0 dark:invert" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="truncate text-xs font-bold tracking-[0.18em] text-slate-800 dark:text-slate-100">ORDER RECEIPT</div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400">DashboardKit CRM</div>
+                        </div>
+                      </div>
+                      <div className="text-[11px] text-slate-500">
+                        {orderSummary.items} items
+                      </div>
+                    </div>
+
+                    <div className="mt-2 border-t border-dashed border-slate-300 dark:border-slate-600" />
+
+                    <div className="mt-3 max-h-40 space-y-2 overflow-auto pr-1 text-[12px] text-slate-700 dark:text-slate-300">
+                      {orderLines.length === 0 ? (
+                        <div className="text-slate-500">No items selected</div>
+                      ) : (
+                        orderLines.map((line, idx) => {
+                          const lineName =
+                            line?.productName ||
+                            line?.name ||
+                            line?.itemName ||
+                            line?.title ||
+                            `Item ${idx + 1}`;
+                          const qty = Number(line?.quantity) || 0;
+                          const unit = Number(line?.price) || 0;
+                          const lineTotal = Number(line?.totalPrice) || 0;
+                          return (
+                            <div key={`${String(line?.productId ?? line?.id ?? idx)}-${idx}`} className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate flex items-center gap-1">
+                                  <Package size={11} className="shrink-0 text-slate-400" />
+                                  {lineName}
+                                </div>
+                                <div className="text-[11px] text-slate-500">
+                                  {qty} x ${formatMoney2(unit)}
+                                </div>
+                              </div>
+                              <div className="shrink-0 text-right">${formatMoney2(lineTotal)}</div>
+                            </div>
+                          );
+                        })
+                      )}
+
+                      {Number(orderSummary.subscriptionMonths) > 0 && (
+                        <div className="pt-1 mt-1 border-t border-dashed border-slate-200 flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate">Subscription (Months)</div>
+                          </div>
+                          <div className="shrink-0 text-right">{orderSummary.subscriptionMonths}</div>
+                        </div>
+                      )}
+
+                    </div>
+
+                    <div className="mt-2 border-t border-dashed border-slate-300 dark:border-slate-600" />
+
+                    <div className="mt-3 space-y-2 text-[12px]">
+                      <div className="flex justify-between text-slate-700 dark:text-slate-300">
+                        <span>SUBTOTAL</span>
+                        <span>${formatMoney2(orderSummary.subtotal)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-700 dark:text-slate-300">DISCOUNT</span>
+                        <span className="text-orange-700 dark:text-orange-300">-${formatMoney2(orderSummary.discount)}</span>
+                      </div>
+                      {discountCode && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-500">CODE</span>
+                          <span className="text-emerald-700 font-semibold tracking-wide">{discountCode}</span>
+                        </div>
+                      )}
+                      <div className="mt-2 border-t border-dashed border-slate-300 dark:border-slate-600" />
+                      <div className="flex justify-between rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-3 py-2.5 text-sm font-bold text-white shadow-sm">
+                        <span>TOTAL</span>
+                        <span>${formatMoney2(orderSummary.total)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-4 pb-4 flex flex-col sm:flex-row gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={handleDiscardOrder}
+                >
+                  Discard
+                </Button>
+                <LiquidGlassButton
+                  type="button"
+                  className="flex-1 w-full text-center"
+                  onClick={handleSavePayment}
+                  disabled={loadingPayment || permissionsLoading || ordersCodesLoading || (!canAdd && !canAddOrdersByCode)}
+                >
+                  {loadingPayment ? 'Saving...' : 'Create Order'}
+                </LiquidGlassButton>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <DeleteConfirmModal
