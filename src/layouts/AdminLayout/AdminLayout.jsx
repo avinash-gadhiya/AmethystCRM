@@ -6,8 +6,8 @@ import MobileHeader from './MobileHeader';
 import Navigation from './Navigation';
 import NavBar from './NavBar';
 import useWindowSize from 'hooks/useWindowSize';
-import { ConfigContext } from 'contexts/ConfigContext';
-import Loader from 'components/Loader/Loader';
+import { ConfigContext } from 'providers/ConfigProvider';
+import Loader from 'components/loaders/Loader';
 
 // -----------------------|| ADMIN LAYOUT ||-----------------------//
 

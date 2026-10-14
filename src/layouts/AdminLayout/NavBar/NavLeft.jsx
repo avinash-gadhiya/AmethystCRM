@@ -1,6 +1,6 @@
 import { useContext } from 'react';
 import { Menu } from 'lucide-react';
-import { ConfigContext } from 'contexts/ConfigContext';
+import { ConfigContext } from 'providers/ConfigProvider';
 import * as actionType from 'store/actions';
 import Breadcrumb from '../Breadcrumb';
 

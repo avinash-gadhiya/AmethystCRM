@@ -27,17 +27,46 @@ Modern, scalable, and responsive CRM & Business Management Frontend Application 
 
 ```text
 src/
-├── assets/         # Images, fonts, and SCSS styling themes
-├── components/     # UI primitives, modals, tables, and shared elements
-├── contexts/       # Application configuration & state contexts
-├── hooks/          # Custom hooks (window size, breakpoints, etc.)
-├── layouts/        # AdminLayout, Navigation sidebar, and Top Navbar
-├── routes/         # Centralized React Router configuration
-├── services/       # Centralized API service layer (auth, users, crm, etc.)
-├── store/          # Global application state management
-├── styles/         # Core stylesheets (buttons, roles, skeletons)
-└── views/          # Module pages (Dashboard, Customers, Orders, etc.)
+|-- App.jsx              # Root application shell
+|-- main.jsx             # Browser entry point
+|-- auth/                # Route guards, session handling, and auth pages
+|-- assets/              # Images and other bundled static assets
+|-- components/          # Shared and reusable UI only
+|   |-- common/          # Tables, buttons, inputs, pagination, and modals
+|   |-- loaders/         # Loading indicators
+|   `-- ui/              # Low-level UI primitives
+|-- config/              # Application constants and configuration
+|-- hooks/               # Reusable React hooks
+|-- layouts/             # Admin and guest page shells
+|-- lib/                 # Small framework-independent helpers
+|-- pages/               # All routed screens, grouped by business module
+|   |-- dashboard/
+|   |-- customer/
+|   |-- leads/
+|   |-- order/
+|   |-- performance/
+|   |-- profile/
+|   |-- reports/
+|   |-- settings/
+|   `-- tickets/
+|-- providers/           # React context providers
+|-- routing/             # Central React Router configuration
+|-- services/            # API clients and domain services
+|-- store/               # Shared application state actions
+|-- styles/              # Global and shared stylesheets
+`-- utils/               # Reusable application utilities
 ```
+
+### Where to add files
+
+- Add a routed screen to `src/pages/<feature>/`.
+- Keep components used by only one page in that page's `components/` or `table/` folder.
+- Add genuinely reusable UI to `src/components/common/` or `src/components/ui/`.
+- Add API calls to `src/services/`, reusable hooks to `src/hooks/`, and pure helpers to `src/lib/` or `src/utils/`.
+- Register routes in `src/routing/MainRoutes.jsx`.
+- Use `@/` for imports from `src`, for example `@/services/userService`.
+
+This layout follows the same high-level conventions as the AmethystCRM reference project: pages, auth, providers, routing, layouts, shared components, services, and utilities each have one clear home.
 
 ---
 

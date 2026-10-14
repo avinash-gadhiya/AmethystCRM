@@ -4,7 +4,7 @@ import { Link, NavLink, useLocation } from 'react-router-dom';
 
 // project imports
 import NavIcon from './NavIcon';
-import { ConfigContext } from 'contexts/ConfigContext';
+import { ConfigContext } from 'providers/ConfigProvider';
 import * as actionType from 'store/actions';
 import useWindowSize from 'hooks/useWindowSize';
 

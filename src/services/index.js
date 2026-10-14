@@ -4,6 +4,7 @@ export { default as customerService } from './customerService';
 export { default as gatewayService } from './gatewayService';
 export { default as menuService } from './menuService';
 export { default as orderService } from './orderService';
+export { default as orderLookupService } from './orderLookupService';
 export { default as paymentService } from './paymentService';
 export { default as productService } from './productService';
 export { default as roleService } from './roleService';

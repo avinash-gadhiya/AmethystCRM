@@ -2,8 +2,8 @@ import { RouterProvider } from 'react-router-dom';
 import { Toaster } from 'sonner';
 
 // project imports
-import SessionExpiryHandler from 'components/SessionExpiryHandler';
-import router from 'routes';
+import SessionExpiryHandler from 'auth/SessionExpiryHandler';
+import router from 'routing';
 
 // -----------------------|| APP ||-----------------------//
 

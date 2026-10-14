@@ -19,7 +19,7 @@ import TableRefreshButton from '@/components/common/TableRefreshButton';
 import DeleteConfirmModal from '@/components/common/DeleteConfirmModal';
 import ShareSaleModal from '@/components/common/ShareSaleModal';
 import { LiquidGlassDatePicker } from '@/components/common/LiquidGlassDatePicker';
-import { brandService, gatewayService, orderService, paymentService, settingService, userService, roleService } from '@/services';
+import { brandService, gatewayService, orderLookupService, orderService, paymentService, userService, roleService } from '@/services';
 import { getCurrentLoginIpv4 } from '@/services/clientIpService';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/apiError';
@@ -902,14 +902,35 @@ const OrdersTable = () => {
 
         const fetchLookups = async () => {
             try {
-                const [brandsResult, gatewaysResult, usersResult, saleTypeResult, cardTypeResult, gatewayPaymentTypeResult] = await Promise.all([
+                const lookupResults = await Promise.allSettled([
                     brandService.getBrandDropdown(),
                     gatewayService.getGatewayDropdown({ PageNumber: 1, PageSize: 200, SortProperty: 'gatewayId', IsDescending: false }),
                     userService.getUsers({ PageNumber: 1, PageSize: 200, SortProperty: 'userId', IsDescending: false }),
-                    settingService.getSettingValuesByKey('SaleTypes'),
-                    settingService.getSettingValuesByKey('Card_Type'),
+                    orderLookupService.getSaleTypes(),
+                    orderLookupService.getCardTypes(),
                     gatewayService.getGatewayPaymentTypes(),
                 ]);
+
+                const lookupNames = ['brands', 'gateways', 'users', 'sale types', 'card types', 'gateway payment types'];
+                const failedLookups = lookupResults
+                    .map((result, index) => ({ result, name: lookupNames[index] }))
+                    .filter(({ result }) => result.status === 'rejected');
+                failedLookups.forEach(({ result, name }) => {
+                    console.error(`Failed to load ${name}`, result.reason);
+                });
+                if (failedLookups.length > 0) {
+                    toast.error(`Some payment options could not be loaded: ${failedLookups.map(({ name }) => name).join(', ')}`);
+                }
+
+                const valueAt = (index, fallback) =>
+                    lookupResults[index]?.status === 'fulfilled' ? lookupResults[index].value : fallback;
+                const brandsResult = valueAt(0, []);
+                const gatewaysResult = valueAt(1, { data: [] });
+                const usersResult = valueAt(2, { data: [] });
+                const saleTypeResult = valueAt(3, { data: [] });
+                const cardTypeResult = valueAt(4, { data: [] });
+                const gatewayPaymentTypeResult = valueAt(5, { data: [] });
+
                 setBrands(Array.isArray(brandsResult) ? brandsResult : brandsResult?.data || []);
                 setGateways(gatewaysResult?.data || []);
                 setUsers(usersResult?.data || []);
@@ -932,10 +953,10 @@ const OrdersTable = () => {
                 const cardOptions = cardValues
                     .filter((v) => v?.isActive !== false)
                     .map((v) => ({
-                        id: Number(v?.settingValueId ?? v?.id ?? v?.valueId) || 0,
-                        name: String(v?.settingValueText ?? v?.name ?? v?.text ?? '').trim(),
+                        id: v?.settingValueId ?? v?.id ?? v?.valueId ?? v?.name,
+                        name: String(v?.settingValueText ?? v?.name ?? v?.label ?? v?.text ?? '').trim(),
                     }))
-                    .filter((v) => v.id > 0 && v.name);
+                    .filter((v) => v.name);
                 setCardTypes(cardOptions);
             } catch (err) {
                 console.error('Failed to load payment lookups', err);
@@ -2011,7 +2032,7 @@ const OrdersTable = () => {
                 const [usersResult, salesUsers, shareTypeResult, roleResult] = await Promise.all([
                     userService.getUsers({ PageNumber: 1, PageSize: 500, SortProperty: 'userId', IsDescending: false }),
                     fetchSalesPersonList({ pageSize: 500 }),
-                    settingService.getSettingValuesByKey('sales_share_type'),
+                    orderLookupService.getSalesShareTypes(),
                     roleService.getRoles({ PageNumber: 1, PageSize: 500, SortProperty: 'roleId', IsDescending: false }),
                 ]);
 
@@ -4647,7 +4668,7 @@ const OrdersTable = () => {
                                                                     </SelectTrigger>
                                                                     <SelectContent className="max-h-72">
                                                                         {cardTypes.map((type) => (
-                                                                            <SelectItem key={type.id} value={type.name}>
+                                                                            <SelectItem key={type.id || type.name} value={type.name}>
                                                                                 {type.name}
                                                                             </SelectItem>
                                                                         ))}

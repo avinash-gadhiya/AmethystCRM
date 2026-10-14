@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 
 // project imports
 import NavGroup from './NavGroup';
-import { ConfigContext } from 'contexts/ConfigContext';
+import { ConfigContext } from 'providers/ConfigProvider';
 import * as actionType from 'store/actions';
 
 // third party

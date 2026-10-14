@@ -13,7 +13,7 @@ import SelectSearchInput from '@/components/common/SelectSearchInput';
 import UserOptionBadges, { getUserBadgeSearchText } from '@/components/common/UserOptionBadges';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { productService, paymentService, orderService, customerService, brandService, gatewayService, userService, settingService, countryService } from '@/services';
+import { productService, paymentService, orderService, orderLookupService, customerService, brandService, gatewayService, userService, countryService } from '@/services';
 import { getCurrentLoginIpv4 } from '@/services/clientIpService';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/apiError';
@@ -853,11 +853,11 @@ const CreateOrderPage = () => {
           gatewayService.getGatewayDropdown({ PageNumber: 1, PageSize: 200, SortProperty: 'gatewayId', IsDescending: false }),
           // Sale With / Sales Person only offer sales-side users.
           fetchSalesPersonList({ pageSize: 200 }),
-          settingService.getSettingValuesByKey('DiscountType'),
-          settingService.getSettingValuesByKey('Card_Type'),
-          settingService.getSettingValuesByKey('sales_share_type'),
+          orderLookupService.getDiscountTypes(),
+          orderLookupService.getCardTypes(),
+          orderLookupService.getSalesShareTypes(),
           gatewayService.getGatewayPaymentTypes(),
-          settingService.getSettingValuesByKey('SaleTypes'),
+          orderLookupService.getSaleTypes(),
         ]);
 
         const lookupNames = [
@@ -927,10 +927,10 @@ const CreateOrderPage = () => {
         const cardOptions = cardValues
           .filter((v) => v?.isActive !== false)
           .map((v) => ({
-            id: Number(v?.settingValueId ?? v?.id ?? v?.valueId) || 0,
-            name: String(v?.settingValueText ?? v?.name ?? v?.text ?? '').trim(),
+            id: v?.settingValueId ?? v?.id ?? v?.valueId ?? v?.name,
+            name: String(v?.settingValueText ?? v?.name ?? v?.label ?? v?.text ?? '').trim(),
           }))
-          .filter((v) => v.id > 0 && v.name);
+          .filter((v) => v.name);
         setCardTypes(cardOptions);
 
         const shareValues = Array.isArray(salesShareTypeResult?.data) ? salesShareTypeResult.data : [];
@@ -4107,11 +4107,15 @@ const CreateOrderPage = () => {
                                 <SelectValue placeholder="Select Card Type" />
                               </SelectTrigger>
                               <SelectContent>
-                                {cardTypes.map((type) => (
-                                  <SelectItem key={type.id} value={type.name}>
-                                    {type.name}
-                                  </SelectItem>
-                                ))}
+                                {cardTypes.length > 0 ? (
+                                  cardTypes.map((type) => (
+                                    <SelectItem key={type.id || type.name} value={type.name}>
+                                      {type.name}
+                                    </SelectItem>
+                                  ))
+                                ) : (
+                                  <div className="px-3 py-2 text-xs text-slate-500">No active card types found</div>
+                                )}
                               </SelectContent>
                             </Select>
                             <FieldError errorKey="payment.cardType" />

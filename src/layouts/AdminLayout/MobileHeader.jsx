@@ -3,7 +3,7 @@ import { useContext } from 'react';
 import { Menu, MoreVertical } from 'lucide-react';
 
 // project imports
-import { ConfigContext } from 'contexts/ConfigContext';
+import { ConfigContext } from 'providers/ConfigProvider';
 import * as actionType from 'store/actions';
 
 // assets

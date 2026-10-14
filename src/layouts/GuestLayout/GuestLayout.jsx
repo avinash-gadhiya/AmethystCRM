@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
 
 // project imports
-import Loader from 'components/Loader/Loader';
+import Loader from 'components/loaders/Loader';
 
 // -----------------------|| GUEST LAYOUT ||-----------------------//
 

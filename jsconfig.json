@@ -15,9 +15,12 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "baseUrl": "src"
+    "baseUrl": "src",
+    "paths": {
+      "@/*": ["*"]
+    }
   },
-  "exclude": ["node_modules", "vite.config.mjs"], // Exclude vite.config.mts
-  "include": ["src", "**/*.js", "**/*.jsx", "src/**/*"],
+  "exclude": ["node_modules", "dist"],
+  "include": ["src/**/*.js", "src/**/*.jsx"],
   "references": [{ "path": "./jsconfig.node.json" }]
 }

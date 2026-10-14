@@ -9,7 +9,7 @@ import { ChevronDown } from 'lucide-react';
 import NavItem from './NavItem';
 import LoopNavCollapse from './NavCollapse';
 import NavIcon from './NavIcon';
-import { ConfigContext } from 'contexts/ConfigContext';
+import { ConfigContext } from 'providers/ConfigProvider';
 import * as actionType from 'store/actions';
 
 // -----------------------|| NAV COLLAPSE ||-----------------------//

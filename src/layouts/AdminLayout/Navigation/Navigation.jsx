@@ -2,7 +2,7 @@ import { useContext, useState, useEffect } from 'react';
 
 // project imports
 import NavContent from './NavContent';
-import { ConfigContext } from 'contexts/ConfigContext';
+import { ConfigContext } from 'providers/ConfigProvider';
 import useWindowSize from 'hooks/useWindowSize';
 import permissionService from 'services/permissionService';
 import * as actionType from 'store/actions';
