@@ -677,6 +677,10 @@ const isPermissionGranted = (permission, grantedCodes) => {
 };
 
 export const permissionService = {
+  getUserPermissionCodes() {
+    return Array.from(getStoredPermissionCodes());
+  },
+
   transformMenuDTOsToNavItems(permissionMenuDTOs = []) {
     if (!Array.isArray(permissionMenuDTOs)) return createNavigation();
 
@@ -920,6 +924,62 @@ export const permissionService = {
     } catch {
       return denied;
     }
+  },
+
+  async getCrudPermissionsForPath(path, targetRoleId) {
+    await this.fetchPermissions(targetRoleId);
+    const roleName = String(authService.getUser()?.roleName || localStorage.getItem('roleName') || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z]/g, '');
+    if (['superadmin', 'admin', 'developer'].includes(roleName)) {
+      return { canView: true, canAdd: true, canUpdate: true, canDelete: true };
+    }
+    return this.getPageActionPermissions(path, targetRoleId);
+  },
+
+  async getGrantedPermissionCodesForPath(path, targetRoleId) {
+    await this.fetchPermissions(targetRoleId);
+    const identity = getIdentity(targetRoleId);
+    if (!identity.roleId) return new Set();
+
+    try {
+      const cached = localStorage.getItem(getCacheKey(identity));
+      const menus = cached ? JSON.parse(cached) : [];
+      const normalizedPath = normalizeRoute(path).toLowerCase().replace(/\/+$/, '');
+      const page = (Array.isArray(menus) ? menus : [])
+        .flatMap((menu) => (Array.isArray(menu?.menuPermissionPageDTOs) ? menu.menuPermissionPageDTOs : []))
+        .find((candidate) => normalizeRoute(candidate?.pageUrl).toLowerCase().replace(/\/+$/, '') === normalizedPath);
+      if (!page || normalizeBoolean(page.isActive) === false) return new Set();
+
+      const granted = getStoredPermissionCodes();
+      const roleName = String(authService.getUser()?.roleName || localStorage.getItem('roleName') || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z]/g, '');
+      const systemRole = ['superadmin', 'admin', 'developer'].includes(roleName);
+      return new Set(
+        getPermissionRows(page)
+          .filter((permission) => normalizeBoolean(permission.isActive) !== false)
+          .filter((permission) => {
+            if (systemRole) return true;
+            const explicit = normalizeBoolean(permission.hasPermission ?? permission.isGranted);
+            const code = String(permission.permissionCode || '').trim().toLowerCase();
+            return explicit === true || (explicit === undefined && granted.has(code));
+          })
+          .map((permission) => String(permission.permissionCode || '').trim().toLowerCase())
+          .filter(Boolean)
+      );
+    } catch {
+      return new Set();
+    }
+  },
+
+  async canAccessPathExact(path, targetRoleId) {
+    const codes = await this.getGrantedPermissionCodesForPath(path, targetRoleId);
+    if (codes.size > 0) return true;
+    const permissions = await this.getCrudPermissionsForPath(path, targetRoleId);
+    return Boolean(permissions.canView || permissions.canAdd || permissions.canUpdate || permissions.canDelete);
   },
 
   clearCache() {

@@ -25,8 +25,8 @@ const orderQuery = (params = {}, includePaging = true) => ({
     ? {
         PageNumber: params.PageNumber || 1,
         PageSize: params.PageSize || 10,
-        SortProperty: params.SortProperty || 'orderId',
-        IsDescending: params.IsDescending ?? false
+        SortProperty: params.SortProperty || 'orderDate',
+        IsDescending: params.IsDescending ?? true
       }
     : {})
 });

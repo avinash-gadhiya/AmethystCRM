@@ -165,6 +165,10 @@ const roleService = {
         headers: getAuthHeaders()
       });
 
+      if (response.data?.success === false) {
+        throw new Error(response.data.message || 'The server did not save the permission changes.');
+      }
+
       return response.data;
     } catch (error) {
       console.error('Error assigning permissions:', error);

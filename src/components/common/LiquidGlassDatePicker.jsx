@@ -46,6 +46,12 @@ export function LiquidGlassDatePicker({
   initialToDate = '',
   emptyLabel = 'This month',
   showQuickDateDropdown = false,
+  quickDateOptions = [],
+  quickDateValue = '',
+  onQuickDateChange,
+  showQuickDateCustomOption = true,
+  quickDatePlaceholder = 'Quick ranges',
+  quickDateTriggerClassName = '',
   calendarMode = false,
   showClearButton = false,
   onChange,
@@ -139,6 +145,11 @@ export function LiquidGlassDatePicker({
     setIsOpen((open) => !open);
   };
 
+  const handleQuickDateSelect = (value) => {
+    onQuickDateChange?.(value);
+    setIsOpen(false);
+  };
+
   const selectCalendarDate = (date) => {
     const selected = toYmd(date);
 
@@ -180,9 +191,9 @@ export function LiquidGlassDatePicker({
       <button
         type="button"
         onClick={togglePicker}
-        className={`inline-flex items-center justify-between gap-2 px-3 py-1.5 h-8 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 shadow-sm transition-colors min-w-0 max-w-full flex-1 ${
-          stretch ? 'justify-start' : 'justify-center sm:flex-none'
-        }`}
+        className={`inline-flex min-w-0 max-w-full flex-1 items-center justify-between gap-2 shadow-sm transition-colors ${
+          quickDateTriggerClassName || 'h-8 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-slate-700 hover:bg-slate-50'
+        } ${stretch ? 'justify-start' : 'justify-center sm:flex-none'}`}
       >
         <CalendarIcon className="h-4 w-4 shrink-0 text-slate-500" />
         <span className={`truncate text-xs font-semibold text-slate-800 ${stretch ? 'flex-1 text-left' : 'sm:max-w-[190px]'}`}>
@@ -318,8 +329,38 @@ export function LiquidGlassDatePicker({
 
       {isOpen && !calendarMode && (
         <div className="absolute right-0 top-full z-50 mt-1.5 w-72 rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
-          <div className="text-xs font-semibold text-slate-800 mb-3">Custom Date Range</div>
-          <form onSubmit={handleApply} className="space-y-3">
+          {showQuickDateDropdown && quickDateOptions.length > 0 && (
+            <div className={showQuickDateCustomOption ? 'mb-4 border-b border-slate-100 pb-4' : ''}>
+              <div className="mb-2 text-xs font-semibold text-slate-800">{quickDatePlaceholder}</div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {quickDateOptions.map((option) => {
+                  const value = option?.value ?? option;
+                  const label = option?.label ?? option;
+                  const selected = String(quickDateValue) === String(value);
+
+                  return (
+                    <button
+                      key={String(value)}
+                      type="button"
+                      onClick={() => handleQuickDateSelect(value)}
+                      className={`rounded-lg px-2.5 py-2 text-left text-xs font-semibold transition-colors ${
+                        selected
+                          ? 'bg-indigo-600 text-white shadow-sm'
+                          : 'bg-slate-50 text-slate-700 hover:bg-indigo-50 hover:text-indigo-700'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {showQuickDateCustomOption && (
+            <>
+              <div className="mb-3 text-xs font-semibold text-slate-800">Custom Date Range</div>
+              <form onSubmit={handleApply} className="space-y-3">
             <div>
               <label className="block text-[11px] font-medium text-slate-500 mb-1">From Date</label>
               <input
@@ -353,7 +394,9 @@ export function LiquidGlassDatePicker({
                 Apply
               </button>
             </div>
-          </form>
+              </form>
+            </>
+          )}
         </div>
       )}
     </div>

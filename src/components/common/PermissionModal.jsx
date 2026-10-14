@@ -8,9 +8,15 @@ import LiquidGlassButton from './LiquidGlassButton';
 const getPages = (menu) => menu?.menuPermissionPageDTOs || [];
 const getPermissions = (page) => page?.menuPagePermissionDTOs || [];
 
+const isGranted = (value) => {
+  if (value === true || value === 1) return true;
+  if (value === false || value === 0 || value == null) return false;
+  return ['true', '1'].includes(String(value).trim().toLowerCase());
+};
+
 const getSelectionState = (values, fallback = false) => {
   if (values.length === 0) {
-    const selected = Boolean(fallback);
+    const selected = isGranted(fallback);
     return { all: selected, any: selected, checked: selected };
   }
 
@@ -21,7 +27,7 @@ const getSelectionState = (values, fallback = false) => {
 
 const getPageState = (page) =>
   getSelectionState(
-    getPermissions(page).map((permission) => Boolean(permission.hasPermission ?? permission.isGranted)),
+    getPermissions(page).map((permission) => isGranted(permission.hasPermission ?? permission.isGranted)),
     page?.hasPermission ?? page?.isGranted
   );
 
@@ -111,8 +117,8 @@ const updatePermission = (tree, menuIndex, pageIndex, permissionIndex, checked) 
 
       return {
         ...page,
-        hasPermission: permissions.length > 0 && permissions.every((permission) => Boolean(permission.hasPermission ?? permission.isGranted)),
-        isGranted: permissions.length > 0 && permissions.every((permission) => Boolean(permission.hasPermission ?? permission.isGranted)),
+        hasPermission: permissions.length > 0 && permissions.every((permission) => isGranted(permission.hasPermission ?? permission.isGranted)),
+        isGranted: permissions.length > 0 && permissions.every((permission) => isGranted(permission.hasPermission ?? permission.isGranted)),
         menuPagePermissionDTOs: permissions
       };
     });

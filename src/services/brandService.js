@@ -732,6 +732,7 @@ export const brandService = {
     return cachedReference(`emailOptions:${brandId}`, () => this.getAllPages('/BrandEmail', { BrandId: brandId }));
   },
   clearBrandCache: invalidate,
+  clearBrandsCache: invalidate,
   clearBrandEmailCache: invalidate,
   clearGatewayCache: invalidate,
   clearTemplateCache: invalidate,

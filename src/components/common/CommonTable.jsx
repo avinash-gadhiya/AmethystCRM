@@ -39,6 +39,16 @@ const CommonTable = ({
   toolbar,
   containerClassName = '',
   tableClassName = '',
+  sorting,
+  onSortingChange,
+  isLoading,
+  emptyMessage,
+  pageNo,
+  pageSize,
+  total,
+  onPageChange,
+  onPageSizeChange,
+  renderSubRows,
   // Sorting props
   sortBy,
   sortDirection, // 'asc' | 'desc'
@@ -49,48 +59,58 @@ const CommonTable = ({
   pagination,
   hidePaginationOnSinglePage = false
 }) => {
+  const effectiveLoading = isLoading ?? loading;
+  const legacySorting = Array.isArray(sorting) ? sorting[0] : null;
   // Normalize sort options
-  const activeSortKey = sort?.sortProperty ?? sortBy;
-  const isDesc = sort?.isDescending !== undefined ? sort.isDescending : sortDirection === 'desc';
+  const activeSortKey = legacySorting?.id ?? sort?.sortProperty ?? sortBy;
+  const isDesc = legacySorting?.desc ?? (sort?.isDescending !== undefined ? sort.isDescending : sortDirection === 'desc');
 
   // Normalize pagination options
   const pConfig = useMemo(() => {
-    if (!pagination) return null;
+    const source = pagination || (
+      typeof pageNo === 'number' && typeof pageSize === 'number' && typeof total === 'number'
+        ? { pageNumber: pageNo, pageSize, totalCount: total, onPageChange, onPageSizeChange, legacy: true }
+        : null
+    );
+    if (!source) return null;
 
-    const pageNumber = pagination.pageNumber ?? pagination.currentPage ?? 1;
-    const pageSize = pagination.pageSize ?? 10;
-    const totalCount = Number(pagination.totalCount) || 0;
-    const computedTotalPages = Math.ceil(totalCount / pageSize) || 1;
-    const totalPages = pagination.totalPages ?? computedTotalPages;
-    const pageSizeOptions = pagination.pageSizeOptions || DEFAULT_PAGE_SIZE_OPTIONS;
-    const itemName = pagination.itemName || 'Records';
-    const showPageSize = pagination.showPageSize !== false;
-    const showInfo = pagination.showInfo !== false;
+    const pageNumber = source.pageNumber ?? source.currentPage ?? 1;
+    const normalizedPageSize = source.pageSize ?? 10;
+    const totalCount = Number(source.totalCount) || 0;
+    const computedTotalPages = Math.ceil(totalCount / normalizedPageSize) || 1;
+    const totalPages = source.totalPages ?? computedTotalPages;
+    const pageSizeOptions = source.pageSizeOptions || DEFAULT_PAGE_SIZE_OPTIONS;
+    const itemName = source.itemName || 'Records';
+    const showPageSize = source.showPageSize !== false;
+    const showInfo = source.showInfo !== false;
 
     return {
       pageNumber,
-      pageSize,
+      pageSize: normalizedPageSize,
       totalCount,
       totalPages,
       pageSizeOptions,
       itemName,
       showPageSize,
       showInfo,
-      onPageChange: pagination.onPageChange,
-      onPageSizeChange: pagination.onPageSizeChange
+      onPageChange: source.onPageChange,
+      onPageSizeChange: source.onPageSizeChange,
+      legacy: !!source.legacy
     };
-  }, [pagination]);
+  }, [pagination, pageNo, pageSize, total, onPageChange, onPageSizeChange]);
 
   // Compute serial number offset for rows
   const serialOffset = pConfig ? (pConfig.pageNumber - 1) * pConfig.pageSize : 0;
 
   // Handle header sort click
   const handleHeaderSortClick = (col) => {
-    if (!col.sortable) return;
+    if (!(col.sortable ?? col.enableSorting)) return;
     const key = col.sortKey || col.accessor || col.id;
     if (!key) return;
 
-    if (sort?.onSort) {
+    if (typeof onSortingChange === 'function') {
+      onSortingChange([{ id: key, desc: activeSortKey === key ? !isDesc : false }]);
+    } else if (sort?.onSort) {
       sort.onSort(key);
     } else if (typeof onSort === 'function') {
       const nextDirection = activeSortKey === key && !isDesc ? 'desc' : 'asc';
@@ -100,7 +120,7 @@ const CommonTable = ({
 
   // Render sorting icon
   const renderSortIndicator = (col) => {
-    if (!col.sortable) return null;
+    if (!(col.sortable ?? col.enableSorting)) return null;
     const key = col.sortKey || col.accessor || col.id;
     const isSorted = activeSortKey === key;
 
@@ -160,11 +180,11 @@ const CommonTable = ({
                       onClick={() => handleHeaderSortClick(col)}
                       style={col.width ? { width: col.width } : undefined}
                       className={`py-3.5 px-4 ${alignClass} ${col.width ? col.width : ''} ${stickyClass} ${
-                        col.sortable ? 'cursor-pointer select-none group hover:text-purple-600 dark:hover:text-purple-400 transition-colors' : ''
-                      } ${col.headerClassName || ''}`}
+                        (col.sortable ?? col.enableSorting) ? 'cursor-pointer select-none group hover:text-purple-600 dark:hover:text-purple-400 transition-colors' : ''
+                      } ${col.headerClassName || col.meta?.headerClassName || ''}`}
                     >
                       <span className="inline-flex items-center">
-                        {typeof col.header === 'function' ? col.header() : col.header}
+                        {typeof col.header === 'function' ? col.header({ column: col }) : col.header}
                         {renderSortIndicator(col)}
                       </span>
                     </th>
@@ -176,7 +196,7 @@ const CommonTable = ({
             {/* Table Body */}
             <tbody className="divide-y divide-gray-100 dark:divide-white/5 text-sm">
               {/* 1. Loading State: Loop through skeleton rows & columns */}
-              {loading &&
+              {effectiveLoading &&
                 Array.from({ length: skeletonRows }).map((_, rIdx) => (
                   <tr key={`skel-row-${rIdx}`} className="animate-pulse">
                     {columns.map((col, cIdx) => {
@@ -208,7 +228,7 @@ const CommonTable = ({
                 ))}
 
               {/* 2. Empty State: When not loading and data is empty */}
-              {!loading && (!data || data.length === 0) && (
+              {!effectiveLoading && (!data || data.length === 0) && (
                 <tr>
                   <td colSpan={columns.length || 1} className="py-16 px-4 text-center">
                     {emptyState ? (
@@ -244,7 +264,7 @@ const CommonTable = ({
                           <Inbox size={28} className="opacity-80" />
                         </div>
                         <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
-                          No records found
+                          {emptyMessage || 'No records found'}
                         </h4>
                         <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
                           There are currently no items to display matching the criteria.
@@ -256,7 +276,7 @@ const CommonTable = ({
               )}
 
               {/* 3. Data Rows: Loop through data and columns */}
-              {!loading &&
+              {!effectiveLoading &&
                 Array.isArray(data) &&
                 data.map((row, rowIdx) => {
                   const serialNumber = serialOffset + rowIdx + 1;
@@ -265,8 +285,8 @@ const CommonTable = ({
                     typeof rowClassName === 'function' ? rowClassName(row, rowIdx) : rowClassName || '';
 
                   return (
+                    <React.Fragment key={rowId}>
                     <tr
-                      key={rowId}
                       onClick={() => onRowClick && onRowClick(row, rowIdx)}
                       className={`group hover:bg-purple-50/30 dark:hover:bg-white/[0.02] transition-colors ${
                         onRowClick ? 'cursor-pointer' : ''
@@ -287,7 +307,10 @@ const CommonTable = ({
                         // Render cell content: custom cell renderer takes precedence
                         let cellContent = null;
                         if (typeof col.cell === 'function') {
-                          cellContent = col.cell(row, rowIdx, serialNumber);
+                          const isLegacyColumn = col.meta !== undefined || col.enableSorting !== undefined;
+                          cellContent = isLegacyColumn
+                            ? col.cell({ row: { original: row }, rowIndex: rowIdx, serial: serialNumber })
+                            : col.cell(row, rowIdx, serialNumber);
                         } else if (col.accessor) {
                           cellContent = getNestedValue(row, col.accessor);
                         } else if (col.id === 'serial' || col.id === 'index' || col.id === '#') {
@@ -297,13 +320,15 @@ const CommonTable = ({
                         return (
                           <td
                             key={col.id || col.accessor || `cell-${rowIdx}-${colIdx}`}
-                            className={`py-3.5 px-4 ${alignClass} ${stickyClass} ${col.className || ''}`}
+                            className={`py-3.5 px-4 ${alignClass} ${stickyClass} ${col.className || col.meta?.cellClassName || ''}`}
                           >
                             {cellContent ?? '—'}
                           </td>
                         );
                       })}
                     </tr>
+                    {renderSubRows ? renderSubRows(row, rowIdx) : null}
+                    </React.Fragment>
                   );
                 })}
             </tbody>
@@ -328,7 +353,11 @@ const CommonTable = ({
                   <span>Per page:</span>
                   <select
                     value={pConfig.pageSize}
-                    onChange={(e) => pConfig.onPageSizeChange(Number(e.target.value))}
+                    onChange={(e) =>
+                      pConfig.onPageSizeChange(
+                        pConfig.legacy ? { target: { value: e.target.value } } : Number(e.target.value)
+                      )
+                    }
                     className="px-2 py-1 bg-white dark:bg-[#0f1322] border border-gray-300 dark:border-white/10 rounded-md text-gray-800 dark:text-gray-200 focus:outline-none cursor-pointer"
                   >
                     {pConfig.pageSizeOptions.map((sz) => (
@@ -345,7 +374,7 @@ const CommonTable = ({
                 currentPage={pConfig.pageNumber}
                 totalPages={pConfig.totalPages}
                 onPageChange={pConfig.onPageChange}
-                disabled={loading}
+                disabled={effectiveLoading}
               />
             </div>
           </div>

@@ -63,7 +63,7 @@ export const productService = {
         PageNumber: params.PageNumber || 1,
         PageSize: params.PageSize || 10,
         SortProperty: params.SortProperty || 'productId',
-        IsDescending: params.IsDescending ?? true
+        IsDescending: params.IsDescending ?? false
       },
       signal
     });

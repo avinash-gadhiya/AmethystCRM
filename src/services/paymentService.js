@@ -41,6 +41,10 @@ export const paymentService = {
     return payload?.data ?? payload;
   },
 
+  async getPaymentById(id, signal) {
+    return this.getPayment(id, signal);
+  },
+
   createPayment(payload) {
     return apiClient.post('/Payment', payload);
   },
@@ -57,6 +61,10 @@ export const paymentService = {
     return apiClient.get('/Payment/SendMail', { paymentId, brandEmailTempleteId });
   },
 
+  sendPaymentMail({ paymentId, brandEmailTempleteId }) {
+    return this.sendMail(paymentId, brandEmailTempleteId);
+  },
+
   sendPandaDocMail(paymentId) {
     return apiClient.get('/Payment/SendPandaDocMail', { paymentId });
   },
@@ -66,6 +74,63 @@ export const paymentService = {
     const formData = new FormData();
     formData.append('file', file);
     return apiClient.request('/Payment/UploadExcel', { method: 'POST', data: formData });
+  },
+
+  uploadRefundExcel(file) {
+    return this.uploadRefundFile(file);
+  },
+
+  async getSharePayments({ paymentId = 0, shareWithId = 0, shareTypeId = 0 } = {}) {
+    const endpoint =
+      import.meta.env.VITE_APP_SHARE_PAYMENT_ENDPOINT ||
+      import.meta.env.VITE_APP_ORDER_SALE_SHARE_ENDPOINT ||
+      '/SharePayment';
+    return normalizeList(
+      await apiClient.get(endpoint, {
+        PaymentId: Number(paymentId) || 0,
+        ShareWithId: Number(shareWithId) || 0,
+        ShareTypeId: Number(shareTypeId) || 0
+      })
+    );
+  },
+
+  createSharePayments(payload) {
+    const endpoint =
+      import.meta.env.VITE_APP_SHARE_PAYMENT_ENDPOINT ||
+      import.meta.env.VITE_APP_ORDER_SALE_SHARE_ENDPOINT ||
+      '/SharePayment';
+    return apiClient.post(endpoint, Array.isArray(payload) ? payload : [payload]);
+  },
+
+  updateSharePayments(payload) {
+    const endpoint =
+      import.meta.env.VITE_APP_SHARE_PAYMENT_ENDPOINT ||
+      import.meta.env.VITE_APP_ORDER_SALE_SHARE_ENDPOINT ||
+      '/SharePayment';
+    return apiClient.put(endpoint, Array.isArray(payload) ? payload : [payload]);
+  },
+
+  async deleteSharePayment(id) {
+    const endpoint =
+      import.meta.env.VITE_APP_SHARE_PAYMENT_ENDPOINT ||
+      import.meta.env.VITE_APP_ORDER_SALE_SHARE_ENDPOINT ||
+      '/SharePayment';
+    const attempts = [
+      () => apiClient.delete(endpoint, { id }),
+      () => apiClient.delete(endpoint, { sharePaymentId: id }),
+      () => apiClient.delete(`${endpoint}/${encodeURIComponent(id)}`)
+    ];
+
+    let lastError;
+    for (const attempt of attempts) {
+      try {
+        return await attempt();
+      } catch (error) {
+        lastError = error;
+        if (![400, 404, 405].includes(error?.status)) throw error;
+      }
+    }
+    throw lastError;
   }
 };
 

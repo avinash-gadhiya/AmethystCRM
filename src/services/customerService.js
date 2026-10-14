@@ -1,50 +1,4 @@
-import authService from './authService';
-
-const API_BASE_URL = (import.meta.env.VITE_APP_API_URL || 'https://demoapi.enstasol.com/api').replace(/\/$/, '');
-
-const buildQuery = (params = {}) => {
-  const query = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value === '' || value === null || value === undefined) return;
-    query.set(key, String(value));
-  });
-  return query.toString();
-};
-
-const request = async (path, { method = 'GET', params, data, signal } = {}) => {
-  const token = authService.getToken();
-  if (!token) throw new Error('Your session has expired. Please sign in again.');
-
-  const query = buildQuery(params);
-  const headers = {
-    Accept: 'application/json',
-    Authorization: `Bearer ${token}`
-  };
-  if (data !== undefined) headers['Content-Type'] = 'application/json';
-
-  const response = await fetch(`${API_BASE_URL}${path}${query ? `?${query}` : ''}`, {
-    method,
-    headers,
-    body: data === undefined ? undefined : JSON.stringify(data),
-    signal
-  });
-
-  if (response.status === 204) return { success: true };
-
-  let payload;
-  try {
-    payload = await response.json();
-  } catch {
-    throw new Error(`Customer API returned an invalid response (${response.status}).`);
-  }
-
-  if (!response.ok || payload?.success === false) {
-    const validationMessage = payload?.errors ? Object.values(payload.errors).flat().join(', ') : '';
-    throw new Error(payload?.message || validationMessage || `Customer request failed (${response.status}).`);
-  }
-
-  return payload;
-};
+import apiClient from './core/apiClient';
 
 const getViewIp = () => {
   try {
@@ -62,12 +16,16 @@ const getViewIp = () => {
 
 const normalizeList = (payload) => {
   if (Array.isArray(payload)) return payload;
-  return Array.isArray(payload?.data) ? payload.data : [];
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.data?.items)) return payload.data.items;
+  if (Array.isArray(payload?.data?.data)) return payload.data.data;
+  return [];
 };
 
 export const customerService = {
   async getCustomers(params = {}, signal) {
-    const payload = await request('/Customer', {
+    const payload = await apiClient.request('/Customer', {
       params: {
         Text: params.Text || '',
         SearchField: params.SearchField || '',
@@ -83,31 +41,35 @@ export const customerService = {
     });
 
     return {
-      data: normalizeList(payload?.data),
-      totalCount: Number(payload?.totalCount) || 0
+      data: normalizeList(payload),
+      totalCount: Number(payload?.totalCount ?? payload?.data?.totalCount ?? payload?.totalRecords) || 0
     };
   },
 
   async searchCustomers(searchText, pageNumber = 1, pageSize = 10, signal) {
-    const payload = await request('/Customer/search', {
+    const payload = await apiClient.request('/Customer/search', {
       params: { searchText, pageNumber, pageSize },
       signal
     });
     const data = normalizeList(payload?.data ?? payload);
-    return { data, totalCount: Number(payload?.totalCount) || data.length };
+    return {
+      data,
+      totalCount: Number(payload?.totalCount ?? payload?.data?.totalCount ?? payload?.totalRecords) || data.length
+    };
   },
 
   async rebuildSearchIndex() {
     try {
-      return await request('/Customer/index/rebuild', { method: 'POST', data: {} });
-    } catch {
-      return request('/Customer/index/rebuild', { method: 'POST' });
+      return await apiClient.request('/Customer/index/rebuild', { method: 'POST', data: {} });
+    } catch (error) {
+      if (![400, 415].includes(error?.status)) throw error;
+      return apiClient.request('/Customer/index/rebuild', { method: 'POST' });
     }
   },
 
   async getCustomerById(customerId, signal) {
     if (!customerId) throw new Error('Customer ID is required.');
-    const payload = await request(`/Customer/${customerId}`, {
+    const payload = await apiClient.request(`/Customer/${customerId}`, {
       params: { ip: getViewIp(), customerViewIp: getViewIp() },
       signal
     });
@@ -117,7 +79,7 @@ export const customerService = {
   },
 
   async getCustomerViews(params = {}, signal) {
-    const payload = await request('/Customer/GetCustomerView', {
+    const payload = await apiClient.request('/Customer/GetCustomerView', {
       params: {
         Text: params.Text || '',
         PageNumber: params.PageNumber || 1,
@@ -128,30 +90,30 @@ export const customerService = {
       signal
     });
     return {
-      data: normalizeList(payload?.data),
-      totalCount: Number(payload?.totalCount) || 0
+      data: normalizeList(payload),
+      totalCount: Number(payload?.totalCount ?? payload?.data?.totalCount ?? payload?.totalRecords) || 0
     };
   },
 
   async createCustomer(customer) {
-    const payload = await request('/Customer', { method: 'POST', data: customer });
+    const payload = await apiClient.request('/Customer', { method: 'POST', data: customer });
     return payload?.data || null;
   },
 
   async updateCustomer(customer) {
-    const payload = await request('/Customer', { method: 'PUT', data: customer });
+    const payload = await apiClient.request('/Customer', { method: 'PUT', data: customer });
     return payload?.data || null;
   },
 
   async toggleCustomerStatus(customerId) {
     if (!customerId) throw new Error('Customer ID is required.');
-    const payload = await request('/Customer/CanDisableCustomer', { method: 'PUT', params: { id: customerId } });
+    const payload = await apiClient.request('/Customer/CanDisableCustomer', { method: 'PUT', params: { id: customerId } });
     return payload?.data;
   },
 
   async deleteCustomer(customerId) {
     if (!customerId) throw new Error('Customer ID is required.');
-    return request(`/Customer/${customerId}`, { method: 'DELETE' });
+    return apiClient.request(`/Customer/${customerId}`, { method: 'DELETE' });
   }
 };
 

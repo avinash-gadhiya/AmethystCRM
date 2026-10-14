@@ -300,6 +300,10 @@ export const settingService = {
     return normalizeSettingValuesList(response.data);
   },
 
+  async getSettingValuesByKey(settingKey, signal) {
+    return this.getSettingValueDropdown(settingKey, signal);
+  },
+
   // Invalidate cache
   clearCache() {
     settingsCache.clear();

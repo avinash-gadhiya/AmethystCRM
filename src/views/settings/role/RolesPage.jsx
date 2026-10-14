@@ -5,6 +5,7 @@ import { toast, Toaster } from 'sonner';
 
 import roleService from '@/services/roleService';
 import permissionService from '@/services/permissionService';
+import authService from '@/services/authService';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { resolveConfiguredPagePermissions } from '@/utils/configuredPagePermissions';
 
@@ -15,6 +16,12 @@ import TableRefreshButton from '@/components/common/TableRefreshButton';
 import IosToggle from '@/components/common/IosToggle';
 import DeleteConfirmModal from '@/components/common/DeleteConfirmModal';
 import PermissionModal from '@/components/common/PermissionModal';
+
+const isGranted = (value) => {
+  if (value === true || value === 1) return true;
+  if (value === false || value === 0 || value == null) return false;
+  return ['true', '1'].includes(String(value).trim().toLowerCase());
+};
 
 const RolesPage = () => {
   const pagePermissions = useMemo(
@@ -186,23 +193,23 @@ const RolesPage = () => {
           const perms = page.menuPagePermissionDTOs || [];
           const allPermsGranted =
             perms.length > 0
-              ? perms.every((p) => Boolean(p.hasPermission ?? p.isGranted))
-              : Boolean(page.hasPermission ?? page.isGranted);
+              ? perms.every((p) => isGranted(p.hasPermission ?? p.isGranted))
+              : isGranted(page.hasPermission ?? page.isGranted);
           return {
             ...page,
             hasPermission: allPermsGranted,
             isGranted: allPermsGranted,
             menuPagePermissionDTOs: perms.map((p) => ({
               ...p,
-              hasPermission: Boolean(p.hasPermission ?? p.isGranted),
-              isGranted: Boolean(p.hasPermission ?? p.isGranted)
+              hasPermission: isGranted(p.hasPermission ?? p.isGranted),
+              isGranted: isGranted(p.hasPermission ?? p.isGranted)
             }))
           };
         });
         const allPagesGranted =
           pages.length > 0
             ? pages.every((p) => Boolean(p.hasPermission))
-            : Boolean(menu.hasPermission ?? menu.isGranted);
+            : isGranted(menu.hasPermission ?? menu.isGranted);
         return {
           ...menu,
           hasPermission: allPagesGranted,
@@ -241,14 +248,15 @@ const RolesPage = () => {
               rolePermissionId: Number(permission.rolePermissionId || 0),
               roleId: Number(permissionModalRole.roleId),
               pagePermissionId: Number(permission.pagePermissionId),
-              isGranted: Boolean(permission.hasPermission ?? permission.isGranted)
+              isGranted: isGranted(permission.hasPermission ?? permission.isGranted)
             });
           });
         });
       });
 
+      const updatedRoleId = Number(permissionModalRole.roleId);
       await roleService.assignPermissions({
-        roleId: Number(permissionModalRole.roleId),
+        roleId: updatedRoleId,
         assignPermissionDTOs
       });
 
@@ -256,8 +264,18 @@ const RolesPage = () => {
         permissionService.clearCache();
       } catch {}
 
-      toast.success('Permissions updated successfully');
       handleClosePermissionModal();
+
+      // The API authorizes module requests from claims in the login token. If
+      // the signed-in user's own role changed, that token still contains the
+      // old grants until a new login token is issued.
+      if (updatedRoleId === Number(authService.getUser()?.roleId)) {
+        authService.logout();
+        window.location.assign(`${import.meta.env.BASE_URL}login`);
+        return;
+      }
+
+      toast.success('Permissions updated successfully. Affected users must sign in again to apply the changes.');
     } catch (error) {
       console.error('Failed to save permissions:', error);
       toast.error(getApiErrorMessage(error, 'Failed to save permissions'));

@@ -1,8 +1,16 @@
-import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown } from 'lucide-react';
 
 const SelectContext = createContext(null);
+
+const getOptionText = (node) => {
+  if (node === null || node === undefined || typeof node === 'boolean') return '';
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(getOptionText).filter(Boolean).join(' ').trim();
+  if (React.isValidElement(node)) return getOptionText(node.props.children);
+  return '';
+};
 
 export function Select({ value, onValueChange, children, disabled = false }) {
   const [open, setOpen] = useState(false);
@@ -10,6 +18,11 @@ export function Select({ value, onValueChange, children, disabled = false }) {
   const containerRef = useRef(null);
   const triggerRef = useRef(null);
   const contentRef = useRef(null);
+  const listboxId = useId();
+
+  useEffect(() => {
+    if (disabled) setOpen(false);
+  }, [disabled]);
 
   // Close on outside click
   useEffect(() => {
@@ -45,12 +58,12 @@ export function Select({ value, onValueChange, children, disabled = false }) {
     };
   }, [open]);
 
-  const registerItem = (val, label) => {
+  const registerItem = useCallback((val, label) => {
     setItemLabels((prev) => {
       if (prev[val] === label) return prev;
       return { ...prev, [val]: label };
     });
-  };
+  }, []);
 
   return (
     <SelectContext.Provider
@@ -63,7 +76,8 @@ export function Select({ value, onValueChange, children, disabled = false }) {
         registerItem,
         disabled,
         triggerRef,
-        contentRef
+        contentRef,
+        listboxId,
       }}
     >
       <div ref={containerRef} className="relative w-full">
@@ -76,16 +90,36 @@ export function Select({ value, onValueChange, children, disabled = false }) {
 export function SelectTrigger({ className = '', children, ...props }) {
   const context = useContext(SelectContext);
   if (!context) return null;
-  const { open, setOpen, disabled, triggerRef } = context;
+  const { open, setOpen, disabled, triggerRef, listboxId } = context;
+  const { onClick, onKeyDown, ...triggerProps } = props;
+
+  const handleClick = (event) => {
+    onClick?.(event);
+    if (!event.defaultPrevented && !disabled) setOpen((current) => !current);
+  };
+
+  const handleKeyDown = (event) => {
+    onKeyDown?.(event);
+    if (event.defaultPrevented || disabled) return;
+    if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      setOpen(true);
+    }
+  };
 
   return (
     <button
       type="button"
       ref={triggerRef}
       disabled={disabled}
-      onClick={() => !disabled && setOpen(!open)}
-      className={`flex items-center justify-between gap-2 px-3 py-2 text-left font-medium transition-colors focus:outline-none ${className}`}
-      {...props}
+      aria-haspopup="listbox"
+      aria-expanded={open}
+      aria-controls={listboxId}
+      data-state={open ? 'open' : 'closed'}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      className={`flex items-center justify-between gap-2 px-3 py-2 text-left font-medium transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
+      {...triggerProps}
     >
       <div className="flex-1 truncate">{children}</div>
       <ChevronDown className={`h-4 w-4 shrink-0 opacity-50 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
@@ -103,7 +137,7 @@ export function SelectValue({ placeholder = 'Select...' }) {
   return <span className="truncate block">{display}</span>;
 }
 
-export function SelectContent({ className = '', children, search = null, position = 'popper', sideOffset = 4, ...props }) {
+export function SelectContent({ className = '', children, search = null, position = 'popper', sideOffset = 4, style, ...props }) {
   const context = useContext(SelectContext);
   if (!context) return null;
 
@@ -118,10 +152,25 @@ export function SelectContent({ className = '', children, search = null, positio
   }
 
   const triggerRect = context.triggerRef.current?.getBoundingClientRect();
-  const menuWidth = Math.max(200, triggerRect?.width || 200);
-  const availableBelow = window.innerHeight - (triggerRect?.bottom || 0);
-  const openAbove = availableBelow < 300 && (triggerRect?.top || 0) > availableBelow;
-  const left = Math.max(8, Math.min(triggerRect?.left || 8, window.innerWidth - menuWidth - 8));
+  const viewportPadding = 8;
+  const maxViewportWidth = Math.max(160, window.innerWidth - viewportPadding * 2);
+  const menuWidth = Math.min(maxViewportWidth, Math.max(200, triggerRect?.width || 200));
+  const availableBelow = Math.max(
+    0,
+    window.innerHeight - (triggerRect?.bottom || 0) - sideOffset - viewportPadding,
+  );
+  const availableAbove = Math.max(0, (triggerRect?.top || 0) - sideOffset - viewportPadding);
+
+  // Keep menus below their controls in normal layouts. Opening upward over
+  // section headers made the Create Order fields look detached and obscured
+  // the payment method tabs. Only flip when there is almost no usable room.
+  const openAbove = availableBelow < 72 && availableAbove > availableBelow;
+  const availableSpace = openAbove ? availableAbove : availableBelow;
+  const menuMaxHeight = Math.max(64, Math.min(288, availableSpace));
+  const left = Math.max(
+    viewportPadding,
+    Math.min(triggerRect?.left || viewportPadding, window.innerWidth - menuWidth - viewportPadding),
+  );
   const placementStyle = openAbove
     ? { bottom: window.innerHeight - (triggerRect?.top || 0) + sideOffset }
     : { top: (triggerRect?.bottom || 0) + sideOffset };
@@ -129,56 +178,62 @@ export function SelectContent({ className = '', children, search = null, positio
   return createPortal(
     <div
       ref={context.contentRef}
-      className={`fixed max-h-72 min-w-[200px] overflow-hidden rounded-xl shadow-xl backdrop-blur-md transition-all ${className}`}
-      style={{ ...placementStyle, left, width: menuWidth, zIndex: 10000 }}
+      id={context.listboxId}
+      role="listbox"
+      data-position={position}
+      className={`fixed isolate flex min-w-[160px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-800 shadow-2xl shadow-slate-950/15 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 ${className}`}
+      style={{ ...placementStyle, left, width: menuWidth, maxHeight: menuMaxHeight, zIndex: 10000, ...style }}
       {...props}
     >
-      {search && <div className="sticky top-0 z-10">{search}</div>}
-      <div className="max-h-60 overflow-y-auto p-1 divide-y-0">{children}</div>
+      {search && <div className="z-10 shrink-0">{search}</div>}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1">{children}</div>
     </div>,
     document.body
   );
 }
 
-export function SelectItem({ value, children, className = '', meta = null, ...props }) {
+export function SelectItem({ value, children, className = '', meta = null, textValue, disabled = false, ...props }) {
   const context = useContext(SelectContext);
   if (!context) return null;
   const { value: selectedValue, onValueChange, setOpen, registerItem } = context;
 
   const isSelected = String(selectedValue) === String(value);
 
-  // Register label for display in SelectValue
+  const optionLabel = String(textValue || getOptionText(children)).replace(/\s+/g, ' ').trim();
+
+  // Register a plain-text label for the trigger. Complex product/user rows must
+  // not be rendered inside the compact trigger after selection.
   useEffect(() => {
-    let label = '';
-    if (typeof children === 'string') {
-      label = children;
-    } else if (React.isValidElement(children)) {
-      label = children.props.children || '';
-    }
-    if (label) {
-      registerItem(value, label);
-    }
-  }, [value, children, registerItem]);
+    if (optionLabel) registerItem(value, optionLabel);
+  }, [value, optionLabel, registerItem]);
 
   const handleSelect = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    if (disabled) return;
     onValueChange?.(value);
     setOpen(false);
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter' || event.key === ' ') handleSelect(event);
   };
 
   return (
     <div
       role="option"
       aria-selected={isSelected}
+      aria-disabled={disabled}
+      tabIndex={disabled ? -1 : 0}
       onClick={handleSelect}
-      className={`group relative flex cursor-pointer select-none flex-col rounded-lg px-2.5 py-1.5 text-xs outline-none transition-colors hover:bg-gray-100 dark:hover:bg-slate-800 ${
+      onKeyDown={handleKeyDown}
+      className={`group relative flex select-none flex-col rounded-lg px-2.5 py-2 text-xs outline-none transition-colors focus:bg-violet-50 focus:ring-2 focus:ring-inset focus:ring-violet-500/20 dark:focus:bg-violet-500/10 ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-violet-50 dark:hover:bg-violet-500/10'} ${
         isSelected ? 'bg-purple-50 font-semibold text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' : ''
       } ${className}`}
       {...props}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="truncate">{children}</span>
+        <div className="min-w-0 flex-1">{children}</div>
         {isSelected && <span className="flex h-1.5 w-1.5 rounded-full bg-purple-600 dark:bg-purple-400 shrink-0" />}
       </div>
       {meta && <div className="mt-1 flex flex-wrap items-center gap-1">{meta}</div>}

@@ -139,12 +139,7 @@ export const gatewayService = {
       delete queryParams.SortProperty;
     }
 
-    try {
-      return unwrapList(await request('/GatewayPaymentType', { params: queryParams, signal }));
-    } catch (err) {
-      console.warn('Failed to load gateway payment types, returning empty list:', err);
-      return { data: [], totalCount: 0 };
-    }
+    return unwrapList(await request('/GatewayPaymentType', { params: queryParams, signal }));
   },
 
   async createGatewayPaymentType(mapping) {

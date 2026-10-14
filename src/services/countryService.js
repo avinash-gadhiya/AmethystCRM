@@ -51,6 +51,27 @@ const normalizeStateList = (payload) => {
 };
 
 export const countryService = {
+  // GET /Country/CountryDropdown
+  async getCountryDropdown(signal) {
+    const API_URL = getApiBaseUrl();
+    const response = await axios.get(`${API_URL}/Country/CountryDropdown`, {
+      headers: getAuthHeaders(),
+      signal
+    });
+    const parsed = normalizeCountryList(response.data);
+    const data = parsed.data.map((country) => {
+      const id = Number(country?.countryId ?? country?.CountryId ?? country?.id ?? country?.value);
+      const name = country?.countryName ?? country?.CountryName ?? country?.name ?? country?.label ?? country?.text;
+      if (id && name) countryNameCache.set(id, String(name).trim());
+      return {
+        ...country,
+        countryId: id,
+        countryName: String(name || '').trim()
+      };
+    });
+    return { ...parsed, data, totalCount: data.length, raw: response.data };
+  },
+
   // GET /Country
   async getCountries(params = {}) {
     const API_URL = getApiBaseUrl();

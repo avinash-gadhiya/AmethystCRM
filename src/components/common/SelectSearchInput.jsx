@@ -12,18 +12,21 @@ const SelectSearchInput = ({
   onChange,
   placeholder = 'Search...',
   className = '',
+  autoFocus = true,
 }) => (
   <div
-    className={`border-b border-gray-200 bg-white px-2 py-1.5 dark:border-gray-700 dark:bg-gray-900 ${className}`}
+    className={`border-b border-slate-200 bg-white px-2 py-2 dark:border-slate-700 dark:bg-slate-900 ${className}`}
   >
     <input
       type="text"
+      autoFocus={autoFocus}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       onKeyDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
       placeholder={placeholder}
-      className="h-8 w-full rounded-md border border-gray-300 px-2 text-xs outline-none focus:border-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+      className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs text-slate-800 outline-none placeholder:text-slate-400 focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-violet-400 dark:focus:bg-slate-800"
     />
   </div>
 );

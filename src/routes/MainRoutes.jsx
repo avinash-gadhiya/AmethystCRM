@@ -35,10 +35,12 @@ const TemplatePage = lazy(() => import('../views/settings/template/TemplatePage'
 const LocationPage = lazy(() => import('../views/settings/location/LocationPage'));
 const SalesTargetPage = lazy(() => import('../views/settings/sales-target/SalesTargetPage'));
 const MyProfilePage = lazy(() => import('../views/users/MyProfilePage'));
-const OrdersPage = lazy(() => import('../views/orders/OrdersPage'));
-const CreateOrderPage = lazy(() => import('../views/orders/CreateOrderPage'));
-const ProductsPage = lazy(() => import('../views/products/ProductsPage'));
-const PaymentsPage = lazy(() => import('../views/payments/PaymentsPage'));
+const OrdersPage = lazy(() => import('../pages/order/OrdersPage').then((module) => ({ default: module.OrdersPage })));
+const CreateOrderPage = lazy(() =>
+  import('../pages/order/CreateOrderPage').then((module) => ({ default: module.CreateOrderPage }))
+);
+const ProductsPage = lazy(() => import('../pages/order/ProductsPage').then((module) => ({ default: module.ProductsPage })));
+const PaymentsPage = lazy(() => import('../pages/order/PaymentsPage').then((module) => ({ default: module.PaymentsPage })));
 const LeadsPage = lazy(() => import('../views/leads/leadpage/LeadsPage'));
 
 const isConfiguredLocationPath = (pathname) => {
