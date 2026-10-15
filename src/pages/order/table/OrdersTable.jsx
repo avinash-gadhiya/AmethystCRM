@@ -2031,7 +2031,7 @@ const OrdersTable = () => {
             try {
                 const [usersResult, salesUsers, shareTypeResult, roleResult] = await Promise.all([
                     userService.getUsers({ PageNumber: 1, PageSize: 500, SortProperty: 'userId', IsDescending: false }),
-                    fetchSalesPersonList({ pageSize: 500 }),
+                    fetchSalesPersonList({ pageSize: 1000 }),
                     orderLookupService.getSalesShareTypes(),
                     roleService.getRoles({ PageNumber: 1, PageSize: 500, SortProperty: 'roleId', IsDescending: false }),
                 ]);
@@ -3293,8 +3293,8 @@ const OrdersTable = () => {
                 if ((salesPersonSearchOptions || []).length > 0) return;
                 setSearchOptionsLoading(true);
                 try {
-                    // Sales persons only.
-                    const salesUsers = await fetchSalesPersonList({ pageSize: 500, sortProperty: 'fullName' });
+                    // Active Sales Agents and Sales Managers only.
+                    const salesUsers = await fetchSalesPersonList({ pageSize: 1000, sortProperty: 'fullName' });
                     if (!cancelled) setSalesPersonSearchOptions(salesUsers);
                 } catch (err) {
                     console.error('Failed to load sales person search options', err);

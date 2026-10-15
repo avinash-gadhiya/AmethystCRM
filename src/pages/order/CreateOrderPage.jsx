@@ -8,12 +8,12 @@ import DeleteConfirmModal from '@/components/common/DeleteConfirmModal';
 import ShareSaleModal from '@/components/common/ShareSaleModal';
 import CustomerFormModal from '@/components/customer/CustomerFormModal';
 import { cn } from '@/lib/utils';
-import { fetchSalesPersonList, searchSalesPersonUsers, normalizeRoleName } from '@/lib/salesRoles';
+import { fetchSalesPersonList, searchSalesPersonUsers } from '@/lib/salesRoles';
 import SelectSearchInput from '@/components/common/SelectSearchInput';
 import UserOptionBadges, { getUserBadgeSearchText } from '@/components/common/UserOptionBadges';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { productService, paymentService, orderService, orderLookupService, customerService, brandService, gatewayService, userService, countryService } from '@/services';
+import { productService, paymentService, orderService, orderLookupService, customerService, brandService, gatewayService, countryService } from '@/services';
 import { getCurrentLoginIpv4 } from '@/services/clientIpService';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/apiError';
@@ -22,18 +22,6 @@ import { usePagePermissionCodes } from '@/hooks/usePagePermissionCodes';
 import permissionService from '@/services/permissionService';
 import { resolveDynamicPaths } from '@/lib/dynamicPaths';
 import dashboardKitLogo from '@/assets/images/logo-dark.svg';
-
-// Roles that get the Sales Person picker; everyone else has the order filed
-// under their own name. Matched against the signed-in user's role name through
-// normalizeRoleName, so casing and separators do not matter.
-const SALES_PERSON_PICKER_ROLES = [
-  'superadmin',
-  'super admin',
-  'admin',
-  'developer',
-  'sales manager',
-  'service manager',
-];
 
 // Marks a field that `validateBeforeSave` actually rejects when empty. Kept to
 // exactly those fields so the asterisk stays a promise rather than decoration -
@@ -291,8 +279,9 @@ const CreateOrderPage = () => {
   const [shareSaleRows, setShareSaleRows] = useState([]);
   const [salesPersonSearchText, setSalesPersonSearchText] = useState('');
 
-  const currentUserRole = normalizeRoleName(localStorage.getItem('roleName'));
-  const canPickSalesPerson = SALES_PERSON_PICKER_ROLES.some((role) => currentUserRole.includes(role));
+  // The order and Add Customer forms must always expose the complete active
+  // Sales Agent + Sales Manager list, regardless of the signed-in user's role.
+  const canPickSalesPerson = true;
   const currentUserId = Number(localStorage.getItem('userId') || 0);
   const currentUserName = localStorage.getItem('userName') || '';
 
@@ -497,14 +486,15 @@ const CreateOrderPage = () => {
     [allowedPaymentTabs],
   );
 
-  // Auto-assign logged-in user as sales person on new orders.
-  // SuperAdmin/Admin can still change it from the dropdown.
+  // Roles with a picker must explicitly choose a Sales Agent/Manager. Other
+  // roles file the order under the logged-in user, matching the reference rule.
   useEffect(() => {
     if (isEditMode) return;
+    if (canPickSalesPerson) return;
     if (!currentUserId) return;
     if (selectedSalesPersonId) return;
     setSelectedSalesPersonId(currentUserId);
-  }, [isEditMode, currentUserId, selectedSalesPersonId]);
+  }, [isEditMode, canPickSalesPerson, currentUserId, selectedSalesPersonId]);
 
   useEffect(() => {
     if (!allowedPaymentTabs) return;
@@ -851,8 +841,8 @@ const CreateOrderPage = () => {
         const lookupResults = await Promise.allSettled([
           brandService.getBrandDropdown(),
           gatewayService.getGatewayDropdown({ PageNumber: 1, PageSize: 200, SortProperty: 'gatewayId', IsDescending: false }),
-          // Sale With / Sales Person only offer sales-side users.
-          fetchSalesPersonList({ pageSize: 200 }),
+          // Sale With / Sales Person offer active Sales Agents and Managers.
+          fetchSalesPersonList({ pageSize: 1000 }),
           orderLookupService.getDiscountTypes(),
           orderLookupService.getCardTypes(),
           orderLookupService.getSalesShareTypes(),
@@ -1542,7 +1532,7 @@ const CreateOrderPage = () => {
 
   const selectedSalesPersonLabel = useMemo(() => {
     const id = Number(selectedSalesPersonId) || 0;
-    if (!id) return currentUserName || '';
+    if (!id) return canPickSalesPerson ? '' : currentUserName || '';
     const selectedUser = (salesPersons || []).find((u) => Number(u?.userId) === id);
     if (!selectedUser) {
       if (id === Number(currentUserId) && currentUserName) return currentUserName;
@@ -1567,7 +1557,7 @@ const CreateOrderPage = () => {
     if (email) return email;
 
     return selectedUser.userId ? `User ${selectedUser.userId}` : '';
-  }, [selectedSalesPersonId, salesPersons, currentUserId, currentUserName]);
+  }, [selectedSalesPersonId, salesPersons, currentUserId, currentUserName, canPickSalesPerson]);
 
   const filteredSalesPersons = useMemo(() => {
     const query = String(salesPersonSearchText || '').trim().toLowerCase();
@@ -1678,6 +1668,10 @@ const CreateOrderPage = () => {
   ]);
 
   const openShareSaleModal = () => {
+    if (!selectedSalesPersonId && canPickSalesPerson) {
+      toast.error('Select a Sales Person before editing Share Sale.');
+      return;
+    }
     if (!selectedSalesPersonId && currentUserId) {
       setSelectedSalesPersonId(currentUserId);
     }
@@ -2110,7 +2104,9 @@ const CreateOrderPage = () => {
           zelleId: payment.zelleId || '',
         };
 
-        await paymentService.createPayment(createPaymentPayload);
+        // AmethystCRM appends an existing-order payment with PUT. The backend
+        // identifies the target order by orderId while paymentId remains zero.
+        await paymentService.updatePayment(createPaymentPayload);
         toast.success('Payment added successfully!');
         navigate(paths.orders);
         return;
@@ -2616,6 +2612,7 @@ const CreateOrderPage = () => {
   }
 
   const openAddCustomerModal = () => {
+    if (addCustomerModalOpen) return;
     if (!canCreateCustomer) {
       if (customerPermsLoading) {
         toast.error('Permissions are still loading. Please try again.');
@@ -2624,6 +2621,12 @@ const CreateOrderPage = () => {
       toast.error("You don't have permission to add customers.");
       return;
     }
+
+    // Add Customer can be launched from the customer-search portal. Close that
+    // parent first so only one modal is mounted and focus/scroll locks do not
+    // compete with each other.
+    setCustomerModalOpen(false);
+    setShowCustomerDetailsModal(false);
 
     const userId = Number(localStorage.getItem('userId') || 0);
     const userName = localStorage.getItem('userName') || '';
@@ -2674,7 +2677,7 @@ const CreateOrderPage = () => {
         const [usersResult, countriesResult] = await Promise.all([
           salesPersons?.length
             ? Promise.resolve({ data: salesPersons })
-            : userService.getUsers({ PageNumber: 1, PageSize: 200, SortProperty: 'userId', IsDescending: false }),
+            : fetchSalesPersonList({ pageSize: 1000 }).then((data) => ({ data })),
           countryService.getCountries({ PageNumber: 1, PageSize: 200, SortProperty: 'countryId', IsDescending: false }),
         ]);
 
@@ -2979,7 +2982,7 @@ const CreateOrderPage = () => {
           mode="add"
           initialValues={customerFormData}
           defaultSalesPersonId={Number(selectedSalesPersonId) || 0}
-          canPickSalesPerson
+          canPickSalesPerson={canPickSalesPerson}
           overlayZIndex={9999}
           onSaved={(created) => {
             clearError('customerId');

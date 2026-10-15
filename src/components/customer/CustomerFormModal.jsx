@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { IosToggle } from '@/components/ui/ios-toggle';
-import { customerService, countryService, userService } from '@/services';
+import { customerService, countryService } from '@/services';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/apiError';
@@ -19,6 +19,7 @@ import UsPhoneInput from '@/components/common/UsPhoneInput';
 import SelectSearchInput from '@/components/common/SelectSearchInput';
 import UserOptionBadges, { getUserBadgeSearchText } from '@/components/common/UserOptionBadges';
 import { normalizeDigits, validateOptionalUsPhone, validateUsPhone } from '@/lib/usPhone';
+import { fetchSalesPersonList } from '@/lib/salesRoles';
 
 const API_URL = import.meta.env.VITE_APP_API_URL;
 const ADDRESS_SEARCH_URL = import.meta.env.VITE_APP_ADDRESS_SEARCH_URL;
@@ -414,6 +415,7 @@ export default function CustomerFormModal({
 
     try {
       setAddressLoading(true);
+      setAddressPickerOpen(true);
 
       // No backend required. Provider order:
       // - Optional override: VITE_APP_ADDRESS_SEARCH_URL (your own proxy/provider)
@@ -623,32 +625,19 @@ export default function CustomerFormModal({
     }
   }, [fetchLeads, leadSearch]);
 
-  // This picker intentionally uses the general active-user dropdown. Customer
-  // assignment is not restricted to the Sales Agent / Sales Manager role list.
+  // Sales Person uses the shared active Sales Agent + Sales Manager lookup.
+  // Admins, developers, and unrelated roles are filtered out by the adapter.
   useEffect(() => {
     let active = true;
 
     setSalesPersonsLoading(true);
-    userService.getUserDropDown({ isActive: true, PageNumber: 1, PageSize: 1000 })
+    fetchSalesPersonList({ pageSize: 1000 })
       .then((users) => {
         if (!active) return;
-        setSalesPersons(
-          (Array.isArray(users) ? users : [])
-            .map((user) => ({
-              ...user,
-              userId: Number(user?.userId ?? user?.UserId ?? user?.id ?? user?.Id) || 0,
-              firstName: String(user?.firstName ?? user?.FirstName ?? '').trim(),
-              lastName: String(user?.lastName ?? user?.LastName ?? '').trim(),
-              userName: String(user?.userName ?? user?.UserName ?? user?.username ?? '').trim(),
-              fullName:
-                String(user?.fullName ?? user?.FullName ?? user?.name ?? user?.Name ?? '').trim()
-                || [user?.firstName ?? user?.FirstName, user?.lastName ?? user?.LastName].filter(Boolean).join(' '),
-            }))
-            .filter((user) => user.userId > 0),
-        );
+        setSalesPersons(Array.isArray(users) ? users : []);
       })
       .catch((error) => {
-        console.error('Failed to load users for Sales Person:', error);
+        console.error('Failed to load Sales Persons:', error);
         if (active) setSalesPersons([]);
       })
       .finally(() => {
@@ -791,17 +780,11 @@ export default function CustomerFormModal({
     });
   }, [open, countries, states]);
 
-  // Editing a customer assigned to someone outside the sales roles must not
-  // blank the field, so the stored sales person stays selectable.
+  // The dropdown is intentionally limited to sales roles. Do not inject a
+  // historical admin/developer assignment back into the selectable options.
   const salesPersonOptions = useMemo(() => {
-    const list = salesPersons || [];
-    const id = Number(formData.salesPerson) || 0;
-    if (!id) return list;
-    if (list.some((user) => Number(user?.userId) === id)) return list;
-
-    const name = String(formData.salesPersonName || '').trim();
-    return [{ userId: id, name: name || `User ${id}` }, ...list];
-  }, [salesPersons, formData.salesPerson, formData.salesPersonName]);
+    return salesPersons || [];
+  }, [salesPersons]);
 
   const visibleSalesPersonOptions = useMemo(() => {
     const query = String(salesPersonSearchText || '').trim().toLowerCase();
@@ -972,11 +955,11 @@ export default function CustomerFormModal({
     const next = String(e?.target?.value || '');
     setAddressSearch(next);
     const q = next.trim();
-    if (q.length >= 3) setAddressPickerOpen(true);
-    else {
-      setAddressPickerOpen(false);
-      setAddressResults([]);
-    }
+    // Close stale results while the debounced lookup catches up. The popover is
+    // reopened by searchAddresses with an honest loading/result state.
+    setAddressPickerOpen(false);
+    setAddressResults([]);
+    if (q.length < 3) setAddressLoading(false);
   };
 
   const handleUsPhoneChange = (fieldName) => (nextValue) => {
@@ -1101,7 +1084,7 @@ export default function CustomerFormModal({
           <GlassCloseButton onClick={() => onOpenChange(false)} className="ml-4 shrink-0 !h-9 !w-9 !rounded-xl dark:!border-white/10 dark:!bg-white/5 dark:!text-slate-300" />
         </div>
 
-        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+        <form onSubmit={handleSubmit} autoComplete="off" className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto bg-slate-50/40 p-4 dark:bg-black/10 sm:p-6">
             {showValidationErrors && Object.keys(formErrors).length > 0 && (
               <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">Please fix the highlighted fields.</div>
@@ -1235,7 +1218,7 @@ export default function CustomerFormModal({
                     <SelectSearchInput
                       value={salesPersonSearchText}
                       onChange={setSalesPersonSearchText}
-                      placeholder="Search users by name, email, or role..."
+                      placeholder="Search sales agents or managers..."
                     />
                   )}
                 >
@@ -1245,7 +1228,7 @@ export default function CustomerFormModal({
                       Loading users...
                     </div>
                   ) : visibleSalesPersonOptions.length === 0 ? (
-                    <div className="px-3 py-4 text-center text-sm text-slate-500 dark:text-slate-400">No users found.</div>
+                    <div className="px-3 py-4 text-center text-sm text-slate-500 dark:text-slate-400">No sales persons found.</div>
                   ) : (
                     visibleSalesPersonOptions.map((user) => (
                       <SelectItem
@@ -1333,11 +1316,15 @@ export default function CustomerFormModal({
                     <div className="relative">
                       <input
                         name="address"
+                        autoComplete="new-password"
+                        data-1p-ignore="true"
+                        data-lpignore="true"
+                        spellCheck={false}
                         value={formData.address}
                         onChange={handleAddressChange}
                         onFocus={() => {
                           const q = String(addressSearch || formData.address || '').trim();
-                          if (q.length >= 3) setAddressPickerOpen(true);
+                          if (q.length >= 3 && (addressLoading || addressResults.length > 0)) setAddressPickerOpen(true);
                         }}
                         className={cn(
                           `${modalInputClass} pr-10`,
