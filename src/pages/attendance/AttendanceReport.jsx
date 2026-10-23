@@ -16,6 +16,7 @@ import {
 import attendanceService from 'services/attendanceService';
 import AnchorPagination from '@/components/common/AnchorPagination';
 import LiquidGlassDatePicker from '@/components/common/LiquidGlassDatePicker';
+import StatCardGrid from '@/components/common/StatCards';
 import TableRefreshButton from '@/components/common/TableRefreshButton';
 import './AttendanceReport.css';
 
@@ -436,45 +437,6 @@ const buildCalendarDays = (monthDate) => {
   for (let day = 1; day <= totalDays; day += 1) cells.push(new Date(year, month, day));
   while (cells.length % 7 !== 0) cells.push(null);
   return cells;
-};
-
-const StatCard = ({ icon: Icon, label, value, tone }) => {
-  const tones = {
-    violet: {
-      card: 'border-violet-100 bg-gradient-to-br from-violet-500/5 via-violet-500/[0.02] to-transparent dark:border-violet-500/20 dark:from-violet-500/10',
-      icon: 'bg-violet-50 text-violet-600 ring-violet-200 dark:bg-violet-500/20 dark:text-violet-300 dark:ring-violet-400/20'
-    },
-    green: {
-      card: 'border-emerald-100 bg-gradient-to-br from-emerald-500/5 via-emerald-500/[0.02] to-transparent dark:border-emerald-500/20 dark:from-emerald-500/10',
-      icon: 'bg-emerald-50 text-emerald-600 ring-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:ring-emerald-400/20'
-    },
-    rose: {
-      card: 'border-rose-100 bg-gradient-to-br from-rose-500/5 via-rose-500/[0.02] to-transparent dark:border-rose-500/20 dark:from-rose-500/10',
-      icon: 'bg-rose-50 text-rose-600 ring-rose-200 dark:bg-rose-500/20 dark:text-rose-300 dark:ring-rose-400/20'
-    },
-    amber: {
-      card: 'border-amber-100 bg-gradient-to-br from-amber-500/5 via-amber-500/[0.02] to-transparent dark:border-amber-500/20 dark:from-amber-500/10',
-      icon: 'bg-amber-50 text-amber-600 ring-amber-200 dark:bg-amber-500/20 dark:text-amber-300 dark:ring-amber-400/20'
-    }
-  };
-
-  const style = tones[tone] || tones.violet;
-
-  return (
-    <div
-      className={`rounded-2xl border p-4 shadow-sm transition hover:shadow-md dark:bg-[#17132a] ${style.card}`}
-    >
-      <div className="flex items-center gap-3.5">
-        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ring-1 shadow-xs ${style.icon}`}>
-          <Icon size={22} />
-        </div>
-        <div className="min-w-0">
-          <p className="truncate text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{label}</p>
-          <p className="mt-1 truncate text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{value}</p>
-        </div>
-      </div>
-    </div>
-  );
 };
 
 const AttendanceCalendarModal = ({ user, initialMonth, dateRange, onClose }) => {
@@ -952,12 +914,15 @@ export default function AttendanceReport() {
       )}
 
       {/* ── KPI Stat Cards ── */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard icon={Users} label="Total users" value={totalCount} tone="violet" />
-        <StatCard icon={UserCheck} label="Present days" value={summary.present} tone="green" />
-        <StatCard icon={UserX} label="Absent days" value={summary.absent} tone="rose" />
-        <StatCard icon={Clock3} label="Session time" value={formatMinutes(summary.session)} tone="amber" />
-      </div>
+      <StatCardGrid
+        columns={4}
+        items={[
+          { label: 'Total users', value: totalCount, icon: Users, tone: 'violet' },
+          { label: 'Present days', value: summary.present, icon: UserCheck, tone: 'emerald' },
+          { label: 'Absent days', value: summary.absent, icon: UserX, tone: 'rose' },
+          { label: 'Session time', value: formatMinutes(summary.session), icon: Clock3, tone: 'amber' }
+        ]}
+      />
 
       {/* ── User Attendance Table Card ── */}
       <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm dark:border-white/10 dark:bg-[#17132a]">

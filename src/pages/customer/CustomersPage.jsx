@@ -1,11 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Badge, Button, Card, Col, Form, InputGroup, Modal, Row, Spinner, Table } from 'components/ui/Bootstrap';
-import { Database, Eye, History, Pencil, Plus, RefreshCw, Search, Trash2, UserRound } from 'lucide-react';
+import { Col, Form, Modal, Row } from 'components/ui/Bootstrap';
+import { CalendarDays, Database, History, Mail, MapPin, Phone, Plus, UserRound, UsersRound } from 'lucide-react';
 
 import authService from 'services/authService';
 import customerService from 'services/customerService';
 import IosToggle from 'components/common/IosToggle';
-import AnchorPagination from '@/components/common/AnchorPagination';
+import ActionIconButton from '@/components/common/ActionIconButton';
+import CommonTable from '@/components/common/CommonTable';
+import DeleteConfirmModal from '@/components/common/DeleteConfirmModal';
+import LiquidGlassButton from '@/components/common/LiquidGlassButton';
+import ListToolbar from '@/components/common/ListToolbar';
+import { DetailFields, IconLines, IdentityCell, StatusPill } from '@/components/common/TableCells';
+import { PageHeader, TableCard } from '@/components/common/page-card';
 import { resolveConfiguredPagePermissions } from '@/utils/configuredPagePermissions';
 
 const PAGE_SIZES = [10, 25, 50];
@@ -36,6 +42,19 @@ const EMPTY_FORM = {
   salesPersonName: ''
 };
 
+const FORM_FIELDS = [
+  { field: 'name', label: 'Name *', md: 6 },
+  { field: 'email', label: 'Email *', md: 6, type: 'email' },
+  { field: 'phone', label: 'Phone *', md: 4 },
+  { field: 'phone2', label: 'Phone 2', md: 4 },
+  { field: 'leadId', label: 'Lead ID *', md: 4, type: 'number' },
+  { field: 'salesPerson', label: 'Sales Person ID *', md: 4, type: 'number' },
+  { field: 'countryId', label: 'Country ID *', md: 4, type: 'number' },
+  { field: 'stateId', label: 'State ID *', md: 4, type: 'number' },
+  { field: 'city', label: 'City *', md: 5 },
+  { field: 'zipCode', label: 'Zip Code', md: 3 }
+];
+
 const formatDateTime = (value) => {
   if (!value) return '-';
   const date = new Date(value);
@@ -48,6 +67,8 @@ const customerAddress = (customer) =>
     .map((part) => String(part || '').trim())
     .filter(Boolean)
     .join(', ') || '-';
+
+const salesPersonLabel = (customer) => customer?.salesPersonName || (customer?.salesPerson ? `User #${customer.salesPerson}` : '');
 
 export default function CustomersPage() {
   const permissions = useMemo(
@@ -80,8 +101,6 @@ export default function CustomersPage() {
   const [statusBusy, setStatusBusy] = useState({});
   const [deleteCustomer, setDeleteCustomer] = useState(null);
   const [deleting, setDeleting] = useState(false);
-
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   const loadCustomers = useCallback(
     async (signal) => {
@@ -120,6 +139,17 @@ export default function CustomersPage() {
     loadCustomers(controller.signal);
     return () => controller.abort();
   }, [loadCustomers, refreshKey]);
+
+  // Search as the user types (debounced), like the Orders toolbar; Enter applies it immediately.
+  const applySearch = useCallback(() => {
+    setPage(1);
+    setSearchText(searchInput.trim());
+  }, [searchInput]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(applySearch, 400);
+    return () => window.clearTimeout(timer);
+  }, [applySearch]);
 
   const openCreate = () => {
     if (!permissions.canAdd) return;
@@ -250,119 +280,315 @@ export default function CustomersPage() {
     }
   };
 
-  const runSearch = (event) => {
-    event.preventDefault();
-    setPage(1);
-    setSearchText(searchInput.trim());
-  };
-
   const detailOrders = useMemo(() => selectedCustomer?.getOrderListDTOs || selectedCustomer?.orders || [], [selectedCustomer]);
   const detailTickets = useMemo(() => selectedCustomer?.getTicketListDTOs || selectedCustomer?.tickets || [], [selectedCustomer]);
 
+  const columns = [
+    {
+      id: 'customer',
+      header: 'Customer',
+      cell: (customer) => (
+        <IdentityCell
+          name={customer.name || `Customer #${customer.customerId}`}
+          subtitle={`#${customer.customerId}`}
+          onClick={() => openDetails(customer)}
+        />
+      )
+    },
+    {
+      id: 'contact',
+      header: 'Contact',
+      cell: (customer) => (
+        <IconLines
+          lines={[
+            { icon: Mail, value: customer.email, strong: true },
+            { icon: Phone, value: customer.phone }
+          ]}
+        />
+      )
+    },
+    {
+      id: 'address',
+      header: 'Address',
+      cell: (customer) => {
+        const address = customerAddress(customer);
+        return <IconLines lines={[{ icon: MapPin, value: address === '-' ? '' : address }]} />;
+      }
+    },
+    {
+      id: 'salesPerson',
+      header: 'Sales Person',
+      cell: (customer) => <IconLines lines={[{ icon: UserRound, value: salesPersonLabel(customer), strong: true }]} maxWidth={200} />
+    },
+    {
+      id: 'created',
+      header: 'Created',
+      cell: (customer) => <IconLines lines={[{ icon: CalendarDays, value: formatDateTime(customer.createdDate) }]} maxWidth={200} />
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      cell: (customer) => {
+        const active = customer.isActive !== false;
+        return (
+          <div className="flex items-center gap-2">
+            <IosToggle
+              checked={active}
+              disabled={!permissions.canUpdate || statusBusy[customer.customerId]}
+              loading={statusBusy[customer.customerId]}
+              onCheckedChange={() => toggleStatus(customer)}
+              title={active ? 'Deactivate customer' : 'Activate customer'}
+              aria-label={active ? 'Deactivate customer' : 'Activate customer'}
+            />
+            <StatusPill tone={active ? 'success' : 'secondary'}>{active ? 'Active' : 'Inactive'}</StatusPill>
+          </div>
+        );
+      }
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      align: 'center',
+      sticky: 'right',
+      cell: (customer) => (
+        <div className="flex items-center justify-center gap-2">
+          {[
+            { show: true, label: 'View customer', variant: 'view', onClick: () => openDetails(customer) },
+            { show: permissions.canUpdate, label: 'Edit customer', variant: 'edit', onClick: () => openEdit(customer) },
+            { show: permissions.canDelete, label: 'Delete customer', variant: 'delete', onClick: () => setDeleteCustomer(customer) }
+          ]
+            .filter((action) => action.show)
+            .map((action) => (
+              <ActionIconButton key={action.variant} label={action.label} variant={action.variant} onClick={action.onClick} />
+            ))}
+        </div>
+      )
+    }
+  ];
+
+  const viewColumns = [
+    { id: 'customer', header: 'Customer', cell: (view) => view.customerName || `#${view.customerId || '-'}` },
+    { id: 'viewedBy', header: 'Viewed By', cell: (view) => view.userName || view.viewedByName || view.createdByName || '-' },
+    { id: 'ip', header: 'IP Address', cell: (view) => view.ip || view.ipAddress || view.customerViewIp || '-' },
+    { id: 'date', header: 'Date', cell: (view) => formatDateTime(view.createdDate || view.viewDate) }
+  ];
+
+  const orderColumns = [
+    { id: 'order', header: 'Order', cell: (order) => `#${order.orderId || '-'}` },
+    { id: 'brand', header: 'Brand', cell: (order) => order.brandName || order.brandId || '-' },
+    { id: 'status', header: 'Status', cell: (order) => <StatusPill tone="primary">{order.orderStatusName || order.status || '-'}</StatusPill> },
+    { id: 'amount', header: 'Amount', align: 'right', cell: (order) => order.totalAmount ?? order.amount ?? '-' }
+  ];
+
+  const ticketColumns = [
+    { id: 'ticket', header: 'Ticket', cell: (ticket) => `#${ticket.ticketId || '-'}` },
+    { id: 'subject', header: 'Subject', cell: (ticket) => ticket.subject || '-' },
+    {
+      id: 'status',
+      header: 'Status',
+      cell: (ticket) => <StatusPill>{ticket.ticketStatusName || ticket.status || ticket.ticketStatus || '-'}</StatusPill>
+    }
+  ];
+
   return (
-    <div>
-      <Card className="border-0 shadow-sm mb-4">
-        <Card.Header className="bg-transparent d-flex flex-wrap justify-content-between align-items-center gap-3 py-3">
-          <div><h5 className="mb-1 fw-semibold">Customers</h5><span className="text-muted small">Manage CRM customers and account activity</span></div>
-          <div className="d-flex gap-2">
-            <Button variant="outline-secondary" onClick={openViewLogs}><History size={16} className="me-2" />View Logs</Button>
-            {permissions.canUpdate && <Button variant="outline-secondary" onClick={rebuildIndex} disabled={rebuilding}>{rebuilding ? <Spinner size="sm" /> : <Database size={16} />}<span className="ms-2">Rebuild Index</span></Button>}
-            {permissions.canAdd && <Button onClick={openCreate}><Plus size={16} className="me-2" />New Customer</Button>}
-          </div>
-        </Card.Header>
-        <Card.Body>
-          <Form onSubmit={runSearch}><Row className="g-3 align-items-end">
-            <Col md={3} xl={2}><Form.Label className="small text-muted">Search field</Form.Label><Form.Select value={searchField} onChange={(event) => setSearchField(event.target.value)}>{SEARCH_FIELDS.map((field) => <option value={field.value} key={field.value}>{field.label}</option>)}</Form.Select></Col>
-            <Col md={5} xl={4}><Form.Label className="small text-muted">Search</Form.Label><InputGroup><InputGroup.Text><Search size={16} /></InputGroup.Text><Form.Control value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search customers..." /></InputGroup></Col>
-            <Col md={2} xl={2}><Form.Label className="small text-muted">From date</Form.Label><Form.Control type="date" value={fromDate} onChange={(event) => { setFromDate(event.target.value); setPage(1); }} /></Col>
-            <Col md={2} xl={2}><Form.Label className="small text-muted">To date</Form.Label><Form.Control type="date" value={toDate} onChange={(event) => { setToDate(event.target.value); setPage(1); }} /></Col>
-            <Col xl={2} className="d-flex gap-2"><Button type="submit" className="flex-grow-1">Search</Button><Button variant="outline-secondary" onClick={() => setRefreshKey((value) => value + 1)} disabled={loading}><RefreshCw size={16} /></Button></Col>
-          </Row></Form>
-        </Card.Body>
-      </Card>
+    <div className="orders-table-page">
+      <PageHeader title="Customers" description="Manage CRM customers and account activity">
+        <div className="flex flex-wrap gap-2">
+          <LiquidGlassButton variant="secondary" onClick={openViewLogs}>
+            <History size={16} /> View Logs
+          </LiquidGlassButton>
+          {permissions.canUpdate && (
+            <LiquidGlassButton variant="secondary" onClick={rebuildIndex} loading={rebuilding}>
+              {!rebuilding && <Database size={16} />} Rebuild Index
+            </LiquidGlassButton>
+          )}
+          {permissions.canAdd && (
+            <LiquidGlassButton onClick={openCreate}>
+              <Plus size={16} /> New Customer
+            </LiquidGlassButton>
+          )}
+        </div>
+      </PageHeader>
 
-      {error && <div className="alert alert-danger">{error}</div>}
+      <TableCard>
+        <ListToolbar
+          shown={customers.length}
+          total={totalCount}
+          itemName="Customers"
+          searchFields={SEARCH_FIELDS}
+          searchField={searchField}
+          onSearchFieldChange={(value) => {
+            setSearchField(value);
+            setPage(1);
+          }}
+          searchValue={searchInput}
+          onSearchChange={setSearchInput}
+          onSearchClear={() => setSearchInput('')}
+          onSearchSubmit={applySearch}
+          searchPlaceholder="Search customers..."
+          fromDate={fromDate}
+          toDate={toDate}
+          onDateChange={(from, to) => {
+            setFromDate(from || '');
+            setToDate(to || from || '');
+            setPage(1);
+          }}
+          onDateClear={() => {
+            setFromDate('');
+            setToDate('');
+            setPage(1);
+          }}
+          onRefresh={() => setRefreshKey((value) => value + 1)}
+          loading={loading}
+        />
 
-      <Card className="border-0 shadow-sm">
-        <Card.Header className="bg-transparent d-flex justify-content-between align-items-center py-3"><h5 className="mb-0">Customer List</h5><Badge bg="light" text="dark" className="border">{totalCount} customers</Badge></Card.Header>
-        <div className="table-responsive"><Table hover className="align-middle mb-0 text-nowrap">
-          <thead className="table-light"><tr><th>Customer</th><th>Contact</th><th>Address</th><th>Sales Person</th><th>Created</th><th>Status</th><th className="text-end">Actions</th></tr></thead>
-          <tbody>
-            {loading && <tr><td colSpan="7" className="text-center py-5"><Spinner size="sm" className="me-2" />Loading customers...</td></tr>}
-            {!loading && customers.length === 0 && <tr><td colSpan="7" className="text-center text-muted py-5">No customers found.</td></tr>}
-            {!loading && customers.map((customer) => <tr key={customer.customerId}>
-              <td><button type="button" className="btn btn-link p-0 text-start fw-semibold" onClick={() => openDetails(customer)}>{customer.name || `Customer #${customer.customerId}`}</button><div className="small text-muted">#{customer.customerId}</div></td>
-              <td><div>{customer.email || '-'}</div><div className="small text-muted">{customer.phone || '-'}</div></td>
-              <td><div className="text-truncate" style={{ maxWidth: '250px' }} title={customerAddress(customer)}>{customerAddress(customer)}</div></td>
-              <td>{customer.salesPersonName || (customer.salesPerson ? `User #${customer.salesPerson}` : '-')}</td>
-              <td>{formatDateTime(customer.createdDate)}</td>
-              <td>
-                <div className="d-flex align-items-center gap-2">
-                  <IosToggle
-                    checked={customer.isActive !== false}
-                    disabled={!permissions.canUpdate || statusBusy[customer.customerId]}
-                    loading={statusBusy[customer.customerId]}
-                    onCheckedChange={() => toggleStatus(customer)}
-                    title={customer.isActive !== false ? 'Deactivate customer' : 'Activate customer'}
-                    aria-label={customer.isActive !== false ? 'Deactivate customer' : 'Activate customer'}
-                  />
-                  <span className="small fw-semibold">{customer.isActive !== false ? 'Active' : 'Inactive'}</span>
-                </div>
-              </td>
-              <td className="text-end"><Button variant="link" size="sm" title="View" onClick={() => openDetails(customer)}><Eye size={16} /></Button>{permissions.canUpdate && <Button variant="link" size="sm" title="Edit" onClick={() => openEdit(customer)}><Pencil size={16} /></Button>}{permissions.canDelete && <Button variant="link" size="sm" className="text-danger" title="Delete" onClick={() => setDeleteCustomer(customer)}><Trash2 size={16} /></Button>}</td>
-            </tr>)}
-          </tbody>
-        </Table></div>
-        <Card.Footer className="bg-transparent d-flex flex-wrap justify-content-between align-items-center gap-3">
-          <div className="d-flex align-items-center gap-2 small text-muted">
-            <span>Rows</span>
-            <Form.Select size="sm" value={pageSize} style={{ width: '76px' }} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}>
-              {PAGE_SIZES.map((size) => <option value={size} key={size}>{size}</option>)}
-            </Form.Select>
-            <span className="ms-2">
-              Showing {totalCount ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, totalCount)} of {totalCount}
-            </span>
+        {error && (
+          <div className="mx-3 mt-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+            {error}
           </div>
-          <AnchorPagination
-            currentPage={page}
-            totalPages={totalPages}
-            onPageChange={(val) => setPage(val)}
-            disabled={loading}
+        )}
+
+        <div className="grid">
+          <CommonTable
+            columns={columns}
+            data={customers}
+            isLoading={loading}
+            rowKey="customerId"
+            emptyState={{ icon: <UsersRound size={28} />, title: 'No customers found', description: 'Try another search term or date range.' }}
+            pagination={{
+              pageNumber: page,
+              pageSize,
+              totalCount,
+              pageSizeOptions: PAGE_SIZES,
+              itemName: 'Customers',
+              onPageChange: setPage,
+              onPageSizeChange: (size) => {
+                setPageSize(size);
+                setPage(1);
+              }
+            }}
           />
-        </Card.Footer>
-      </Card>
+        </div>
+      </TableCard>
 
-      <Modal show={showEditor} onHide={() => !saving && setShowEditor(false)} size="lg" centered scrollable><Form onSubmit={saveCustomer}>
-        <Modal.Header closeButton><Modal.Title>{formData.customerId ? `Edit Customer #${formData.customerId}` : 'Create Customer'}</Modal.Title></Modal.Header>
-        <Modal.Body>{formError && <div className="alert alert-danger py-2">{formError}</div>}<Row className="g-3">
-          <Col md={6}><Form.Label>Name *</Form.Label><Form.Control value={formData.name} onChange={(event) => updateForm('name', event.target.value)} /></Col>
-          <Col md={6}><Form.Label>Email *</Form.Label><Form.Control type="email" value={formData.email} onChange={(event) => updateForm('email', event.target.value)} /></Col>
-          <Col md={4}><Form.Label>Phone *</Form.Label><Form.Control value={formData.phone} onChange={(event) => updateForm('phone', event.target.value)} /></Col>
-          <Col md={4}><Form.Label>Phone 2</Form.Label><Form.Control value={formData.phone2} onChange={(event) => updateForm('phone2', event.target.value)} /></Col>
-          <Col md={4}><Form.Label>Lead ID *</Form.Label><Form.Control type="number" min="1" value={formData.leadId} onChange={(event) => updateForm('leadId', Number(event.target.value))} /></Col>
-          <Col md={4}><Form.Label>Sales Person ID *</Form.Label><Form.Control type="number" min="1" value={formData.salesPerson} onChange={(event) => updateForm('salesPerson', Number(event.target.value))} /></Col>
-          <Col md={4}><Form.Label>Country ID *</Form.Label><Form.Control type="number" min="1" value={formData.countryId} onChange={(event) => updateForm('countryId', Number(event.target.value))} /></Col>
-          <Col md={4}><Form.Label>State ID *</Form.Label><Form.Control type="number" min="1" value={formData.stateId} onChange={(event) => updateForm('stateId', Number(event.target.value))} /></Col>
-          <Col md={5}><Form.Label>City *</Form.Label><Form.Control value={formData.city} onChange={(event) => updateForm('city', event.target.value)} /></Col>
-          <Col md={3}><Form.Label>Zip Code</Form.Label><Form.Control value={formData.zipCode} onChange={(event) => updateForm('zipCode', event.target.value)} /></Col>
-          <Col md={4}><Form.Check type="switch" className="mt-4" label="Active Customer" checked={formData.isActive !== false} onChange={(event) => updateForm('isActive', event.target.checked)} /></Col>
-          <Col xs={12}><Form.Label>Address</Form.Label><Form.Control as="textarea" rows={3} value={formData.address} onChange={(event) => updateForm('address', event.target.value)} /></Col>
-        </Row></Modal.Body>
-        <Modal.Footer><Button variant="secondary" onClick={() => setShowEditor(false)} disabled={saving}>Cancel</Button><Button type="submit" disabled={saving}>{saving ? <><Spinner size="sm" className="me-2" />Saving...</> : 'Save Customer'}</Button></Modal.Footer>
-      </Form></Modal>
-
-      <Modal show={showDetails} onHide={() => setShowDetails(false)} size="xl" centered scrollable>
-        <Modal.Header closeButton><Modal.Title className="d-flex align-items-center gap-2"><UserRound size={20} />{selectedCustomer?.name || 'Customer Details'}</Modal.Title></Modal.Header>
-        <Modal.Body>{detailsLoading ? <div className="text-center py-5"><Spinner className="me-2" />Loading customer details...</div> : selectedCustomer && <Row className="g-4">
-          <Col lg={5}><Card className="border h-100"><Card.Body><Row className="g-3"><Col xs={12}><div className="text-muted small">Email</div><div>{selectedCustomer.email || '-'}</div></Col><Col md={6}><div className="text-muted small">Phone</div><div>{selectedCustomer.phone || '-'}</div></Col><Col md={6}><div className="text-muted small">Phone 2</div><div>{selectedCustomer.phone2 || '-'}</div></Col><Col xs={12}><div className="text-muted small">Address</div><div>{customerAddress(selectedCustomer)}</div></Col><Col md={6}><div className="text-muted small">Sales Person</div><div>{selectedCustomer.salesPersonName || `#${selectedCustomer.salesPerson || '-'}`}</div></Col><Col md={6}><div className="text-muted small">Created</div><div>{formatDateTime(selectedCustomer.createdDate)}</div></Col></Row></Card.Body></Card></Col>
-          <Col lg={7}><Card className="border mb-3"><Card.Header className="bg-light fw-semibold">Orders ({detailOrders.length})</Card.Header><div className="table-responsive"><Table size="sm" className="mb-0"><thead><tr><th>Order</th><th>Brand</th><th>Status</th><th>Amount</th></tr></thead><tbody>{detailOrders.length === 0 ? <tr><td colSpan="4" className="text-center text-muted py-3">No orders</td></tr> : detailOrders.slice(0, 10).map((order, index) => <tr key={order.orderId || index}><td>#{order.orderId || '-'}</td><td>{order.brandName || order.brandId || '-'}</td><td>{order.orderStatusName || order.status || '-'}</td><td>{order.totalAmount ?? order.amount ?? '-'}</td></tr>)}</tbody></Table></div></Card>
-          <Card className="border"><Card.Header className="bg-light fw-semibold">Tickets ({detailTickets.length})</Card.Header><div className="table-responsive"><Table size="sm" className="mb-0"><thead><tr><th>Ticket</th><th>Subject</th><th>Status</th></tr></thead><tbody>{detailTickets.length === 0 ? <tr><td colSpan="3" className="text-center text-muted py-3">No tickets</td></tr> : detailTickets.slice(0, 10).map((ticket, index) => <tr key={ticket.ticketId || index}><td>#{ticket.ticketId || '-'}</td><td>{ticket.subject || '-'}</td><td>{ticket.ticketStatusName || ticket.status || ticket.ticketStatus || '-'}</td></tr>)}</tbody></Table></div></Card></Col>
-        </Row>}</Modal.Body>
+      <Modal show={showEditor} onHide={() => !saving && setShowEditor(false)} size="lg">
+        <form onSubmit={saveCustomer}>
+          <Modal.Header closeButton>
+            <Modal.Title>{formData.customerId ? `Edit Customer #${formData.customerId}` : 'Create Customer'}</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            {formError && (
+              <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700">{formError}</div>
+            )}
+            <Row className="g-3">
+              {FORM_FIELDS.map(({ field, label, md, type = 'text' }) => (
+                <Col md={md} key={field}>
+                  <Form.Label>{label}</Form.Label>
+                  <Form.Control
+                    type={type}
+                    min={type === 'number' ? '1' : undefined}
+                    value={formData[field]}
+                    onChange={(event) => updateForm(field, type === 'number' ? Number(event.target.value) : event.target.value)}
+                  />
+                </Col>
+              ))}
+              <Col md={4}>
+                <div className="mt-4 flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <IosToggle checked={formData.isActive !== false} onCheckedChange={(next) => updateForm('isActive', next)} title="Active Customer" />
+                  Active Customer
+                </div>
+              </Col>
+              <Col xs={12}>
+                <Form.Label>Address</Form.Label>
+                <Form.Control as="textarea" rows={3} value={formData.address} onChange={(event) => updateForm('address', event.target.value)} />
+              </Col>
+            </Row>
+          </Modal.Body>
+          <Modal.Footer>
+            <LiquidGlassButton variant="secondary" onClick={() => setShowEditor(false)} disabled={saving}>
+              Cancel
+            </LiquidGlassButton>
+            <LiquidGlassButton type="submit" loading={saving}>
+              {saving ? 'Saving...' : 'Save Customer'}
+            </LiquidGlassButton>
+          </Modal.Footer>
+        </form>
       </Modal>
 
-      <Modal show={showViews} onHide={() => setShowViews(false)} size="lg" centered scrollable><Modal.Header closeButton><Modal.Title>Customer View History</Modal.Title></Modal.Header><Modal.Body>{viewsLoading ? <div className="text-center py-5"><Spinner className="me-2" />Loading view history...</div> : <div className="table-responsive"><Table hover><thead><tr><th>Customer</th><th>Viewed By</th><th>IP Address</th><th>Date</th></tr></thead><tbody>{viewRows.length === 0 ? <tr><td colSpan="4" className="text-center text-muted py-4">No view records found.</td></tr> : viewRows.map((view, index) => <tr key={view.customerViewId || index}><td>{view.customerName || `#${view.customerId || '-'}`}</td><td>{view.userName || view.viewedByName || view.createdByName || '-'}</td><td>{view.ip || view.ipAddress || view.customerViewIp || '-'}</td><td>{formatDateTime(view.createdDate || view.viewDate)}</td></tr>)}</tbody></Table></div>}</Modal.Body></Modal>
+      <Modal show={showDetails} onHide={() => setShowDetails(false)} size="xl">
+        <Modal.Header closeButton>
+          <Modal.Title className="flex items-center gap-2">
+            <UserRound size={20} />
+            {selectedCustomer?.name || 'Customer Details'}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="max-h-[75vh] overflow-y-auto">
+          {detailsLoading ? (
+            <div className="flex items-center justify-center gap-2 py-12 text-sm text-gray-500">
+              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
+              Loading customer details...
+            </div>
+          ) : (
+            selectedCustomer && (
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+                <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
+                  <DetailFields
+                    fields={[
+                      { label: 'Email', value: selectedCustomer.email, wide: true },
+                      { label: 'Phone', value: selectedCustomer.phone },
+                      { label: 'Phone 2', value: selectedCustomer.phone2 },
+                      { label: 'Address', value: customerAddress(selectedCustomer), wide: true },
+                      { label: 'Sales Person', value: selectedCustomer.salesPersonName || `#${selectedCustomer.salesPerson || '-'}` },
+                      { label: 'Created', value: formatDateTime(selectedCustomer.createdDate) }
+                    ]}
+                  />
+                </section>
+                <div className="space-y-4">
+                  <CommonTable
+                    title={`Orders (${detailOrders.length})`}
+                    columns={orderColumns}
+                    data={detailOrders.slice(0, 10)}
+                    rowKey="orderId"
+                    emptyMessage="No orders"
+                  />
+                  <CommonTable
+                    title={`Tickets (${detailTickets.length})`}
+                    columns={ticketColumns}
+                    data={detailTickets.slice(0, 10)}
+                    rowKey="ticketId"
+                    emptyMessage="No tickets"
+                  />
+                </div>
+              </div>
+            )
+          )}
+        </Modal.Body>
+      </Modal>
 
-      <Modal show={Boolean(deleteCustomer)} onHide={() => !deleting && setDeleteCustomer(null)} centered><Modal.Header closeButton><Modal.Title>Delete Customer</Modal.Title></Modal.Header><Modal.Body>Delete <strong>{deleteCustomer?.name || `Customer #${deleteCustomer?.customerId}`}</strong>? This action cannot be undone.</Modal.Body><Modal.Footer><Button variant="secondary" onClick={() => setDeleteCustomer(null)} disabled={deleting}>Cancel</Button><Button variant="danger" onClick={confirmDelete} disabled={deleting}>{deleting ? <><Spinner size="sm" className="me-2" />Deleting...</> : 'Delete'}</Button></Modal.Footer></Modal>
+      <Modal show={showViews} onHide={() => setShowViews(false)} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>Customer View History</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="max-h-[75vh] overflow-y-auto">
+          <CommonTable
+            columns={viewColumns}
+            data={viewRows}
+            isLoading={viewsLoading}
+            rowKey={(view, index) => view.customerViewId || index}
+            emptyMessage="No view records found."
+          />
+        </Modal.Body>
+      </Modal>
+
+      <DeleteConfirmModal
+        open={Boolean(deleteCustomer)}
+        title="Delete Customer"
+        description="Are you sure you want to delete"
+        itemName={deleteCustomer?.name || `Customer #${deleteCustomer?.customerId}`}
+        loading={deleting}
+        onCancel={() => setDeleteCustomer(null)}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

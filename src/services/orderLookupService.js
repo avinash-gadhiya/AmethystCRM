@@ -119,6 +119,7 @@ const getSettingOptions = async (settingKey, signal) => {
       const options = normalizeOrderSettingOptions(response);
       if (options.length > 0) return { data: options, settingKey: key };
     } catch (error) {
+      if (error?.name === 'AbortError') throw error;
       lastError = error;
     }
   }

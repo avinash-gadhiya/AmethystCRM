@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 
 import { Alert, Badge, Button, Col, Form, Modal, Row, Spinner } from 'components/ui/Bootstrap';
 import { apiClient } from 'services/core/apiClient';
+import { ApiPayloadView } from './ApiDataViewer';
 
 const METHOD_TONES = { GET: 'success', POST: 'primary', PUT: 'warning', DELETE: 'danger' };
 
@@ -40,6 +41,7 @@ export default function ApiRequestModal({ operation, show, onHide }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [response, setResponse] = useState(null);
+  const [responseView, setResponseView] = useState('table');
   const isMutation = operation.method !== 'GET';
 
   const execute = async () => {
@@ -73,14 +75,14 @@ export default function ApiRequestModal({ operation, show, onHide }) {
   };
 
   return (
-    <Modal show={show} onHide={close} size="lg">
+    <Modal show={show} onHide={close} size="xl">
       <Modal.Header closeButton>
         <Modal.Title className="d-flex align-items-center gap-2">
           <Badge bg={METHOD_TONES[operation.method]}>{operation.method}</Badge>
           <code className="small text-dark">/api{operation.path}</code>
         </Modal.Title>
       </Modal.Header>
-      <Modal.Body>
+      <Modal.Body className="max-h-[75vh] overflow-y-auto">
         {isMutation && <Alert variant="warning">This operation can change CRM data. Review every value before executing it.</Alert>}
         {parameterNames.length > 0 && (
           <Row className="g-3 mb-3">
@@ -134,10 +136,19 @@ export default function ApiRequestModal({ operation, show, onHide }) {
         )}
         {response !== null && (
           <div className="mt-3">
-            <div className="small fw-semibold text-success mb-2">API response</div>
-            <pre className="rounded bg-dark text-light p-3 small overflow-auto mb-0" style={{ maxHeight: 320 }}>
-              {JSON.stringify(response, null, 2)}
-            </pre>
+            <div className="d-flex align-items-center justify-content-between mb-2">
+              <span className="small fw-semibold text-success">API response</span>
+              <Button size="sm" variant="outline-secondary" onClick={() => setResponseView((view) => (view === 'table' ? 'json' : 'table'))}>
+                {responseView === 'table' ? 'Raw JSON' : 'Table view'}
+              </Button>
+            </div>
+            {responseView === 'table' ? (
+              <ApiPayloadView payload={response} />
+            ) : (
+              <pre className="rounded bg-dark text-light p-3 small overflow-auto mb-0" style={{ maxHeight: 320 }}>
+                {JSON.stringify(response, null, 2)}
+              </pre>
+            )}
           </div>
         )}
       </Modal.Body>

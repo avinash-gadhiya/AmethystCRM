@@ -142,6 +142,7 @@ export const authService = {
         lastName: lastName,
         displayName: fullName || email || userName.trim(),
         role: payload.roleName || 'Developer',
+        roleName: payload.roleName || 'Developer',
         roleId: payload.roleId || 0,
         locationId: payload.locationId || 0,
         lastLoginDate: payload.lastLoginDate || new Date().toISOString(),
@@ -162,6 +163,8 @@ export const authService = {
       localStorage.setItem('authToken', finalToken);
       localStorage.setItem('userId', String(storedUser.userId));
       localStorage.setItem('roleId', String(storedUser.roleId));
+      // salesRoles, permissionService and RolesPage read the role from this key.
+      localStorage.setItem('roleName', storedUser.roleName);
       localStorage.setItem('user', JSON.stringify(storedUser));
       localStorage.setItem('authData', JSON.stringify(resData));
 
@@ -175,6 +178,8 @@ export const authService = {
 
       activityNotificationService.record('login', storedUser);
 
+      // Without this, axios calls that rely on the default header have no token until a page reload.
+      this.setupAxios();
       notifySessionChanged();
 
       return {
@@ -287,6 +292,7 @@ export const authService = {
       localStorage.removeItem('authToken');
       localStorage.removeItem('userId');
       localStorage.removeItem('roleId');
+      localStorage.removeItem('roleName');
       localStorage.removeItem('user');
       localStorage.removeItem('permissionCodes');
       localStorage.removeItem('permissions');

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, ChevronRight, CreditCard, ShoppingBag, Ban, Edit, Trash2, Package, CircleDollarSign, Gift, CheckCircle2, Plus,Undo2, Eraser } from 'lucide-react';
+import { ChevronDown, ChevronRight, CreditCard, ShoppingBag, Ban, Edit, Trash2, Package, CircleDollarSign, Gift, CheckCircle2, Plus,Undo2, Eraser, Landmark, ScrollText, Wallet, Zap } from 'lucide-react';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import PaymentsIcon from '@mui/icons-material/Payments';
 import CorporateFareIcon from '@mui/icons-material/CorporateFare';
@@ -50,6 +50,16 @@ const TOOLBAR_SELECT_TRIGGER_CLASS =
 // doesn't stretch with the rest of the filter row.
 const TOOLBAR_QUICK_DATE_TRIGGER_CLASS =
     `${TOOLBAR_SELECT_TRIGGER_CLASS} sm:w-[260px] sm:shrink-0`;
+
+// Payment type tabs in the Add/Edit Payment modal, rendered in a loop. Icons are bundled
+// lucide icons so the tabs never depend on image files being deployed.
+const PAYMENT_TABS = [
+    { key: 'card', label: 'Card', icon: CreditCard, tone: 'bg-indigo-50 text-indigo-600' },
+    { key: 'bank', label: 'Bank', icon: Landmark, tone: 'bg-sky-50 text-sky-600' },
+    { key: 'cheque', label: 'Cheque', icon: ScrollText, tone: 'bg-amber-50 text-amber-600' },
+    { key: 'zelle', label: 'Zelle', icon: Zap, tone: 'bg-violet-50 text-violet-600' },
+    { key: 'paypal', label: 'PayPal', icon: Wallet, tone: 'bg-blue-50 text-blue-600' },
+];
 
 // Maps a payment type name coming from /GatewayPaymentType onto one of the
 // modal's tabs. Same mapping the Create Order page uses, so a gateway offers the
@@ -463,7 +473,7 @@ const OrdersTable = () => {
     const inputClass =
         'w-full h-10 px-3 rounded-md border border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500';
     const selectTriggerClass =
-        'w-full h-10 text-sm border-slate-200 focus:ring-2 focus:ring-violet-500/30 focus:ring-offset-0 dark:border-slate-700';
+        'w-full h-10 px-3 rounded-md border border-slate-200 bg-white text-sm font-normal text-slate-900 hover:border-slate-300 focus:ring-2 focus:ring-violet-500/30 focus:ring-offset-0 focus:border-violet-500 data-[state=open]:border-violet-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100';
 
     const onlyDigits = (value) => String(value ?? '').replace(/\D/g, '');
     const formatCardNumberGroups = (digits) =>
@@ -4412,111 +4422,26 @@ const OrdersTable = () => {
 
                                                 <div className="px-4 pt-3 pb-4">
                                                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-4 text-sm sm:text-base rounded-2xl bg-slate-50 p-2 border border-slate-200">
-                                                        {isPaymentTabAllowed('card') && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setPaymentTab('card')}
-                                                            className={`w-full rounded-xl px-3 py-2 border text-center flex items-center justify-center transition-colors shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 ${paymentActiveTab === 'card'
-                                                                ? 'bg-emerald-50 text-emerald-900 border-emerald-200 ring-2 ring-emerald-500/15 dark:bg-emerald-500/15 dark:text-emerald-100 dark:border-emerald-500/40'
-                                                                : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-100'
-                                                                }`}
-                                                        >
-                                                            <span className="inline-flex flex-row items-center justify-center gap-1.5">
-                                                                <span className="inline-flex items-center justify-center rounded-md">
-                                                                    <img
-                                                                        src="/media/CreateOrderImage/credit-card.png"
-                                                                        alt="Card"
-                                                                        className="h-6 sm:h-7 w-auto object-contain"
-                                                                    />
-                                                                </span>
-                                                                <span className="leading-none">Card</span>
-                                                            </span>
-                                                        </button>
-                                                        )}
-                                                        {isPaymentTabAllowed('bank') && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setPaymentTab('bank')}
-                                                            className={`w-full rounded-xl px-3 py-2 border text-center flex items-center justify-center transition-colors shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 ${paymentActiveTab === 'bank'
-                                                                ? 'bg-emerald-50 text-emerald-900 border-emerald-200 ring-2 ring-emerald-500/15 dark:bg-emerald-500/15 dark:text-emerald-100 dark:border-emerald-500/40'
-                                                                : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-100'
-                                                                }`}
-                                                        >
-                                                            <span className="inline-flex flex-row items-center justify-center gap-1.5">
-                                                                <span className="inline-flex items-center justify-center rounded-md">
-                                                                    <img
-                                                                        src="/media/CreateOrderImage/bank.png"
-                                                                        alt="Bank"
-                                                                        className="h-6 sm:h-7 w-auto object-contain"
-                                                                    />
-                                                                </span>
-                                                                <span className="leading-none">Bank</span>
-                                                            </span>
-                                                        </button>
-                                                        )}
-                                                        {isPaymentTabAllowed('cheque') && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setPaymentTab('cheque')}
-                                                            className={`w-full rounded-xl px-3 py-2 border text-center flex items-center justify-center transition-colors shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 ${paymentActiveTab === 'cheque'
-                                                                ? 'bg-emerald-50 text-emerald-900 border-emerald-200 ring-2 ring-emerald-500/15 dark:bg-emerald-500/15 dark:text-emerald-100 dark:border-emerald-500/40'
-                                                                : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-100'
-                                                                }`}
-                                                        >
-                                                            <span className="inline-flex flex-row items-center justify-center gap-1.5">
-                                                                <span className="inline-flex items-center justify-center rounded-md">
-                                                                    <img
-                                                                        src="/media/CreateOrderImage/cheque.jpg"
-                                                                        alt="Cheque"
-                                                                        className="h-6 sm:h-7 w-auto object-contain"
-                                                                    />
-                                                                </span>
-                                                                <span className="leading-none">Cheque</span>
-                                                            </span>
-                                                        </button>
-                                                        )}
-                                                        {isPaymentTabAllowed('zelle') && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setPaymentTab('zelle')}
-                                                            className={`w-full rounded-xl px-3 py-2 border text-center flex items-center justify-center transition-colors shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 ${paymentActiveTab === 'zelle'
-                                                                ? 'bg-emerald-50 text-emerald-900 border-emerald-200 ring-2 ring-emerald-500/15 dark:bg-emerald-500/15 dark:text-emerald-100 dark:border-emerald-500/40'
-                                                                : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-100'
-                                                                }`}
-                                                        >
-                                                            <span className="inline-flex flex-col items-center justify-center gap-1.5">
-                                                                <span className="inline-flex items-center justify-center rounded-md">
-                                                                    <img
-                                                                        src="/media/CreateOrderImage/Zelle.png"
-                                                                        alt="Zelle"
-                                                                        className="h-6 sm:h-7 w-auto object-contain"
-                                                                    />
-                                                                </span>
-                                                                {/* <span>Zelle</span> */}
-                                                            </span>
-                                                        </button>
-                                                        )}
-                                                        {isPaymentTabAllowed('paypal') && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setPaymentTab('paypal')}
-                                                            className={`w-full rounded-xl px-3 py-2 border text-center flex items-center justify-center transition-colors shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 ${paymentActiveTab === 'paypal'
-                                                                ? 'bg-emerald-50 text-emerald-900 border-emerald-200 ring-2 ring-emerald-500/15 dark:bg-emerald-500/15 dark:text-emerald-100 dark:border-emerald-500/40'
-                                                                : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-100'
-                                                                }`}
-                                                        >
-                                                            <span className="inline-flex flex-col items-center justify-center gap-1.5">
-                                                                <span className="inline-flex items-center justify-center rounded-md">
-                                                                    <img
-                                                                        src="/media/CreateOrderImage/paypal.png"
-                                                                        alt="PayPal"
-                                                                        className="h-6 sm:h-7 w-auto object-contain"
-                                                                    />
-                                                                </span>
-                                                                {/* <span>PayPal</span> */}
-                                                            </span>
-                                                        </button>
-                                                        )}
+                                                        {PAYMENT_TABS.filter((tab) => isPaymentTabAllowed(tab.key)).map(({ key, label, icon: TabIcon, tone }) => {
+                                                            const active = paymentActiveTab === key;
+                                                            return (
+                                                                <button
+                                                                    key={key}
+                                                                    type="button"
+                                                                    onClick={() => setPaymentTab(key)}
+                                                                    aria-pressed={active}
+                                                                    className={`flex w-full items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 ${active
+                                                                        ? 'bg-emerald-50 text-emerald-900 border-emerald-300 ring-2 ring-emerald-500/15 dark:bg-emerald-500/15 dark:text-emerald-100 dark:border-emerald-500/40'
+                                                                        : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-200 dark:border-slate-700'
+                                                                        }`}
+                                                                >
+                                                                    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${active ? 'bg-emerald-500 text-white' : tone}`}>
+                                                                        <TabIcon size={15} aria-hidden="true" />
+                                                                    </span>
+                                                                    <span className="leading-none">{label}</span>
+                                                                </button>
+                                                            );
+                                                        })}
                                                     </div>
 
                                                     {allowedPaymentTabs && allowedPaymentTabs.length === 0 ? (

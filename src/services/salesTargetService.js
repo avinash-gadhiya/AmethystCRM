@@ -97,17 +97,14 @@ export const salesTargetService = {
     }
   },
 
-  async createSalesTarget({ userId, salesTarget, rplTarget }) {
-    const id = Number(userId);
+  // Targets live on the user record, so "creating" one updates an existing user.
+  // POST /User would try to create a new user from this partial payload.
+  async createSalesTarget(target, users = []) {
+    const id = Number(target?.userId);
     if (!Number.isFinite(id) || id <= 0) throw new Error('Please select a user.');
 
-    const response = await apiClient.post('/User', {
-      userId: id,
-      salesTarget: nullableNumber(salesTarget),
-      rplTarget: nullableNumber(rplTarget)
-    });
-    clearCache();
-    return response;
+    const source = users.length ? users : await this.getSalesUsers();
+    return this.updateSalesTarget(target, source);
   },
 
   async updateSalesTarget({ userId, salesTarget, rplTarget }, users = []) {

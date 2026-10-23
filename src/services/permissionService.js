@@ -1,4 +1,5 @@
 import authService from './authService';
+import { handleSessionExpired } from './http';
 
 const API_BASE_URL = (import.meta.env.VITE_APP_API_URL || 'https://demoapi.enstasol.com/api').replace(/\/$/, '');
 const CACHE_PREFIX = 'crm_permission_menus:v2:';
@@ -817,6 +818,7 @@ export const permissionService = {
           }
         });
 
+        if (response.status === 401) handleSessionExpired();
         if (!response.ok) throw new Error(`Permission request failed with status ${response.status}`);
 
         const payload = await response.json();

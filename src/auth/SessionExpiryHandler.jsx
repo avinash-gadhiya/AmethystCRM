@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { toast } from 'sonner';
 
 import authService, { AUTH_SESSION_CHANGED_EVENT } from 'services/authService';
+import { redirectToLogin } from 'services/http';
 
 const MAX_TIMEOUT_DELAY = 2_147_483_647;
 const AUTH_STORAGE_KEYS = new Set(['token', 'userToken', 'api_token', 'accessToken', 'authToken', 'user']);
@@ -11,12 +12,6 @@ export default function SessionExpiryHandler() {
     let expiryTimer;
     let redirectTimer;
     let isExpiring = false;
-
-    const redirectToLogin = () => {
-      if (!window.location.pathname.toLowerCase().includes('/login')) {
-        window.location.replace('/login');
-      }
-    };
 
     const expireSession = () => {
       if (isExpiring) return;

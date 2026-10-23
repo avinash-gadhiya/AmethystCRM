@@ -116,7 +116,7 @@ const SalesTargetModal = ({ open, user = null, users = [], usersLoading = false,
         await salesTargetService.updateSalesTarget(form, users);
         toast.success('Sales target updated');
       } else {
-        await salesTargetService.createSalesTarget(form);
+        await salesTargetService.createSalesTarget(form, users);
         toast.success('Sales target created');
       }
       onClose?.();

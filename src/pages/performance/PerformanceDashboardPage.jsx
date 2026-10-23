@@ -19,8 +19,9 @@ import {
 } from 'lucide-react';
 
 import LiquidGlassDatePicker from '@/components/common/LiquidGlassDatePicker';
+import StatCardGrid from '@/components/common/StatCards';
 import TableRefreshButton from '@/components/common/TableRefreshButton';
-import { ChartSkeleton, DashboardStatCardSkeleton, TableSkeletonRows } from '@/components/common/skeleton-loader';
+import { ChartSkeleton, TableSkeletonRows } from '@/components/common/skeleton-loader';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import performanceDashboardService from '@/services/performanceDashboardService';
 import { aggregatePerformance, currentMonthRange, getQuickDateRange } from './performanceDashboardUtils';
@@ -243,57 +244,57 @@ export default function PerformanceDashboardPage() {
       label: 'Net Revenue',
       value: formatMoney(summary.netRevenue),
       caption: 'After refunds',
-      Icon: DollarSign,
-      gradient: 'from-emerald-500 to-teal-500'
+      icon: DollarSign,
+      tone: 'emerald'
     },
     {
       label: 'Adj. Gross Revenue',
       value: formatMoney(summary.totalSales),
       caption: `${formatNumber(summary.salesCount)} transactions`,
-      Icon: TrendingUp,
-      gradient: 'from-violet-500 to-purple-600'
+      icon: TrendingUp,
+      tone: 'violet'
     },
     {
       label: 'Revenue Per Lead',
       value: formatMoney(summary.revenuePerLead),
       caption: 'Average gross basis',
-      Icon: CircleDollarSign,
-      gradient: 'from-cyan-500 to-blue-600'
+      icon: CircleDollarSign,
+      tone: 'blue'
     },
     {
       label: 'Conversion Rate',
       value: formatPercent(summary.conversionRate),
       caption: 'Team average',
-      Icon: Percent,
-      gradient: 'from-indigo-500 to-violet-600'
+      icon: Percent,
+      tone: 'indigo'
     },
     {
       label: 'Total Leads',
       value: formatNumber(summary.totalLeads),
       caption: 'From selected filters',
-      Icon: Users,
-      gradient: 'from-blue-500 to-cyan-500'
+      icon: Users,
+      tone: 'sky'
     },
     {
       label: 'Total Sales',
       value: formatNumber(summary.salesCount),
       caption: 'Closed deals',
-      Icon: Target,
-      gradient: 'from-fuchsia-500 to-purple-600'
+      icon: Target,
+      tone: 'fuchsia'
     },
     {
       label: 'Total Refunds',
       value: formatMoney(summary.totalRefunds),
       caption: `${formatPercent(summary.refundRate)} of sales`,
-      Icon: TrendingDown,
-      gradient: 'from-rose-500 to-orange-500'
+      icon: TrendingDown,
+      tone: 'rose'
     },
     {
       label: 'Agents',
       value: formatNumber(summary.agents),
       caption: 'Agents in current segment',
-      Icon: UserRound,
-      gradient: 'from-amber-500 to-orange-500'
+      icon: UserRound,
+      tone: 'amber'
     }
   ];
 
@@ -308,12 +309,6 @@ export default function PerformanceDashboardPage() {
     setQuickFilter('Custom');
     setFromDate(from);
     setToDate(to);
-  };
-
-  const handleClearDates = () => {
-    setQuickFilter('Custom');
-    setFromDate('');
-    setToDate('');
   };
 
   const resetFilters = useCallback(() => {
@@ -456,9 +451,7 @@ export default function PerformanceDashboardPage() {
                 initialFromDate={fromDate}
                 initialToDate={toDate}
                 emptyLabel="All dates"
-                showClearButton
                 onChange={handleDateChange}
-                onClear={handleClearDates}
                 stretch
               />
               <TableRefreshButton
@@ -494,31 +487,7 @@ export default function PerformanceDashboardPage() {
           </div>
         )}
 
-        <div className="mt-5 grid auto-rows-fr grid-cols-1 gap-3 min-[430px]:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-8">
-          {loading
-            ? Array.from({ length: 8 }).map((_, index) => <DashboardStatCardSkeleton key={index} />)
-            : summaryCards.map(({ label, value, caption, Icon, gradient }) => (
-                <article
-                  key={label}
-                  className="relative flex min-h-[150px] flex-col overflow-hidden rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <span className="text-[10px] font-bold uppercase tracking-[.08em] text-slate-500 dark:text-slate-400">{label}</span>
-                    <span
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${gradient} text-white shadow-sm`}
-                    >
-                      <Icon className="h-4 w-4" />
-                    </span>
-                  </div>
-                  <div className="mt-auto pt-4">
-                    <div className="truncate text-xl font-bold tabular-nums text-slate-900 dark:text-white" title={value}>
-                      {value}
-                    </div>
-                    <p className="mt-1 text-[11px] text-slate-400">{caption}</p>
-                  </div>
-                </article>
-              ))}
-        </div>
+        <StatCardGrid className="mt-5" items={summaryCards} loading={loading} columns={4} />
 
         <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
           {loading
@@ -552,20 +521,6 @@ export default function PerformanceDashboardPage() {
                 );
               })}
         </div>
-        {!loading && (
-          <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-            {tierCounts
-              .filter(({ count }) => count > 0)
-              .map(({ tier, count }) => (
-                <div
-                  key={tier}
-                  className={TIER_META[tier].bar}
-                  style={{ width: `${(count / Math.max(1, filteredRows.length)) * 100}%` }}
-                  title={`${tier}: ${count}`}
-                />
-              ))}
-          </div>
-        )}
 
         <div className="mt-6 flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50/80 p-1 dark:border-slate-800 dark:bg-slate-900/70">
           {TAB_OPTIONS.map(([value, label, Icon]) => (

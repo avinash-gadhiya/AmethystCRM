@@ -215,12 +215,7 @@ export const templateService = {
     const API_URL = getApiBaseUrl();
     const id = Number(templateId);
 
-    const result = await deleteById(
-      `${API_URL}/Template?id=${encodeURIComponent(id)}`,
-      `${API_URL}/Template/${encodeURIComponent(id)}`
-    );
-
-    return result;
+    return deleteById(`${API_URL}/Template`, id);
   },
 
   /**

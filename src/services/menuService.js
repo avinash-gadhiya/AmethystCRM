@@ -166,16 +166,13 @@ export const menuService = {
   },
 
   /**
-   * DELETE /Menu/{menuId} with fallback to /Menu?id={menuId}
+   * DELETE /Menu?id={menuId} with fallback to /Menu/{menuId}
    */
   async deleteMenu(menuId) {
     const API_URL = getApiBaseUrl();
     const id = Number(menuId);
 
-    const result = await deleteById(
-      `${API_URL}/Menu/${encodeURIComponent(id)}`,
-      `${API_URL}/Menu?id=${encodeURIComponent(id)}`
-    );
+    const result = await deleteById(`${API_URL}/Menu`, id);
 
     triggerNavigationInvalidation();
     return result;

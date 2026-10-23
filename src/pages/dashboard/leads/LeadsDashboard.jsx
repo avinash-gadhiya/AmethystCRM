@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Chart from 'react-apexcharts';
 import { BarChart3, TrendingUp, Users } from 'lucide-react';
 
-import DashboardMetricCard from '../components/DashboardMetricCard';
 import DashboardPanel from '../components/DashboardPanel';
 import DashboardRangeToolbar from '../components/DashboardRangeToolbar';
-import { Alert, Badge, Card, Col, Form, Row, Spinner, Table } from 'components/ui/Bootstrap';
+import StatCardGrid from '@/components/common/StatCards';
+import { Alert, Badge, Card, Col, Form, Spinner, Table } from 'components/ui/Bootstrap';
 import dashboardService from 'services/dashboardService';
 import { getMonthToDateRange, isValidDateRange } from 'utils/dateUtils';
 import { asArray, currency, integer, numberValue, textValue } from '../dashboardData';
@@ -90,6 +90,12 @@ export default function LeadsDashboard() {
     };
   }, [filteredGroups]);
 
+  const statCards = [
+    { label: 'Total leads', value: integer.format(totalLeads), caption: `${groups.length} active groups`, icon: Users, tone: 'indigo' },
+    { label: 'Sales people', value: data.people.length, caption: 'Included in this date range', icon: BarChart3, tone: 'emerald' },
+    { label: 'Financial rows', value: data.users.length, caption: 'User-wise summary records', icon: TrendingUp, tone: 'amber' }
+  ];
+
   const applyRange = (event) => {
     event.preventDefault();
     if (!isValidDateRange(draftRange)) {
@@ -134,35 +140,7 @@ export default function LeadsDashboard() {
         </Alert>
       )}
 
-      <Row className="g-3 mb-4">
-        <Col md={4}>
-          <DashboardMetricCard
-            icon={Users}
-            label="Total leads"
-            value={integer.format(totalLeads)}
-            detail={`${groups.length} active groups`}
-            tone="primary"
-          />
-        </Col>
-        <Col md={4}>
-          <DashboardMetricCard
-            icon={BarChart3}
-            label="Sales people"
-            value={data.people.length}
-            detail="Included in this date range"
-            tone="success"
-          />
-        </Col>
-        <Col md={4}>
-          <DashboardMetricCard
-            icon={TrendingUp}
-            label="Financial rows"
-            value={data.users.length}
-            detail="User-wise summary records"
-            tone="warning"
-          />
-        </Col>
-      </Row>
+      <StatCardGrid className="mb-4" items={statCards} loading={loading} columns={3} />
 
       <div className="mb-4">
         <DashboardPanel

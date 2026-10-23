@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import PropTypes from 'prop-types';
 import {
   BadgeDollarSign,
   BarChart3,
@@ -16,6 +15,7 @@ import {
 import { toast } from 'sonner';
 
 import LiquidGlassDatePicker from '@/components/common/LiquidGlassDatePicker';
+import StatCardGrid from '@/components/common/StatCards';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getApiErrorMessage } from '@/lib/apiError';
 import dailySalesReportService from '@/services/dailySalesReportService';
@@ -247,10 +247,12 @@ export default function DailySalesReportPage() {
         </section>
       )}
 
-      <section className="daily-sales-kpi-grid" aria-label="Daily sales summary">
-        {KPI_CONFIG.map((kpi) => (
-          <KpiCard key={kpi.key} {...kpi} value={summary[kpi.key]} loading={loading} />
-        ))}
+      <section aria-label="Daily sales summary">
+        <StatCardGrid
+          columns={6}
+          loading={loading}
+          items={KPI_CONFIG.map(({ format, ...kpi }) => ({ ...kpi, value: format(summary[kpi.key]) }))}
+        />
       </section>
 
       <DailySalesReportCharts rows={filteredRows} locationGroups={locationGroups} summary={summary} range={range} loading={loading} />
@@ -267,25 +269,3 @@ export default function DailySalesReportPage() {
   );
 }
 
-function KpiCard({ icon: Icon, label, value, format, tone, loading }) {
-  return (
-    <article className={`daily-sales-kpi-card tone-${tone}`}>
-      <span className="daily-sales-kpi-icon" aria-hidden="true">
-        <Icon size={20} />
-      </span>
-      <div>
-        <span>{label}</span>
-        {loading ? <span className="daily-sales-kpi-skeleton" /> : <strong>{format(value)}</strong>}
-      </div>
-    </article>
-  );
-}
-
-KpiCard.propTypes = {
-  icon: PropTypes.elementType.isRequired,
-  label: PropTypes.string.isRequired,
-  value: PropTypes.number.isRequired,
-  format: PropTypes.func.isRequired,
-  tone: PropTypes.string.isRequired,
-  loading: PropTypes.bool.isRequired
-};

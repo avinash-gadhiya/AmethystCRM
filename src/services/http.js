@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { toast } from 'sonner';
+import authService from './authService';
 
 const stripTrailingSlash = (value) => {
   const v = (value || '').toString();
@@ -11,38 +12,36 @@ const isFallbackWorthyStatus = (status) => {
   return status === 400 || status === 404 || status === 405;
 };
 
-// Global 401 session expiration handling
+// The router runs under VITE_APP_BASE_NAME, so a bare '/login' would leave the app.
+export const getLoginUrl = () => `${stripTrailingSlash(import.meta.env.VITE_APP_BASE_NAME || '')}/login`;
+
+export const redirectToLogin = () => {
+  if (typeof window !== 'undefined' && !window.location.pathname.toLowerCase().includes('/login')) {
+    window.location.replace(getLoginUrl());
+  }
+};
+
+// Global 401 session expiration handling, shared by axios and fetch-based clients
 let isRedirecting401 = false;
+export const handleSessionExpired = () => {
+  if (isRedirecting401) return;
+  isRedirecting401 = true;
+  try {
+    toast.error('Session expired. Please sign in again.');
+  } catch {
+    // ignore
+  }
+  authService.logout();
+  setTimeout(() => {
+    redirectToLogin();
+    isRedirecting401 = false;
+  }, 1000);
+};
+
 axios.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error?.response?.status === 401) {
-      if (!isRedirecting401) {
-        isRedirecting401 = true;
-        try {
-          toast.error('Session expired. Please sign in again.');
-        } catch {
-          // ignore
-        }
-        try {
-          localStorage.removeItem('token');
-          localStorage.removeItem('userToken');
-          localStorage.removeItem('api_token');
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('user');
-          localStorage.removeItem('authData');
-        } catch {
-          // ignore
-        }
-        setTimeout(() => {
-          if (typeof window !== 'undefined' && !window.location.pathname.toLowerCase().includes('/login')) {
-            window.location.href = '/login';
-          }
-          isRedirecting401 = false;
-        }, 1000);
-      }
-    }
+    if (error?.response?.status === 401) handleSessionExpired();
     return Promise.reject(error);
   }
 );

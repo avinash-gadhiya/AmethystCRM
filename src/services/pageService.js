@@ -235,7 +235,7 @@ export const pageService = {
     const id = Number(pageId);
 
     // Primary: DELETE /Page?id={id}, fallback to /Page/{id}
-    const result = await deleteById(`${API_URL}/Page?id=${encodeURIComponent(id)}`, `${API_URL}/Page/${encodeURIComponent(id)}`);
+    const result = await deleteById(`${API_URL}/Page`, id);
 
     triggerNavigationInvalidation();
     return result;
@@ -359,10 +359,7 @@ export const pageService = {
     const API_URL = getApiBaseUrl();
     const id = Number(pagePermissionId);
 
-    const result = await deleteById(
-      `${API_URL}/PagePermission/${encodeURIComponent(id)}`,
-      `${API_URL}/PagePermission?id=${encodeURIComponent(id)}`
-    );
+    const result = await deleteById(`${API_URL}/PagePermission`, id);
 
     triggerNavigationInvalidation();
     return result;

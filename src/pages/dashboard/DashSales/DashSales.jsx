@@ -4,7 +4,7 @@ import Chart from 'react-apexcharts';
 import { Banknote, CircleDollarSign, ExternalLink, MapPin, TicketCheck, TrendingUp, Users } from 'lucide-react';
 
 import DashboardDateFilter from '../components/DashboardDateFilter';
-import DashboardMetricCard from '../components/DashboardMetricCard';
+import StatCardGrid from '@/components/common/StatCards';
 import DashboardPanel from '../components/DashboardPanel';
 import { Alert, Badge, Button, Card, Col, Row, Spinner, Table } from 'components/ui/Bootstrap';
 import authService from 'services/authService';
@@ -204,6 +204,13 @@ export default function DashSales() {
     setRange(draftRange);
   };
 
+  const statCards = [
+    { label: 'Total Sales', value: currency.format(summary.sales), caption: `${summary.salesCount} transactions`, icon: CircleDollarSign, tone: 'violet' },
+    { label: 'Net Amount', value: currency.format(summary.net), caption: `${currency.format(summary.refunds)} refunds`, icon: Banknote, tone: 'emerald' },
+    { label: 'Total Leads', value: compactNumber.format(totalLeads), caption: `${salesPersonRows.length} sales people`, icon: Users, tone: 'sky' },
+    { label: 'Service Tickets', value: compactNumber.format(serviceTotal), caption: `${serviceRows.length} records loaded`, icon: TicketCheck, tone: 'rose' }
+  ];
+
   return (
     <div>
       <DashboardDateFilter
@@ -222,12 +229,7 @@ export default function DashSales() {
         </Alert>
       )}
 
-      <Row className="g-3 mb-4">
-        <Col sm={6} xl={3}><DashboardMetricCard icon={CircleDollarSign} label="Total Sales" value={currency.format(summary.sales)} detail={`${summary.salesCount} transactions`} tone="primary" /></Col>
-        <Col sm={6} xl={3}><DashboardMetricCard icon={Banknote} label="Net Amount" value={currency.format(summary.net)} detail={`${currency.format(summary.refunds)} refunds`} tone="success" /></Col>
-        <Col sm={6} xl={3}><DashboardMetricCard icon={Users} label="Total Leads" value={compactNumber.format(totalLeads)} detail={`${salesPersonRows.length} sales people`} tone="warning" /></Col>
-        <Col sm={6} xl={3}><DashboardMetricCard icon={TicketCheck} label="Service Tickets" value={compactNumber.format(serviceTotal)} detail={`${serviceRows.length} records loaded`} tone="danger" /></Col>
-      </Row>
+      <StatCardGrid className="mb-4" items={statCards} loading={loading} columns={4} />
 
       <Row className="g-3 mb-4">
         <Col xl={8}>

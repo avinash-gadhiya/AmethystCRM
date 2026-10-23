@@ -1,4 +1,5 @@
 import axios from 'axios';
+import authService from './authService';
 import { deleteById, getAuthHeaders } from './http';
 
 const getApiBaseUrl = () => {

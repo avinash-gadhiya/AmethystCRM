@@ -17,6 +17,7 @@ import { useLocation } from 'react-router-dom';
 import reportService from 'services/reportService';
 import userService from 'services/userService';
 import AnchorPagination from '@/components/common/AnchorPagination';
+import StatCardGrid from '@/components/common/StatCards';
 
 const PAGE_SIZES = [10, 25, 50];
 const SERVER_PAGED_REPORTS = new Set(['sales', 'service', 'renewal']);
@@ -261,21 +262,6 @@ const formatValue = (value, type) => {
   return String(value);
 };
 
-const SummaryCard = ({ icon: Icon, label, value, tone = 'primary', subtitle }) => (
-  <Card className="neu-kpi-card h-100 border-0">
-    <Card.Body className="d-flex align-items-center gap-3 p-3">
-      <div className={`neu-kpi-icon-circle tone-${tone}`}>
-        <Icon size={24} />
-      </div>
-      <div className="min-w-0 flex-grow-1">
-        <div className="neu-kpi-label">{label}</div>
-        <div className="neu-kpi-value text-truncate">{value}</div>
-        {subtitle && <div className="neu-kpi-subtitle">{subtitle}</div>}
-      </div>
-    </Card.Body>
-  </Card>
-);
-
 export default function ReportCenter() {
   const location = useLocation();
   const [activeReport, setActiveReport] = useState(() => reportFromPath(location.pathname));
@@ -379,6 +365,7 @@ export default function ReportCenter() {
   }, [activeReport, appliedSearch, config.columns, rows]);
 
   const effectiveTotal = SERVER_PAGED_REPORTS.has(activeReport) ? totalCount : filteredRows.length;
+  const isLeadReport = activeReport === 'disposition' || activeReport === 'userLeads';
   const totalPages = Math.max(1, Math.ceil(effectiveTotal / pageSize));
   const visibleRows = SERVER_PAGED_REPORTS.has(activeReport)
     ? filteredRows
@@ -654,47 +641,36 @@ export default function ReportCenter() {
         </Alert>
       )}
 
-      <Row className="g-3 mb-4">
-        <Col sm={4}>
-          <SummaryCard
-            icon={BarChart3}
-            label="Total Records"
-            value={effectiveTotal.toLocaleString()}
-            tone="primary"
-            subtitle="Rows returned for current period"
-          />
-        </Col>
-        <Col sm={4}>
-          <SummaryCard
-            icon={activeReport === 'disposition' || activeReport === 'userLeads' ? MousePointerClick : WalletCards}
-            label={summary.primaryLabel}
-            value={summary.primary}
-            tone="success"
-            subtitle={
-              activeReport === 'tickets'
-                ? 'Resolved service tickets'
-                : activeReport === 'disposition' || activeReport === 'userLeads'
-                  ? 'Live lead activity'
-                  : 'Financial total'
-            }
-          />
-        </Col>
-        <Col sm={4}>
-          <SummaryCard
-            icon={UsersRound}
-            label={summary.secondaryLabel}
-            value={summary.secondary}
-            tone="warning"
-            subtitle={
-              activeReport === 'tickets'
-                ? 'In progress & new tickets'
-                : activeReport === 'disposition' || activeReport === 'userLeads'
-                  ? 'Current report period'
-                  : 'Active tracking items'
-            }
-          />
-        </Col>
-      </Row>
+      <StatCardGrid
+        className="mb-4"
+        columns={3}
+        items={[
+          {
+            key: 'total',
+            icon: BarChart3,
+            label: 'Total Records',
+            value: effectiveTotal.toLocaleString(),
+            tone: 'indigo',
+            caption: 'Rows returned for current period'
+          },
+          {
+            key: 'primary',
+            icon: isLeadReport ? MousePointerClick : WalletCards,
+            label: summary.primaryLabel,
+            value: summary.primary,
+            tone: 'emerald',
+            caption: activeReport === 'tickets' ? 'Resolved service tickets' : isLeadReport ? 'Live lead activity' : 'Financial total'
+          },
+          {
+            key: 'secondary',
+            icon: UsersRound,
+            label: summary.secondaryLabel,
+            value: summary.secondary,
+            tone: 'amber',
+            caption: activeReport === 'tickets' ? 'In progress & new tickets' : isLeadReport ? 'Current report period' : 'Active tracking items'
+          }
+        ]}
+      />
 
       <Card className="neu-card border-0">
         <Card.Body className="p-3">

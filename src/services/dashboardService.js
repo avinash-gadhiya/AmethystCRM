@@ -1,4 +1,5 @@
 import authService from './authService';
+import { handleSessionExpired } from './http';
 
 const API_BASE_URL = (import.meta.env.VITE_APP_API_URL || 'https://demoapi.enstasol.com/api').replace(/\/$/, '');
 
@@ -25,6 +26,7 @@ const requestDashboard = async (endpoint, params, signal) => {
     signal
   });
 
+  if (response.status === 401) handleSessionExpired();
   let payload;
   try {
     payload = await response.json();
