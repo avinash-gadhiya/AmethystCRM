@@ -9,6 +9,7 @@ import {
   DateCell,
   ErrorState,
   LeadDataTable,
+  badge,
   currentUser,
   getMessage,
   pagination,

@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
-import { Check, ChevronsUpDown, RefreshCw, Search, UserPlus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Check, ChevronsUpDown, Contact, Lock, MapPin, RefreshCw, Search, UserPlus, UserSearch } from 'lucide-react';
 import LiquidGlassButton from '@/components/ui/LiquidGlassButton';
 import GlassCloseButton from '@/components/common/GlassCloseButton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -277,11 +276,6 @@ const findUsaCountry = (countries) => {
 const getCountryIdValue = (c) =>
   Number(c?.countryId ?? c?.countryID ?? c?.CountryId ?? c?.CountryID ?? c?.id ?? c?.Id ?? c?.ID) || 0;
 
-const isUsaCountryName = (name) => {
-  const n = String(name || '').trim().toLowerCase();
-  return n === 'usa' || n === 'us' || n === 'america' || n.includes('united states') || n.includes('u.s.a');
-};
-
 const pickCityFromAddress = (addr) =>
   addr?.city || addr?.town || addr?.village || addr?.hamlet || addr?.municipality || addr?.county || '';
 
@@ -307,6 +301,50 @@ const focusFirstError = (errors) => {
     break;
   }
 };
+
+// Titled card that groups related fields in a two-column grid.
+function FormSection({ icon: Icon, title, description, children }) {
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-700/70 dark:bg-slate-900/40 sm:p-5">
+      <div className="mb-4 flex items-start gap-3">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300">
+          <Icon size={16} aria-hidden="true" />
+        </span>
+        <div className="min-w-0">
+          <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{title}</h4>
+          {description && <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{description}</p>}
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2">{children}</div>
+    </section>
+  );
+}
+
+// Label, optional header action, the control itself and its validation message.
+function Field({ label, required = false, error, action, className = '', children }) {
+  return (
+    <div className={cn('min-w-0', className)}>
+      <div className="mb-1.5 flex min-h-[22px] items-center justify-between gap-2">
+        <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+          {label}
+          {required && <span className="ml-0.5 text-rose-500">*</span>}
+        </label>
+        {action}
+      </div>
+      {children}
+      {error && <p className="mt-1.5 text-xs font-medium text-rose-600 dark:text-rose-400">{error}</p>}
+    </div>
+  );
+}
+
+function PickerMessage({ spinning = false, children }) {
+  return (
+    <div className="flex items-center justify-center gap-2 px-4 py-5 text-center text-sm text-slate-500 dark:text-slate-400">
+      {spinning && <RefreshCw className="h-4 w-4 animate-spin" />}
+      {children}
+    </div>
+  );
+}
 
 export default function CustomerFormModal({
   open,
@@ -341,6 +379,7 @@ export default function CustomerFormModal({
   const [addressLoading, setAddressLoading] = useState(false);
   const [stateSearchText, setStateSearchText] = useState('');
 
+  const leadPickerRef = useRef(null);
   const phoneInputRef = useRef(null);
   const phone2InputRef = useRef(null);
   const addressSessionTokenRef = useRef('');
@@ -1034,6 +1073,23 @@ export default function CustomerFormModal({
     }
   };
 
+  // The lead list floats over the form, so close it on any click outside the picker.
+  useEffect(() => {
+    if (!leadPickerOpen) return undefined;
+    const handlePointerDown = (event) => {
+      if (leadPickerRef.current && !leadPickerRef.current.contains(event.target)) setLeadPickerOpen(false);
+    };
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') setLeadPickerOpen(false);
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [leadPickerOpen]);
+
   if (!open) return null;
 
   const modalTitle = title || (mode === 'edit' ? 'Edit Customer' : 'Add Customer');
@@ -1051,6 +1107,12 @@ export default function CustomerFormModal({
   const modalRootClass = isDarkClass || themeMode === 'dark' ? 'dark' : undefined;
   const modalInputClass =
     'h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 shadow-xs outline-none transition-all placeholder:text-slate-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500';
+  // Same box as the inputs for dropdown-style triggers (the shared SelectTrigger has no border of its own).
+  const selectFieldClass =
+    'flex h-11 w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-left text-sm font-normal text-slate-900 shadow-xs outline-none transition-all hover:border-slate-300 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 data-[state=open]:border-violet-500 data-[state=open]:ring-4 data-[state=open]:ring-violet-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white';
+  const errorFieldClass = 'border-rose-400 focus:border-rose-500 focus:ring-rose-500/10';
+  const selectedLead = (leads || []).find((lead) => Number(lead.leadId) === Number(formData.leadId));
+  const selectedLeadName = selectedLead?.leadName || selectedLead?.name || selectedLead?.customerName || formData.name || '';
 
   return createPortal(
     <div
@@ -1090,112 +1152,115 @@ export default function CustomerFormModal({
               <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">Please fix the highlighted fields.</div>
             )}
 
-          <div className="grid grid-cols-1 gap-x-5 gap-y-4 md:grid-cols-2">
-            <div>
-              <div className="flex items-center justify-between gap-2 mb-1">
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">Search Lead</label>
+          <FormSection icon={UserSearch} title="Lead & Owner" description="Link the customer to a lead and choose who owns the account.">
+            <Field
+              label="Lead"
+              error={showValidationErrors && formErrors.leadId}
+              action={(
                 <button
                   type="button"
                   onClick={rebuildLeadIndex}
                   disabled={leadsLoading || leadsRebuilding}
-                  className={cn(
-                    'inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 shadow-xs transition-all',
-                    (leadsLoading || leadsRebuilding) && 'opacity-60 cursor-not-allowed',
-                  )}
-                  title="Refresh leads"
+                  className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold text-violet-600 transition-colors hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-violet-300 dark:hover:bg-violet-500/10"
+                  title="Refresh lead search index"
                 >
                   <RefreshCw className={cn('h-3.5 w-3.5', leadsRebuilding && 'animate-spin')} />
                   Refresh
                 </button>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                role="combobox"
-                aria-expanded={leadPickerOpen}
-                onClick={() => setLeadPickerOpen((current) => !current)}
-                className={cn(
-                  'customer-form-field h-11 w-full justify-between rounded-xl border-slate-200 bg-white px-3.5 shadow-sm shadow-slate-900/[0.02] hover:bg-white dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-800',
-                  !formData.leadId && 'text-muted-foreground',
-                  showValidationErrors && formErrors.leadId && 'border-red-500 focus-visible:ring-red-500',
-                )}
-                data-field="leadId"
-              >
-                {(() => {
-                  const selected = (leads || []).find((l) => Number(l.leadId) === Number(formData.leadId));
-                  const selectedName = selected?.leadName || selected?.name || selected?.customerName || '';
-                  return formData.leadId
-                    ? `${formData.leadId}${selectedName ? ` - ${selectedName}` : ''}`
-                    : 'Search and select a lead';
-                })()}
-                <ChevronsUpDown className={cn('ml-2 h-4 w-4 shrink-0 opacity-50 transition-transform', leadPickerOpen && 'rotate-180')} />
-              </Button>
-              {leadPickerOpen && (
-                <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg shadow-slate-900/10 dark:border-slate-700 dark:bg-slate-900">
-                  <Command shouldFilter={false}>
-                    <CommandInput
-                      autoFocus
-                      placeholder="Search by lead name, email, or phone..."
-                      value={leadSearch}
-                      onValueChange={setLeadSearch}
-                    />
-                    <CommandList className="max-h-52">
-                      {leadSearch.trim().length < 2 ? (
-                        <div className="px-4 py-5 text-center text-sm text-slate-500 dark:text-slate-400">
-                          Enter at least 2 characters to search leads.
-                        </div>
-                      ) : leadsLoading ? (
-                        <div className="flex items-center justify-center gap-2 px-4 py-5 text-sm text-slate-500 dark:text-slate-400">
-                          <RefreshCw className="h-4 w-4 animate-spin" />
-                          Searching leads...
-                        </div>
-                      ) : (leads || []).length === 0 ? (
-                        <div className="px-4 py-5 text-center text-sm text-slate-500 dark:text-slate-400">No leads found.</div>
-                      ) : (
-                        <CommandGroup>
-                          {(leads || []).map((lead) => {
-                            const leadId = Number(lead.leadId) || 0;
-                            const leadName = lead.leadName || lead.name || lead.customerName || '';
-                            const leadMeta = [lead.email, lead.phone].filter(Boolean).join(' • ');
-                            const isSelected = Number(formData.leadId) === leadId;
-                            return (
-                              <CommandItem
-                                key={leadId}
-                                value={String(leadId)}
-                                onSelect={() => {
-                                  const pickedName = pickLeadName(lead);
-                                  setFormData((prev) => {
-                                    const next = { ...prev, leadId, name: pickedName || prev.name };
-                                    if (showValidationErrors) setFormErrors(validateCustomerForm(next));
-                                    return next;
-                                  });
-                                  setLeadPickerOpen(false);
-                                }}
-                                className="rounded-lg px-3 py-2.5"
-                              >
-                                <Check className={cn('h-4 w-4', isSelected ? 'opacity-100 text-violet-600' : 'opacity-0')} />
-                                <div className="min-w-0">
-                                  <div className="truncate font-medium text-slate-800 dark:text-slate-100">
-                                    {leadName || `Lead #${leadId}`}
-                                  </div>
-                                  <div className="truncate text-xs text-slate-500 dark:text-slate-400">
-                                    {[`#${leadId}`, leadMeta].filter(Boolean).join(' · ')}
-                                  </div>
-                                </div>
-                              </CommandItem>
-                            );
-                          })}
-                        </CommandGroup>
-                      )}
-                    </CommandList>
-                  </Command>
-                </div>
               )}
-              {showValidationErrors && formErrors.leadId && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{formErrors.leadId}</p>}
-            </div>
+            >
+              <div ref={leadPickerRef} className="relative">
+                <button
+                  type="button"
+                  role="combobox"
+                  aria-expanded={leadPickerOpen}
+                  aria-haspopup="listbox"
+                  onClick={() => setLeadPickerOpen((current) => !current)}
+                  className={cn(
+                    selectFieldClass,
+                    'customer-form-field',
+                    leadPickerOpen && 'border-violet-500 ring-4 ring-violet-500/10',
+                    showValidationErrors && formErrors.leadId && errorFieldClass,
+                  )}
+                  data-field="leadId"
+                >
+                  {selectedLead || formData.leadId ? (
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-violet-100 text-[11px] font-bold text-violet-700 dark:bg-violet-500/20 dark:text-violet-200">
+                        #{formData.leadId}
+                      </span>
+                      <span className="truncate text-slate-900 dark:text-white">{selectedLeadName || `Lead #${formData.leadId}`}</span>
+                    </span>
+                  ) : (
+                    <span className="truncate text-slate-400">Search and select a lead</span>
+                  )}
+                  <ChevronsUpDown className="h-4 w-4 shrink-0 text-slate-400" />
+                </button>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Sales Person</label>
+                {leadPickerOpen && (
+                  <div
+                    className="absolute left-0 right-0 top-full mt-1.5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10 dark:border-slate-700 dark:bg-slate-900"
+                    style={{ zIndex: popupZ }}
+                  >
+                    <Command shouldFilter={false}>
+                      <CommandInput
+                        autoFocus
+                        placeholder="Name, email or phone..."
+                        value={leadSearch}
+                        onValueChange={setLeadSearch}
+                      />
+                      <CommandList className="max-h-60 border-t border-slate-100 dark:border-slate-800">
+                        {leadSearch.trim().length < 2 ? (
+                          <PickerMessage>Type at least 2 characters to search leads.</PickerMessage>
+                        ) : leadsLoading ? (
+                          <PickerMessage spinning>Searching leads...</PickerMessage>
+                        ) : (leads || []).length === 0 ? (
+                          <PickerMessage>No leads match &ldquo;{leadSearch.trim()}&rdquo;.</PickerMessage>
+                        ) : (
+                          <CommandGroup>
+                            {(leads || []).map((lead) => {
+                              const leadId = Number(lead.leadId) || 0;
+                              const leadName = lead.leadName || lead.name || lead.customerName || '';
+                              const leadMeta = [lead.email, lead.phone].filter(Boolean).join(' · ');
+                              const isSelected = Number(formData.leadId) === leadId;
+                              return (
+                                <CommandItem
+                                  key={leadId}
+                                  value={String(leadId)}
+                                  onSelect={() => {
+                                    const pickedName = pickLeadName(lead);
+                                    setFormData((prev) => {
+                                      const next = { ...prev, leadId, name: pickedName || prev.name };
+                                      if (showValidationErrors) setFormErrors(validateCustomerForm(next));
+                                      return next;
+                                    });
+                                    setLeadPickerOpen(false);
+                                  }}
+                                  className={cn(
+                                    'flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 data-[selected=true]:bg-violet-50 dark:data-[selected=true]:bg-violet-500/10',
+                                    isSelected && 'bg-violet-50/70 dark:bg-violet-500/10',
+                                  )}
+                                >
+                                  <Check className={cn('h-4 w-4 shrink-0 text-violet-600', isSelected ? 'opacity-100' : 'opacity-0')} />
+                                  <div className="min-w-0">
+                                    <div className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">{leadName || `Lead #${leadId}`}</div>
+                                    <div className="truncate text-xs text-slate-500 dark:text-slate-400">
+                                      {[`#${leadId}`, leadMeta].filter(Boolean).join(' · ')}
+                                    </div>
+                                  </div>
+                                </CommandItem>
+                              );
+                            })}
+                          </CommandGroup>
+                        )}
+                      </CommandList>
+                    </Command>
+                  </div>
+                )}
+              </div>
+            </Field>
+
+            <Field label="Sales Person" error={showValidationErrors && formErrors.salesPerson}>
               <Select
                 value={formData.salesPerson ? String(formData.salesPerson) : ''}
                 onValueChange={handleSalesPersonChange}
@@ -1203,9 +1268,10 @@ export default function CustomerFormModal({
               >
                 <SelectTrigger
                   className={cn(
-                    'customer-form-field h-11 w-full rounded-xl border-slate-200 bg-white px-3.5 shadow-sm shadow-slate-900/[0.02] dark:border-slate-700 dark:bg-slate-800',
-                    !canPickSalesPerson && 'disabled:opacity-100 disabled:cursor-not-allowed bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-300',
-                    showValidationErrors && formErrors.salesPerson && 'border-red-500 focus:ring-red-500',
+                    selectFieldClass,
+                    'customer-form-field',
+                    !canPickSalesPerson && 'cursor-not-allowed bg-slate-100 text-slate-600 disabled:opacity-100 dark:bg-slate-900/60',
+                    showValidationErrors && formErrors.salesPerson && errorFieldClass,
                   )}
                   data-field="salesPerson"
                 >
@@ -1223,132 +1289,95 @@ export default function CustomerFormModal({
                   )}
                 >
                   {salesPersonsLoading ? (
-                    <div className="flex items-center justify-center gap-2 px-3 py-4 text-sm text-slate-500 dark:text-slate-400">
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                      Loading users...
-                    </div>
+                    <PickerMessage spinning>Loading users...</PickerMessage>
                   ) : visibleSalesPersonOptions.length === 0 ? (
-                    <div className="px-3 py-4 text-center text-sm text-slate-500 dark:text-slate-400">No sales persons found.</div>
+                    <PickerMessage>No sales persons found.</PickerMessage>
                   ) : (
                     visibleSalesPersonOptions.map((user) => (
-                      <SelectItem
-                        key={user.userId}
-                        value={String(user.userId)}
-                        meta={<UserOptionBadges user={user} />}
-                      >
+                      <SelectItem key={user.userId} value={String(user.userId)} meta={<UserOptionBadges user={user} />}>
                         {[user.firstName, user.lastName].filter(Boolean).join(' ') || user.name || user.fullName || user.userName || `User ${user.userId}`}
                       </SelectItem>
                     ))
                   )}
                 </SelectContent>
               </Select>
-              {showValidationErrors && formErrors.salesPerson && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{formErrors.salesPerson}</p>}
-            </div>
+            </Field>
+          </FormSection>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Name *</label>
-              <input
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                required
-                className={cn(
-                  modalInputClass,
-                  showValidationErrors && formErrors.name && 'border-red-500 focus:ring-red-500',
-                )}
-              />
-              {showValidationErrors && formErrors.name && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{formErrors.name}</p>}
-            </div>
+          <FormSection icon={Contact} title="Contact Details" description="How the team reaches this customer.">
+            {[
+              { name: 'name', label: 'Full Name', required: true, placeholder: 'e.g. John Smith', autoComplete: 'off' },
+              { name: 'email', label: 'Email', required: true, placeholder: 'name@example.com', inputMode: 'email', autoComplete: 'off' }
+            ].map((field) => (
+              <Field key={field.name} label={field.label} required={field.required} error={showValidationErrors && formErrors[field.name]}>
+                <input
+                  name={field.name}
+                  value={formData[field.name]}
+                  onChange={handleInputChange}
+                  required={field.required}
+                  placeholder={field.placeholder}
+                  inputMode={field.inputMode}
+                  autoComplete={field.autoComplete}
+                  className={cn(modalInputClass, showValidationErrors && formErrors[field.name] && errorFieldClass)}
+                />
+              </Field>
+            ))}
+            {[
+              { name: 'phone', label: 'Phone', required: true, ref: phoneInputRef },
+              { name: 'phone2', label: 'Alternate Phone', required: false, ref: phone2InputRef }
+            ].map((field) => (
+              <Field key={field.name} label={field.label} required={field.required} error={showValidationErrors && formErrors[field.name]}>
+                <UsPhoneInput
+                  name={field.name}
+                  ref={field.ref}
+                  value={formData[field.name]}
+                  onChange={handleUsPhoneChange(field.name)}
+                  required={field.required}
+                  className={cn(modalInputClass, showValidationErrors && formErrors[field.name] && errorFieldClass)}
+                />
+              </Field>
+            ))}
+          </FormSection>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Email *</label>
-              <input
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                required
-                className={cn(
-                  modalInputClass,
-                  showValidationErrors && formErrors.email && 'border-red-500 focus:ring-red-500',
-                )}
-              />
-              {showValidationErrors && formErrors.email && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{formErrors.email}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Phone *</label>
-              <UsPhoneInput
-                name="phone"
-                ref={phoneInputRef}
-                value={formData.phone}
-                onChange={handleUsPhoneChange('phone')}
-                required
-                className={cn(
-                  modalInputClass,
-                  showValidationErrors && formErrors.phone && 'border-red-500 focus:ring-red-500',
-                )}
-              />
-              {showValidationErrors && formErrors.phone && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{formErrors.phone}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Phone 2</label>
-              <UsPhoneInput
-                name="phone2"
-                ref={phone2InputRef}
-                value={formData.phone2}
-                onChange={handleUsPhoneChange('phone2')}
-                className={cn(
-                  modalInputClass,
-                  showValidationErrors && formErrors.phone2 && 'border-red-500 focus:ring-red-500',
-                )}
-              />
-              {showValidationErrors && formErrors.phone2 && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{formErrors.phone2}</p>}
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Address</label>
-
+          <FormSection icon={MapPin} title="Address" description="Start typing and pick a suggestion to fill city, state and zip.">
+            <Field label="Street Address" error={showValidationErrors && formErrors.address} className="md:col-span-2">
               <Popover open={addressPickerOpen} onOpenChange={setAddressPickerOpen} modal={false}>
                 <PopoverTrigger asChild>
-                  <div className="w-full">
-                    <div className="relative">
-                      <input
-                        name="address"
-                        autoComplete="new-password"
-                        data-1p-ignore="true"
-                        data-lpignore="true"
-                        spellCheck={false}
-                        value={formData.address}
-                        onChange={handleAddressChange}
-                        onFocus={() => {
-                          const q = String(addressSearch || formData.address || '').trim();
-                          if (q.length >= 3 && (addressLoading || addressResults.length > 0)) setAddressPickerOpen(true);
-                        }}
-                        className={cn(
-                          `${modalInputClass} pr-10`,
-                          showValidationErrors && formErrors.address && 'border-red-500 focus:ring-red-500',
-                        )}
-                        placeholder="Start typing address..."
-                      />
-                      <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-300">
-                        <Search className="h-4 w-4" />
-                      </div>
-                    </div>
+                  <div className="relative w-full">
+                    <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input
+                      name="address"
+                      autoComplete="new-password"
+                      data-1p-ignore="true"
+                      data-lpignore="true"
+                      spellCheck={false}
+                      value={formData.address}
+                      onChange={handleAddressChange}
+                      onFocus={() => {
+                        const q = String(addressSearch || formData.address || '').trim();
+                        if (q.length >= 3 && (addressLoading || addressResults.length > 0)) setAddressPickerOpen(true);
+                      }}
+                      className={cn(`${modalInputClass} pl-10 pr-10`, showValidationErrors && formErrors.address && errorFieldClass)}
+                      placeholder="Start typing an address..."
+                    />
+                    {addressLoading && (
+                      <RefreshCw className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-violet-500" />
+                    )}
                   </div>
                 </PopoverTrigger>
                 <PopoverContent
-                  className="w-[var(--radix-popover-trigger-width)] p-0"
+                  className="w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-xl shadow-slate-900/10 dark:border-slate-700 dark:bg-slate-900"
                   align="start"
                   style={{ zIndex: popupZ }}
                   onOpenAutoFocus={(e) => e.preventDefault()}
                   onCloseAutoFocus={(e) => e.preventDefault()}
                 >
                   <Command>
-                    <CommandList>
-                      <CommandEmpty>{addressLoading ? 'Searching...' : 'No addresses found.'}</CommandEmpty>
-                      <CommandGroup>
+                    <CommandList className="max-h-64">
+                      <CommandEmpty className="px-4 py-5 text-center text-sm text-slate-500 dark:text-slate-400">
+                        {addressLoading ? 'Searching addresses...' : 'No matching addresses. Keep typing or fill the fields below.'}
+                      </CommandEmpty>
+                      <CommandGroup className="p-1">
                         {(addressResults || []).map((r) => {
                           const key = String(r?.place_id ?? r?.osm_id ?? r?.display_name ?? Math.random());
                           const label = String(r?.display_name || '').trim();
@@ -1362,8 +1391,10 @@ export default function CustomerFormModal({
                                 setAddressSearch(label);
                                 setAddressPickerOpen(false);
                               }}
+                              className="flex cursor-pointer items-start gap-2.5 rounded-lg px-3 py-2.5 data-[selected=true]:bg-violet-50 dark:data-[selected=true]:bg-violet-500/10"
                             >
-                              <span className="text-xs leading-snug">{label}</span>
+                              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-violet-500" />
+                              <span className="text-sm leading-snug text-slate-700 dark:text-slate-200">{label}</span>
                             </CommandItem>
                           );
                         })}
@@ -1372,26 +1403,20 @@ export default function CustomerFormModal({
                   </Command>
                 </PopoverContent>
               </Popover>
+            </Field>
 
-              {showValidationErrors && formErrors.address && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{formErrors.address}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Country *</label>
+            <Field label="City" required error={showValidationErrors && formErrors.city}>
               <input
-                value="USA"
-                readOnly
-                className={cn(
-                  `${modalInputClass} cursor-not-allowed bg-slate-100 text-slate-600 dark:bg-slate-900/60 dark:text-slate-300`,
-                  showValidationErrors && formErrors.countryId && 'border-red-500',
-                )}
-                data-field="countryId"
+                name="city"
+                value={formData.city}
+                onChange={handleInputChange}
+                required
+                placeholder="City"
+                className={cn(modalInputClass, showValidationErrors && formErrors.city && errorFieldClass)}
               />
-              {showValidationErrors && formErrors.countryId && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{formErrors.countryId}</p>}
-            </div>
+            </Field>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">State *</label>
+            <Field label="State" required error={showValidationErrors && formErrors.stateId}>
               <Select
                 value={formData.stateId ? String(formData.stateId) : ''}
                 onValueChange={(value) => {
@@ -1404,22 +1429,19 @@ export default function CustomerFormModal({
                   if (!nextOpen) setStateSearchText('');
                 }}
               >
-                <SelectTrigger className={cn('customer-form-field h-11 w-full rounded-xl border-slate-200 bg-white px-3.5 shadow-sm shadow-slate-900/[0.02] dark:border-slate-700 dark:bg-slate-800', showValidationErrors && formErrors.stateId && 'border-red-500 focus:ring-red-500')} data-field="stateId">
+                <SelectTrigger
+                  className={cn(selectFieldClass, 'customer-form-field', showValidationErrors && formErrors.stateId && errorFieldClass)}
+                  data-field="stateId"
+                >
                   <SelectValue placeholder="Select State" />
                 </SelectTrigger>
                 <SelectContent
                   className="max-h-72"
                   style={{ zIndex: popupZ }}
-                  search={(
-                    <SelectSearchInput
-                      value={stateSearchText}
-                      onChange={setStateSearchText}
-                      placeholder="Search state..."
-                    />
-                  )}
+                  search={<SelectSearchInput value={stateSearchText} onChange={setStateSearchText} placeholder="Search state..." />}
                 >
                   {visibleStateOptions.length === 0 ? (
-                    <div className="px-3 py-2 text-sm text-muted-foreground">No states found.</div>
+                    <PickerMessage>No states found.</PickerMessage>
                   ) : (
                     visibleStateOptions.map((state) => (
                       <SelectItem key={state.stateId} value={String(state.stateId)}>
@@ -1429,26 +1451,9 @@ export default function CustomerFormModal({
                   )}
                 </SelectContent>
               </Select>
-              {showValidationErrors && formErrors.stateId && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{formErrors.stateId}</p>}
-            </div>
+            </Field>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">City *</label>
-              <input
-                name="city"
-                value={formData.city}
-                onChange={handleInputChange}
-                required
-                className={cn(
-                  modalInputClass,
-                  showValidationErrors && formErrors.city && 'border-red-500 focus:ring-red-500',
-                )}
-              />
-              {showValidationErrors && formErrors.city && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{formErrors.city}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Zip Code *</label>
+            <Field label="Zip Code" required error={showValidationErrors && formErrors.zipCode}>
               <input
                 name="zipCode"
                 value={formData.zipCode}
@@ -1458,36 +1463,40 @@ export default function CustomerFormModal({
                 pattern={zipKind === 'UK' ? '[A-Za-z0-9 ]*' : '\\d*'}
                 maxLength={zipKind === 'UK' ? 10 : zipKind === 'US' ? 9 : zipKind === 'AU' ? 4 : 10}
                 placeholder={zipKind === 'UK' ? 'SW1A 1AA' : zipKind === 'AU' ? '2000' : '12345'}
-                className={cn(
-                  modalInputClass,
-                  showValidationErrors && formErrors.zipCode && 'border-red-500 focus:ring-red-500',
-                )}
+                className={cn(modalInputClass, showValidationErrors && formErrors.zipCode && errorFieldClass)}
               />
-              {showValidationErrors && formErrors.zipCode && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{formErrors.zipCode}</p>}
-            </div>
+            </Field>
 
-            {/* A brand new customer is always created Active, so the toggle only
-                earns its place once there is a status to change. */}
-            {mode === 'edit' && (
-            <div className="md:col-span-2 rounded-xl border border-gray-200 dark:border-slate-700 px-4 py-3">
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                Status
-              </label>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-sm text-gray-600 dark:text-slate-400">
-                  {formData.isActive ? 'Active' : 'Inactive'}
-                </span>
-                <IosToggle
-                  checked={!!formData.isActive}
-                  onCheckedChange={(nextChecked) =>
-                    setFormData((prev) => ({ ...prev, isActive: !!nextChecked }))
-                  }
-                  title={formData.isActive ? 'Active' : 'Inactive'}
-                />
+            <Field label="Country" required error={showValidationErrors && formErrors.countryId}>
+              <div
+                className={cn(
+                  `${modalInputClass} flex cursor-not-allowed items-center justify-between bg-slate-100 text-slate-600 dark:bg-slate-900/60 dark:text-slate-300`,
+                  showValidationErrors && formErrors.countryId && errorFieldClass,
+                )}
+                data-field="countryId"
+                title="Customers are created in the USA"
+              >
+                <span>United States (USA)</span>
+                <Lock className="h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
               </div>
+            </Field>
+          </FormSection>
+
+          {/* A brand new customer is always created Active, so the toggle only
+              earns its place once there is a status to change. */}
+          {mode === 'edit' && (
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 shadow-xs dark:border-slate-700 dark:bg-slate-900/40">
+              <div>
+                <div className="text-sm font-semibold text-slate-900 dark:text-white">Customer Status</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">{formData.isActive ? 'This customer is active.' : 'This customer is inactive.'}</div>
+              </div>
+              <IosToggle
+                checked={!!formData.isActive}
+                onCheckedChange={(nextChecked) => setFormData((prev) => ({ ...prev, isActive: !!nextChecked }))}
+                title={formData.isActive ? 'Active' : 'Inactive'}
+              />
             </div>
-            )}
-          </div>
+          )}
 
           </div>
 

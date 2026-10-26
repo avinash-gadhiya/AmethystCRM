@@ -7,7 +7,6 @@ import {
   Loader2,
   Check,
   X,
-  Sparkles
 } from 'lucide-react';
 
 const TINYMCE_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.3/tinymce.min.js';

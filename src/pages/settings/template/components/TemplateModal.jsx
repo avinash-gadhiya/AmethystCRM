@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { FileText, AlertCircle, Sparkles, Mail, Tag } from 'lucide-react';
+import { FileText, AlertCircle, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
 import templateService from '@/services/templateService';

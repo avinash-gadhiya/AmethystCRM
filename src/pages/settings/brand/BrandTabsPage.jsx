@@ -1,11 +1,10 @@
 import BrandTemplatesTab from './BrandTemplatesTab';
 import BrandGatewayTab from './BrandGatewayTab';
 import BrandEmailTab from './BrandEmailTab';
-import { Plus } from 'lucide-react';
 import LiquidGlassButton from '@/components/common/LiquidGlassButton';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Mail, CreditCard, FileText, ArrowLeft, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Mail, CreditCard, FileText, ArrowLeft, ArrowUpDown, ArrowUp, ArrowDown, Plus } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 
 import brandService from '@/services/brandService';

@@ -194,18 +194,19 @@ export function SelectContent({ className = '', children, search = null, positio
 
 export function SelectItem({ value, children, className = '', meta = null, textValue, disabled = false, ...props }) {
   const context = useContext(SelectContext);
-  if (!context) return null;
-  const { value: selectedValue, onValueChange, setOpen, registerItem } = context;
-
-  const isSelected = String(selectedValue) === String(value);
-
+  const registerItem = context?.registerItem;
   const optionLabel = String(textValue || getOptionText(children)).replace(/\s+/g, ' ').trim();
 
   // Register a plain-text label for the trigger. Complex product/user rows must
   // not be rendered inside the compact trigger after selection.
   useEffect(() => {
-    if (optionLabel) registerItem(value, optionLabel);
+    if (registerItem && optionLabel) registerItem(value, optionLabel);
   }, [value, optionLabel, registerItem]);
+
+  if (!context) return null;
+  const { value: selectedValue, onValueChange, setOpen } = context;
+
+  const isSelected = String(selectedValue) === String(value);
 
   const handleSelect = (e) => {
     e.preventDefault();

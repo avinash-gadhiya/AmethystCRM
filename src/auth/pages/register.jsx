@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { User, Mail, Lock, Loader2 } from 'lucide-react';
+import { User, Mail, Lock } from 'lucide-react';
 
 // assets
 import logoDark from 'assets/images/logo-dark.svg';

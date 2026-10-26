@@ -17,7 +17,6 @@ import {
   EyeOff,
   ChevronRight,
   ChevronLeft,
-  Globe,
   ShieldCheck
 } from 'lucide-react';
 import { toast } from 'sonner';

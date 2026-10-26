@@ -473,7 +473,7 @@ export default function CustomersPage() {
 
       <Modal show={showEditor} onHide={() => !saving && setShowEditor(false)} size="lg">
         <form onSubmit={saveCustomer}>
-          <Modal.Header closeButton>
+          <Modal.Header closeButton icon={UserRound} description="Provide customer details below.">
             <Modal.Title>{formData.customerId ? `Edit Customer #${formData.customerId}` : 'Create Customer'}</Modal.Title>
           </Modal.Header>
           <Modal.Body>
@@ -516,11 +516,12 @@ export default function CustomersPage() {
       </Modal>
 
       <Modal show={showDetails} onHide={() => setShowDetails(false)} size="xl">
-        <Modal.Header closeButton>
-          <Modal.Title className="flex items-center gap-2">
-            <UserRound size={20} />
-            {selectedCustomer?.name || 'Customer Details'}
-          </Modal.Title>
+        <Modal.Header
+          closeButton
+          icon={UserRound}
+          description={selectedCustomer?.customerId ? `Customer #${selectedCustomer.customerId}` : 'Customer details'}
+        >
+          <Modal.Title>{selectedCustomer?.name || 'Customer Details'}</Modal.Title>
         </Modal.Header>
         <Modal.Body className="max-h-[75vh] overflow-y-auto">
           {detailsLoading ? (
@@ -566,7 +567,7 @@ export default function CustomersPage() {
       </Modal>
 
       <Modal show={showViews} onHide={() => setShowViews(false)} size="lg">
-        <Modal.Header closeButton>
+        <Modal.Header closeButton icon={History} description="Who opened customer records, and when.">
           <Modal.Title>Customer View History</Modal.Title>
         </Modal.Header>
         <Modal.Body className="max-h-[75vh] overflow-y-auto">

@@ -12,12 +12,10 @@ import {
   ArrowUp,
   ArrowDown,
   Lock,
-  Layers
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 
 import countryService from '@/services/countryService';
-import authService from '@/services/authService';
 import { resolveConfiguredPagePermissions } from '@/utils/configuredPagePermissions';
 import { getApiErrorMessage } from '@/lib/apiError';
 
@@ -36,150 +34,6 @@ const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 // ---------------------------------------------------------------------------
 const resolvePermissions = () => {
   return resolveConfiguredPagePermissions('country', ['/settings/country']);
-
-  try {
-    const user = authService.getUser();
-    if (!user) {
-      return { canView: false, canAdd: false, canEdit: false, canDelete: false, resolved: true };
-    }
-
-    const roleName = String(user.role || user.roleName || '').toLowerCase();
-    const isSuperAdmin =
-      roleName.includes('admin') ||
-      roleName.includes('developer') ||
-      Number(user.roleId) === 1;
-
-    // Super admin & developer have full administrative privileges
-    if (isSuperAdmin) {
-      return { canView: true, canAdd: true, canEdit: true, canDelete: true, resolved: true };
-    }
-
-    // Collect granted permission codes
-    const grantedCodes = new Set();
-    const userCodes = Array.isArray(user.permissionCodes)
-      ? user.permissionCodes
-      : typeof user.permissionCodes === 'string'
-      ? user.permissionCodes.split(',')
-      : [];
-    userCodes.forEach((c) => grantedCodes.add(String(c).trim().toLowerCase()));
-
-    try {
-      const localCodes = JSON.parse(localStorage.getItem('permissionCodes') || '[]');
-      if (Array.isArray(localCodes)) {
-        localCodes.forEach((c) => grantedCodes.add(String(c).trim().toLowerCase()));
-      }
-    } catch {}
-
-    // Check cached permission menus
-    let pagePermissions = null;
-    try {
-      const cacheKeys = Object.keys(localStorage).filter(
-        (k) => k.startsWith('crm_permission_menus:') || k === 'crm_permission_menus'
-      );
-      for (const k of cacheKeys) {
-        const raw = localStorage.getItem(k);
-        if (!raw) continue;
-        const menus = JSON.parse(raw);
-        if (!Array.isArray(menus)) continue;
-        for (const menu of menus) {
-          const pages = menu.menuPermissionPageDTOs || [];
-          for (const page of pages) {
-            const url = String(page.pageUrl || '').toLowerCase();
-            const name = String(page.pageName || page.pageDisplayName || '').toLowerCase();
-            if (
-              url.includes('/country') ||
-              url.includes('country') ||
-              url.includes('state') ||
-              name.includes('country') ||
-              name.includes('state')
-            ) {
-              pagePermissions = page.menuPagePermissionDTOs || page.pagePermissionDTOs || [];
-              break;
-            }
-          }
-          if (pagePermissions) break;
-        }
-        if (pagePermissions) break;
-      }
-    } catch (e) {
-      console.warn('Error reading permission menus for country:', e);
-    }
-
-    let canView = false;
-    let canAdd = false;
-    let canEdit = false;
-    let canDelete = false;
-
-    if (pagePermissions && pagePermissions.length > 0) {
-      pagePermissions.forEach((p) => {
-        const pName = String(p.permissionName || p.name || '').toLowerCase();
-        const pCode = String(p.permissionCode || '').toLowerCase();
-        const isGranted = Boolean(p.hasPermission) || (pCode && grantedCodes.has(pCode));
-
-        if (
-          pName.includes('view') ||
-          pName.includes('read') ||
-          pCode.includes('view') ||
-          pCode.includes('read')
-        ) {
-          if (isGranted) canView = true;
-        }
-        if (
-          pName.includes('add') ||
-          pName.includes('create') ||
-          pCode.includes('add') ||
-          pCode.includes('create')
-        ) {
-          if (isGranted) canAdd = true;
-        }
-        if (
-          pName.includes('edit') ||
-          pName.includes('update') ||
-          pCode.includes('edit') ||
-          pCode.includes('update')
-        ) {
-          if (isGranted) canEdit = true;
-        }
-        if (
-          pName.includes('delete') ||
-          pName.includes('remove') ||
-          pCode.includes('delete') ||
-          pCode.includes('remove')
-        ) {
-          if (isGranted) canDelete = true;
-        }
-      });
-    } else if (grantedCodes.size > 0) {
-      for (const code of grantedCodes) {
-        if (code.includes('country') || code.includes('state')) {
-          if (code.includes('view') || code.includes('read')) canView = true;
-          if (code.includes('add') || code.includes('create')) canAdd = true;
-          if (code.includes('edit') || code.includes('update')) canEdit = true;
-          if (code.includes('delete') || code.includes('remove')) canDelete = true;
-        }
-      }
-      if (
-        grantedCodes.has('country') ||
-        grantedCodes.has('countries') ||
-        grantedCodes.has('settings')
-      ) {
-        canView = true;
-        canAdd = true;
-        canEdit = true;
-        canDelete = true;
-      }
-    } else {
-      canView = false;
-      canAdd = false;
-      canEdit = false;
-      canDelete = false;
-    }
-
-    return { canView, canAdd, canEdit, canDelete, resolved: true };
-  } catch (error) {
-    // Fail closed
-    return { canView: false, canAdd: false, canEdit: false, canDelete: false, resolved: true };
-  }
 };
 
 const CountryPage = () => {

@@ -178,9 +178,6 @@ const formatDateTime = (value) => {
     }
 };
 
-// Backwards-compatible helper used in payments sub-table
-const formatDate = (value) => formatDateTime(value);
-
 const toValidDate = (value) => {
     if (!value) return null;
     const parsed = new Date(value);
@@ -364,7 +361,6 @@ const OrdersTable = () => {
     const {
         loading: permissionsLoading,
         canAdd,
-        canUpdate,
         canDelete,
     } = usePageCrudPermissions();
 
@@ -1207,6 +1203,10 @@ const OrdersTable = () => {
             const matchesBrand = !brandId || !gatewayBrandId || gatewayBrandId === brandId;
             if (!matchesBrand) return false;
 
+            // A chosen brand shows all of its active gateways; the payment-type tabs
+            // then follow the gateway that is picked.
+            if (brandId) return g?.isActive !== false;
+
             // Until the mapping loads, don't filter on it - an empty lookup would
             // otherwise blank the dropdown while the request is in flight.
             if (!hasGatewayPaymentTypeData) return true;
@@ -1269,13 +1269,8 @@ const OrdersTable = () => {
         let cancelled = false;
         const loadGatewaysForBrand = async () => {
             try {
-                const result = await gatewayService.getGatewayDropdown({
-                    PageNumber: 1,
-                    PageSize: 200,
-                    SortProperty: 'gatewayId',
-                    IsDescending: false,
-                    BrandId: brandId,
-                });
+                // Only this brand's gateways (exact brandId match from the Gateway records).
+                const result = await gatewayService.getBrandGateways(brandId);
                 if (!cancelled) setGateways(result?.data || []);
             } catch (err) {
                 if (!cancelled) console.error('Failed to load gateways for selected brand', err);
@@ -2329,36 +2324,6 @@ const OrdersTable = () => {
         setRefundDraft((prev) => ({ ...prev, [key]: value }));
     };
 
-    const handleRefundExclusiveFlag = (flagKey) => (event) => {
-        const checked = !!event?.target?.checked;
-        setRefundDraft((prev) => {
-            const next = {
-                ...prev,
-                isChargeBack: false,
-                isRetrieval: false,
-                isAlert: false,
-            };
-            if (checked) next[flagKey] = true;
-            return next;
-        });
-    };
-
-    const setPaymentFlag = (flagKey) => {
-        if (!flagKey) {
-            setPaymentDraft((prev) => ({ ...prev, isChargeBack: false, isRetrieval: false, isAlert: false }));
-            return;
-        }
-
-        setPaymentDraft((prev) => ({
-            ...prev,
-            isVoid: !!prev.isVoid,
-            isChargeBack: false,
-            isRetrieval: false,
-            isAlert: false,
-            [flagKey]: true,
-        }));
-    };
-
     const setRefundFlag = (flagKey) => {
         if (!flagKey) {
             setRefundDraft((prev) => ({ ...prev, isChargeBack: false, isRetrieval: false, isAlert: false }));
@@ -2404,18 +2369,6 @@ const OrdersTable = () => {
         });
         if (firstTrueKey) next[firstTrueKey] = true;
         return next;
-    };
-
-    const handleExclusiveFlag = (flagKey) => (e) => {
-        const checked = !!e?.target?.checked;
-        setPaymentDraft((prev) => {
-            const next = { ...prev };
-            exclusiveFlagKeys.forEach((k) => {
-                next[k] = false;
-            });
-            next[flagKey] = checked;
-            return next;
-        });
     };
 
     const savePayment = async () => {
@@ -4460,11 +4413,11 @@ const OrdersTable = () => {
                                                         <button
                                                             type="button"
                                                             onClick={clearPaymentBrandAndGateway}
-                                                            title="Clear the selected brand and gateway"
-                                                            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300 shadow-sm transition-colors hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 dark:hover:border-rose-500/40 dark:hover:bg-rose-500/15 dark:hover:text-rose-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/30"
+                                                            title="Clear brand & gateway"
+                                                            aria-label="Clear brand and gateway"
+                                                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 dark:text-slate-300 shadow-sm transition-colors hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 dark:hover:border-rose-500/40 dark:hover:bg-rose-500/15 dark:hover:text-rose-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/30"
                                                         >
-                                                            <Eraser size={13} />
-                                                            Clear Brand &amp; Gateway
+                                                            <Eraser size={15} aria-hidden="true" />
                                                         </button>
                                                     ) : null}
                                                 </div>

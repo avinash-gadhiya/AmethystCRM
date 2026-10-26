@@ -1,21 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  BadgeDollarSign,
-  BarChart3,
-  CalendarRange,
-  Download,
-  MapPin,
-  MousePointerClick,
-  Percent,
-  RefreshCw,
-  SlidersHorizontal,
-  Target,
-  UsersRound
-} from 'lucide-react';
+import { AlertTriangle, Download } from 'lucide-react';
 import { toast } from 'sonner';
 
+import LiquidGlassButton from '@/components/common/LiquidGlassButton';
 import LiquidGlassDatePicker from '@/components/common/LiquidGlassDatePicker';
-import StatCardGrid from '@/components/common/StatCards';
+import { TOOLBAR_SELECT_TRIGGER_CLASS } from '@/components/common/ListToolbar';
+import TableRefreshButton from '@/components/common/TableRefreshButton';
+import { PageHeader, TableCard } from '@/components/common/page-card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getApiErrorMessage } from '@/lib/apiError';
 import dailySalesReportService from '@/services/dailySalesReportService';
@@ -25,9 +16,7 @@ import {
   buildDailySalesRows,
   calculateDailySalesSummary,
   filterDailySalesRows,
-  formatDailySalesCurrency,
   formatDailySalesDateRange,
-  formatDailySalesPercentage,
   getDailySalesDateRange,
   groupDailySalesByLocation,
   sortDailySalesRows
@@ -35,18 +24,9 @@ import {
 
 import DailySalesReportCharts from './DailySalesReportCharts';
 import DailySalesReportTable from './DailySalesReportTable';
-import './DailySalesReportPage.css';
+import DailySalesSummary from './DailySalesSummary';
 
 const EMPTY_REPORT = { userSalePayments: [], userLeads: [] };
-
-const KPI_CONFIG = [
-  { key: 'totalSales', label: 'Total Sales', icon: BadgeDollarSign, tone: 'indigo', format: formatDailySalesCurrency },
-  { key: 'totalLeads', label: 'Total Leads', icon: MousePointerClick, tone: 'sky', format: (value) => value.toLocaleString() },
-  { key: 'salesClosed', label: 'Sales Closed', icon: Target, tone: 'emerald', format: (value) => value.toLocaleString() },
-  { key: 'activeSalesAgents', label: 'Active Sales Agents', icon: UsersRound, tone: 'violet', format: (value) => value.toLocaleString() },
-  { key: 'revenuePerLead', label: 'Revenue Per Lead', icon: BarChart3, tone: 'amber', format: formatDailySalesCurrency },
-  { key: 'conversionRate', label: 'Conversion Rate', icon: Percent, tone: 'rose', format: formatDailySalesPercentage }
-];
 
 export default function DailySalesReportPage() {
   const [range, setRange] = useState(() => getDailySalesDateRange('yesterday'));
@@ -139,55 +119,34 @@ export default function DailySalesReportPage() {
     URL.revokeObjectURL(url);
   };
 
+  const selectedLocationName = locationOptions.find((location) => String(location.locationId) === String(selectedLocationId))?.name;
+
   return (
-    <main className="daily-sales-report-page">
-      <header className="daily-sales-page-header">
-        <div>
-          <span className="daily-sales-eyebrow">Performance intelligence</span>
-          <h1>Daily Sales Report Dashboard</h1>
-          <p>
-            {formatDailySalesDateRange(range)} · {selectedLocationId ? 'Filtered location' : 'All Locations'}
-          </p>
-        </div>
-        <div className="daily-sales-header-actions">
-          <button
-            type="button"
-            className="daily-sales-action secondary"
-            onClick={() => setRefreshVersion((version) => version + 1)}
-            disabled={loading}
-          >
-            <RefreshCw size={16} className={loading ? 'spin' : ''} />
-            Refresh
-          </button>
-          <button type="button" className="daily-sales-action primary" onClick={exportCsv} disabled={loading || !sortedRows.length}>
-            <Download size={16} />
-            Export CSV
-          </button>
-        </div>
-      </header>
+    <div className="space-y-5">
+      <PageHeader
+        title="Daily Sales Report"
+        description={`${formatDailySalesDateRange(range)} · ${selectedLocationName || 'All Locations'}`}
+      >
+        <LiquidGlassButton onClick={exportCsv} disabled={loading || !sortedRows.length} className="w-full sm:w-auto">
+          <Download size={16} />
+          Export CSV
+        </LiquidGlassButton>
+      </PageHeader>
 
-      <section className="daily-sales-filter-card" aria-label="Report filters">
-        <div className="daily-sales-filter-heading">
-          <span className="daily-sales-filter-heading-icon" aria-hidden="true">
-            <SlidersHorizontal size={18} />
+      <TableCard>
+        <div className="flex flex-col gap-3 bg-slate-50/70 p-3 dark:bg-white/[0.02] xl:flex-row xl:items-center">
+          <span className="inline-flex shrink-0 items-center gap-2 self-start rounded-full border border-purple-100/80 bg-white/80 px-3 py-2 text-xs text-gray-600 shadow-sm dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-300 xl:self-auto">
+            <span className="h-1.5 w-1.5 rounded-full bg-purple-500" aria-hidden="true" />
+            <strong className="font-semibold text-gray-900 dark:text-white">{filteredRows.length}</strong> agents with activity
           </span>
-          <div>
-            <strong>Report filters</strong>
-            <span>Choose a reporting period and location</span>
-          </div>
-        </div>
 
-        <div className="daily-sales-filter-controls">
-          <div className="daily-sales-filter-field daily-sales-period-filter">
-            <span className="daily-sales-filter-label">
-              <CalendarRange size={14} aria-hidden="true" />
-              Report period
-            </span>
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 xl:justify-end">
+            <div className="w-full sm:w-[170px]">
             <Select value={activePreset} onValueChange={applyPreset}>
-              <SelectTrigger className="daily-sales-select-trigger" aria-label="Report period">
-                <SelectValue placeholder="Select period" />
+              <SelectTrigger className={TOOLBAR_SELECT_TRIGGER_CLASS} aria-label="Report period">
+                <SelectValue placeholder="Report period" />
               </SelectTrigger>
-              <SelectContent className="daily-sales-select-content">
+              <SelectContent position="popper" sideOffset={4} className="min-w-[var(--radix-select-trigger-width)]">
                 {activePreset === 'custom' && <SelectItem value="custom">Custom range</SelectItem>}
                 {DAILY_SALES_QUICK_FILTERS.map((filter) => (
                   <SelectItem key={filter.id} value={filter.id}>
@@ -196,33 +155,26 @@ export default function DailySalesReportPage() {
                 ))}
               </SelectContent>
             </Select>
-          </div>
+            </div>
 
-          <div className="daily-sales-filter-field daily-sales-date-filter">
-            <span className="daily-sales-filter-label">Custom date range</span>
-            <LiquidGlassDatePicker
-              initialFromDate={range.fromDate}
-              initialToDate={range.toDate}
-              emptyLabel="Select date range"
-              calendarMode
-              onChange={applyCustomRange}
-              stretch
-            />
-          </div>
+            <div className="w-full sm:w-[310px]">
+              <LiquidGlassDatePicker
+                initialFromDate={range.fromDate}
+                initialToDate={range.toDate}
+                emptyLabel="Select date range"
+                calendarMode
+                onChange={applyCustomRange}
+                stretch
+                className="w-full"
+              />
+            </div>
 
-          <div className="daily-sales-filter-field daily-sales-location-filter">
-            <span className="daily-sales-filter-label">
-              <MapPin size={14} aria-hidden="true" />
-              Location
-            </span>
-            <Select
-              value={selectedLocationId || 'all'}
-              onValueChange={(value) => setSelectedLocationId(value === 'all' ? '' : value)}
-            >
-              <SelectTrigger className="daily-sales-select-trigger" aria-label="Location">
+            <div className="min-w-0 flex-1 sm:w-[190px] sm:flex-none">
+            <Select value={selectedLocationId || 'all'} onValueChange={(value) => setSelectedLocationId(value === 'all' ? '' : value)}>
+              <SelectTrigger className={TOOLBAR_SELECT_TRIGGER_CLASS} aria-label="Location">
                 <SelectValue placeholder="All Locations" />
               </SelectTrigger>
-              <SelectContent className="daily-sales-select-content">
+              <SelectContent position="popper" sideOffset={4} className="min-w-[var(--radix-select-trigger-width)] max-h-72">
                 <SelectItem value="all">All Locations</SelectItem>
                 {locationOptions.map((location) => (
                   <SelectItem key={location.locationId} value={String(location.locationId)}>
@@ -231,31 +183,45 @@ export default function DailySalesReportPage() {
                 ))}
               </SelectContent>
             </Select>
+            </div>
+
+            <TableRefreshButton
+              className="h-10 w-10 shrink-0"
+              title="Refresh report"
+              loading={loading}
+              onClick={() => setRefreshVersion((version) => version + 1)}
+            />
           </div>
         </div>
-      </section>
+      </TableCard>
 
       {error && (
-        <section className="daily-sales-error" role="alert">
-          <div>
-            <strong>Report data could not be loaded.</strong>
-            <span>{error}</span>
+        <div
+          className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
+          role="alert"
+        >
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <strong className="block font-semibold">Report data could not be loaded.</strong>
+            <span className="text-xs">{error}</span>
           </div>
-          <button type="button" onClick={() => setRefreshVersion((version) => version + 1)}>
+          <button
+            type="button"
+            className="shrink-0 font-semibold underline-offset-2 hover:underline"
+            onClick={() => setRefreshVersion((version) => version + 1)}
+          >
             Try again
           </button>
-        </section>
+        </div>
       )}
 
-      <section aria-label="Daily sales summary">
-        <StatCardGrid
-          columns={6}
-          loading={loading}
-          items={KPI_CONFIG.map(({ format, ...kpi }) => ({ ...kpi, value: format(summary[kpi.key]) }))}
-        />
-      </section>
+      <DailySalesSummary
+        summary={summary}
+        loading={loading}
+        periodLabel={`${formatDailySalesDateRange(range)} · ${selectedLocationName || 'All Locations'}`}
+      />
 
-      <DailySalesReportCharts rows={filteredRows} locationGroups={locationGroups} summary={summary} range={range} loading={loading} />
+      <DailySalesReportCharts rows={filteredRows} locationGroups={locationGroups} loading={loading} />
 
       <DailySalesReportTable
         rows={sortedRows}
@@ -265,7 +231,6 @@ export default function DailySalesReportPage() {
         sort={sort}
         onSortChange={setSort}
       />
-    </main>
+    </div>
   );
 }
-

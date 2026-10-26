@@ -7,6 +7,20 @@ const normalizeList = (payload) => {
   return [];
 };
 
+// Exactly the ProductDTO fields documented for POST/PUT /api/Product, with the API's types.
+export const toProductDTO = (product = {}) => ({
+  productId: Number(product.productId) || 0,
+  name: String(product.name ?? '').trim(),
+  description: String(product.description ?? '').trim(),
+  price: Number(product.price) || 0,
+  productType: String(product.productType ?? '').trim(),
+  photo: String(product.photo ?? '').trim(),
+  isActive: product.isActive !== false,
+  createdBy: Number(product.createdBy) || 0,
+  createdByName: String(product.createdByName ?? '').trim(),
+  createdDate: product.createdDate || new Date().toISOString()
+});
+
 export const productService = {
   // GET /api/Product
   async getProducts(params = {}, signal) {
@@ -32,14 +46,14 @@ export const productService = {
     };
   },
 
-  // POST /api/Product
+  // POST /api/Product — new products always go out with productId 0.
   async createProduct(productDTO) {
-    return apiClient.post('/Product', productDTO);
+    return apiClient.post('/Product', { ...toProductDTO(productDTO), productId: 0 });
   },
 
   // PUT /api/Product
   async updateProduct(productDTO) {
-    return apiClient.put('/Product', productDTO);
+    return apiClient.put('/Product', toProductDTO(productDTO));
   },
 
   // DELETE /api/Product?id={id} with fallback to /api/Product/{id}

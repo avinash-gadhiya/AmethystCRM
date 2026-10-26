@@ -2,15 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
   KeyRound,
-  Plus,
   Pencil,
-  Trash2,
-  AlertCircle,
-  Hash,
   RotateCcw,
   ShieldCheck,
-  ShieldAlert,
-  FileText
 } from 'lucide-react';
 import { toast } from 'sonner';
 

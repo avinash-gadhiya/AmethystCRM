@@ -419,7 +419,7 @@ export default function TicketsPage() {
 
       <Modal show={showEditor} onHide={() => !saving && setShowEditor(false)} size="lg">
         <form onSubmit={saveTicket}>
-          <Modal.Header closeButton>
+          <Modal.Header closeButton icon={Ticket} description="Provide ticket details below.">
             <Modal.Title>{formData.ticketId ? `Edit Ticket #${formData.ticketId}` : 'Create Ticket'}</Modal.Title>
           </Modal.Header>
           <Modal.Body className="max-h-[75vh] overflow-y-auto">
@@ -492,11 +492,8 @@ export default function TicketsPage() {
       </Modal>
 
       <Modal show={showDetails} onHide={() => setShowDetails(false)} size="xl">
-        <Modal.Header closeButton>
-          <Modal.Title className="flex items-center gap-2">
-            <Ticket size={20} />
-            Ticket #{selectedTicket?.ticketId}
-          </Modal.Title>
+        <Modal.Header closeButton icon={Ticket} description={selectedTicket?.subject || 'Ticket details'}>
+          <Modal.Title>Ticket #{selectedTicket?.ticketId}</Modal.Title>
         </Modal.Header>
         <Modal.Body className="max-h-[75vh] overflow-y-auto">
           {detailsLoading ? (

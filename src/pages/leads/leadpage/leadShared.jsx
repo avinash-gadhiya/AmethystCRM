@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle, CalendarDays, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
-import { Button, Col, Form, Modal, Row, Spinner } from 'react-bootstrap';
+import { Badge, Button, Col, Form, Modal, Row, Spinner } from 'react-bootstrap';
 import { toast } from 'sonner';
 
 import CommonTable from '@/components/common/CommonTable';

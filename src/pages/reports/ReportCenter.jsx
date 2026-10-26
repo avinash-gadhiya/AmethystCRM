@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Badge, Button, Card, Col, Form, Row, Spinner, Table } from 'components/ui/Bootstrap';
+import { Alert, Badge, Button, Card, Form, Spinner, Table } from 'components/ui/Bootstrap';
 import {
   BarChart3,
   Calendar,

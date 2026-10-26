@@ -3,10 +3,6 @@ import MainCard from '../../../components/common/MainCard';
 
 // -----------------------|| BASIC COLOR ||-----------------------//
 
-const ColorSwatch = ({ className, label }) => (
-  <div className={`p-3 rounded-lg text-xs font-mono mb-2 ${className}`}>{label}</div>
-);
-
 const colorGroups = [
   { name: 'Blue', prefix: 'bg-blue', shades: [100,200,300,400,500,600,700,800,900] },
   { name: 'Indigo', prefix: 'bg-indigo', shades: [100,200,300,400,500,600,700,800,900] },

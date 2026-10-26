@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Users, UserPlus, Search, X, ShieldCheck, Pencil, Copy, Check, Filter, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Users, UserPlus, Search, X, ShieldCheck, Pencil, Copy, Check, Filter } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 
 import userService from '@/services/userService';

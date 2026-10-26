@@ -971,13 +971,8 @@ const CreateOrderPage = () => {
           return;
         }
 
-        const response = await gatewayService.getGatewayDropdown({
-          PageNumber: 1,
-          PageSize: 200,
-          SortProperty: 'gatewayId',
-          IsDescending: false,
-          BrandId: brandId,
-        });
+        // Only this brand's gateways (exact brandId match from the Gateway records).
+        const response = await gatewayService.getBrandGateways(brandId);
 
         if (!cancelled) {
           setGateways(response.data || []);
@@ -1442,6 +1437,9 @@ const CreateOrderPage = () => {
       const matchesBrand = !selectedBrandId || !gatewayBrandId || gatewayBrandId === selectedBrandId;
       const matchesTab = !hasGatewayPaymentTypeData || gatewayIdsForActiveTab.has(gatewayId);
 
+      // A chosen brand shows all of its active gateways; the payment-type tabs then
+      // follow the gateway that is picked. Without a brand, keep narrowing by tab.
+      if (selectedBrandId) return matchesBrand && (isActive || isSelected);
       return matchesBrand && ((hasPaymentTypes && isActive && matchesTab) || isSelected);
     });
   }, [
@@ -1480,10 +1478,6 @@ const CreateOrderPage = () => {
         : { ...prev, amount: totalAmountForPayment },
     );
   }, [isEditMode, isAddPaymentMode, totalAmountForPayment]);
-
-  // Creating an order drives Amount from the order total, so it is display-only
-  // there; edit / add-payment still take a typed (partial) amount.
-  const isAmountReadOnly = !isEditMode && !isAddPaymentMode;
 
   const sanitizeAmountInput = (value) => {
     const cleaned = String(value ?? '').replace(/[^0-9.]/g, '');
@@ -3889,11 +3883,11 @@ const CreateOrderPage = () => {
                       <button
                         type="button"
                         onClick={clearPaymentBrandAndGateway}
-                        title="Clear the selected brand and gateway"
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-sm transition-colors hover:border-rose-300 dark:hover:border-rose-500/40 hover:bg-rose-50 dark:hover:bg-rose-500/15 hover:text-rose-700 dark:hover:text-rose-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/30"
+                        title="Clear brand & gateway"
+                        aria-label="Clear brand and gateway"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:border-rose-300 dark:hover:border-rose-500/40 hover:bg-rose-50 dark:hover:bg-rose-500/15 hover:text-rose-600 dark:hover:text-rose-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/30"
                       >
-                        <Eraser size={13} />
-                        Clear Brand &amp; Gateway
+                        <Eraser size={15} aria-hidden="true" />
                       </button>
                     </div>
                   )}
@@ -3979,7 +3973,7 @@ const CreateOrderPage = () => {
                           ) : (
                             <div className="px-3 py-2 text-xs text-slate-500">
                               {Number(payment?.brandId)
-                                ? `No gateways for this brand accept ${paymentTypeFromTab(activeTab) || 'this payment type'}`
+                                ? 'No active gateways are set up for this brand'
                                 : `No gateways accept ${paymentTypeFromTab(activeTab) || 'this payment type'}`}
                             </div>
                           )}

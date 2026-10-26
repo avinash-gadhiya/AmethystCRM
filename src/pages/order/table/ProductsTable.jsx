@@ -1,21 +1,24 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { Search, Edit2, Trash2, Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { AlertTriangle, CalendarDays, Hash, Package, Plus, UserRound } from 'lucide-react';
 import DeleteConfirmModal from '@/components/common/DeleteConfirmModal';
-import GlassCloseButton from '@/components/common/GlassCloseButton';
+import AppModal from '@/components/common/AppModal';
 import ActionIconButton from '@/components/common/ActionIconButton';
-import TableRefreshButton from '@/components/common/TableRefreshButton';
+import AnchorPagination from '@/components/common/AnchorPagination';
+import CommonTable from '@/components/common/CommonTable';
+import GlassSegmentedControl from '@/components/common/GlassSegmentedControl';
+import LiquidGlassButton from '@/components/common/LiquidGlassButton';
+import ListToolbar from '@/components/common/ListToolbar';
+import { DetailFields, StatusPill } from '@/components/common/TableCells';
 import { productService } from '@/services';
 import { toAbsoluteUrl } from '@/utils/Assets';
 import { toast } from 'sonner';
 import { usePageCrudPermissions } from '@/hooks/usePageCrudPermissions';
 import { usePagePermissionCodes } from '@/hooks/usePagePermissionCodes';
 import { resolveDynamicPaths } from '@/lib/dynamicPaths';
+import authService from '@/services/authService';
 import permissionService from '@/services/permissionService';
 import { IosToggle } from '@/components/ui/ios-toggle';
-import LiquidGlassButton from '@/components/ui/LiquidGlassButton';
-import { TableCard, PageHeader, ModalPortal } from '@/components/common/page-card';
-import TableSearchField from '@/components/common/TableSearchField';
+import { TableCard, PageHeader } from '@/components/common/page-card';
 
 const emptyForm = {
   productId: 0,
@@ -30,35 +33,86 @@ const emptyForm = {
   createdDate: '',
 };
 
-const Toolbar = ({
-  searchInput,
-  onSearchChange,
-  onClearSearch,
-  total,
-  shown,
-  onRefresh,
-}) => {
+const VIEW_OPTIONS = [
+  { value: 'grid', label: 'Grid' },
+  { value: 'table', label: 'Table' },
+];
+
+const FORM_FIELDS = [
+  { name: 'name', label: 'Product Name', required: true, wide: true, placeholder: 'e.g. Premium Support Plan' },
+  { name: 'description', label: 'Description', wide: true, multiline: true, placeholder: 'What does this product include?' },
+  // No type="number": the global stylesheet shrinks number inputs; Number() conversion happens on save.
+  { name: 'price', label: 'Price (USD)', inputMode: 'decimal', pattern: '[0-9]*[.]?[0-9]{0,2}', title: 'Enter a price like 49.99', placeholder: '0.00' },
+  { name: 'productType', label: 'Product Type', placeholder: 'e.g. Subscription' },
+  { name: 'photo', label: 'Photo URL', wide: true, placeholder: 'https://… or /media/…' },
+];
+
+const inputClass =
+  'w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-xs outline-none transition-all ' +
+  'placeholder:text-slate-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 ' +
+  'dark:border-slate-700 dark:bg-slate-800 dark:text-white';
+
+// Logged-in user for createdBy / createdByName (login stores the profile as JSON under 'user').
+const currentUserInfo = () => {
+  const user = authService.getUser() || {};
+  const userName = user.displayName || [user.firstName, user.lastName].filter(Boolean).join(' ') || user.userName || '';
+  return { userId: Number(user.userId ?? localStorage.getItem('userId')) || 0, userName };
+};
+
+const formatPrice = (value) => {
+  if (value === null || value === undefined || value === '') return '-';
+  return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format(Number(value));
+};
+
+const formatDateTime = (value) => {
+  if (!value) return '-';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '-';
+  return d.toLocaleString();
+};
+
+// Full URLs and data URIs are used as-is; only app-relative paths get the base path prefix.
+const resolvePhotoUrl = (photo) => {
+  const value = String(photo || '').trim();
+  if (!value) return '';
+  return /^(https?:)?\/\/|^data:|^blob:/i.test(value) ? value : toAbsoluteUrl(value);
+};
+
+// Product photo with a lettered placeholder when there is no photo or it fails to load.
+function ProductImage({ product, className = '', letterClassName = 'text-4xl' }) {
+  const src = resolvePhotoUrl(product?.photo);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [src]);
+
   return (
-    <div className="tbl-glass-toolbar">
-      <h3 className="font-medium text-sm">
-        Showing {shown} of {total} Products
-      </h3>
-      <div className="flex items-center gap-2 sm:gap-3">
-        <TableSearchField
-          placeholder="Search Products"
-          value={searchInput}
-          onChange={onSearchChange}
-          onClear={onClearSearch}
-        />
-        <TableRefreshButton
-          className="shrink-0 w-10 h-10 dark:text-slate-200 dark:bg-slate-800"
-          title="Refresh"
-          onClick={onRefresh}
-        />
+    <div className={`relative flex items-center justify-center overflow-hidden bg-gradient-to-br from-violet-50 to-indigo-100 dark:from-violet-500/10 dark:to-indigo-500/10 ${className}`}>
+      {src && !failed ? (
+        <img src={src} alt={product?.name || 'Product'} className="h-full w-full object-cover" loading="lazy" onError={() => setFailed(true)} />
+      ) : (
+        <span className={`font-bold text-violet-400/80 dark:text-violet-300/60 ${letterClassName}`}>
+          {product?.name?.charAt(0)?.toUpperCase() || <Package className="h-8 w-8" />}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function ProductCardSkeleton() {
+  return (
+    <div className="flex animate-pulse flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+      <div className="h-40 bg-slate-100 dark:bg-slate-800" />
+      <div className="flex flex-1 flex-col gap-2 p-4">
+        <div className="h-4 w-3/4 rounded bg-slate-200 dark:bg-slate-700" />
+        <div className="h-3 w-full rounded bg-slate-100 dark:bg-slate-800" />
+        <div className="h-3 w-5/6 rounded bg-slate-100 dark:bg-slate-800" />
+        <div className="mt-3 flex items-center justify-between">
+          <div className="h-5 w-20 rounded bg-slate-200 dark:bg-slate-700" />
+          <div className="h-8 w-24 rounded-lg bg-slate-100 dark:bg-slate-800" />
+        </div>
       </div>
     </div>
   );
-};
+}
 
 const ProductsTable = () => {
   const [paths, setPaths] = useState({
@@ -100,18 +154,22 @@ const ProductsTable = () => {
     () => permissionService.getUserPermissionCodes().includes('view_product'),
     [],
   );
+  const canSeeProducts = canView || canViewByCode || hasGlobalViewProduct;
 
   const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(false);
+  // Starts true so the first paint shows skeletons, not a flash of "No products found".
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [totalCount, setTotalCount] = useState(0);
   const [pageNumber, setPageNumber] = useState(1);
-  const [pageSize, setPageSize] = useState(12);
+  const [pageSize] = useState(12);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchText, setSearchText] = useState('');
+  const [viewMode, setViewMode] = useState('grid');
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
-  const [showDetail, setShowDetail] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [detailProduct, setDetailProduct] = useState(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteContext, setDeleteContext] = useState(null);
@@ -120,6 +178,7 @@ const ProductsTable = () => {
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
+      setLoadError('');
       const result = await productService.getProducts({
         Text: searchText,
         PageNumber: pageNumber,
@@ -133,6 +192,7 @@ const ProductsTable = () => {
       setTotalCount(result.totalCount || 0);
     } catch (error) {
       console.error('Failed to fetch products:', error);
+      setLoadError(error?.message || 'Unable to load products.');
     } finally {
       setLoading(false);
     }
@@ -140,49 +200,49 @@ const ProductsTable = () => {
 
   useEffect(() => {
     if (permissionsLoading && codesLoading) return;
-    if (!canView && !canViewByCode && !hasGlobalViewProduct) {
+    if (!canSeeProducts) {
       setProducts([]);
       setTotalCount(0);
+      setLoading(false);
       return;
     }
 
     fetchProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    pageNumber,
-    pageSize,
-    searchText,
-    permissionsLoading,
-    codesLoading,
-    canView,
-    canViewByCode,
-    hasGlobalViewProduct,
-  ]);
+  }, [pageNumber, pageSize, searchText, permissionsLoading, codesLoading, canSeeProducts]);
 
-  const handleSearchChange = useCallback((e) => {
-    setSearchTerm(e.target.value);
-    setSearchText(e.target.value);
+  // Search waits for a short pause in typing instead of calling the API on every keystroke.
+  useEffect(() => {
+    const next = searchTerm.trim();
+    if (next === searchText) return undefined;
+    const timer = window.setTimeout(() => {
+      setPageNumber(1);
+      setSearchText(next);
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [searchTerm, searchText]);
+
+  const applySearchNow = () => {
     setPageNumber(1);
-  }, []);
+    setSearchText(searchTerm.trim());
+  };
 
-  const handleClearSearch = useCallback(() => {
-    setSearchTerm('');
-    setSearchText('');
-    setPageNumber(1);
-  }, []);
-
-  const handleCreate = () => {
+  const ensurePermission = (allowed, action) => {
     if (permissionsLoading) {
       toast.error('Permissions are still loading. Please try again.');
-      return;
+      return false;
     }
-    if (!canAdd) {
-      toast.error("You don't have permission to add products.");
-      return;
+    if (!allowed) {
+      toast.error(`You don't have permission to ${action} products.`);
+      return false;
     }
+    return true;
+  };
 
-    const userId = Number(localStorage.getItem('userId') || 0);
-    const userName = localStorage.getItem('userName') || '';
+  const handleCreate = () => {
+    if (!ensurePermission(canAdd, 'add')) return;
+
+    const { userId, userName } = currentUserInfo();
 
     setEditingId(null);
     setFormData({
@@ -195,17 +255,9 @@ const ProductsTable = () => {
   };
 
   const handleEdit = (product) => {
-    if (permissionsLoading) {
-      toast.error('Permissions are still loading. Please try again.');
-      return;
-    }
-    if (!canUpdate) {
-      toast.error("You don't have permission to update products.");
-      return;
-    }
+    if (!ensurePermission(canUpdate, 'update')) return;
 
-    const userId = Number(localStorage.getItem('userId') || 0);
-    const userName = localStorage.getItem('userName') || '';
+    const { userId, userName } = currentUserInfo();
 
     setEditingId(product.productId);
     setFormData({
@@ -224,14 +276,7 @@ const ProductsTable = () => {
   };
 
   const handleDelete = (product) => {
-    if (permissionsLoading) {
-      toast.error('Permissions are still loading. Please try again.');
-      return;
-    }
-    if (!canDelete) {
-      toast.error("You don't have permission to delete products.");
-      return;
-    }
+    if (!ensurePermission(canDelete, 'delete')) return;
 
     const productId = product?.productId;
     if (!productId) return;
@@ -246,19 +291,12 @@ const ProductsTable = () => {
   const handleConfirmDelete = async () => {
     const productId = deleteContext?.id;
     if (!productId) return;
+    if (!ensurePermission(canDelete, 'delete')) return;
 
     try {
-      if (permissionsLoading) {
-        toast.error('Permissions are still loading. Please try again.');
-        return;
-      }
-      if (!canDelete) {
-        toast.error("You don't have permission to delete products.");
-        return;
-      }
-
       setIsDeleting(true);
       await productService.deleteProduct(productId);
+      toast.success('Product deleted');
       setDeleteConfirmOpen(false);
       setDeleteContext(null);
       fetchProducts();
@@ -270,186 +308,232 @@ const ProductsTable = () => {
     }
   };
 
-  const handleView = (product) => {
-    setDetailProduct(product);
-    setShowDetail(true);
+  const closeForm = () => {
+    if (saving) return;
+    setShowModal(false);
+    setEditingId(null);
+    setFormData(emptyForm);
   };
 
-  const handlePageChange = (page) => {
-    setPageNumber(page);
+  const handleSave = async (e) => {
+    e.preventDefault();
+    if (saving) return;
+    const isEdit = Boolean(editingId);
+    if (!ensurePermission(isEdit ? canUpdate : canAdd, isEdit ? 'update' : 'add')) return;
+
+    const name = String(formData.name || '').trim();
+    const price = Number(formData.price);
+    if (!name) {
+      toast.error('Product name is required.');
+      return;
+    }
+    if (String(formData.price ?? '').trim() !== '' && (!Number.isFinite(price) || price < 0)) {
+      toast.error('Price must be a positive number, e.g. 49.99.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const { userId, userName } = currentUserInfo();
+      const payload = {
+        ...formData,
+        name,
+        price: Number.isFinite(price) ? price : 0,
+        createdBy: Number(formData.createdBy) || userId,
+        createdByName: formData.createdByName || userName,
+        createdDate: formData.createdDate || new Date().toISOString(),
+      };
+
+      if (isEdit) {
+        // PUT /api/Product with the same ProductDTO fields, keeping the product's own productId.
+        await productService.updateProduct(payload);
+        toast.success(`Product "${name}" updated`);
+      } else {
+        // POST /api/Product (productService sends exactly the ProductDTO fields, productId 0).
+        await productService.createProduct(payload);
+        toast.success(`Product "${name}" created`);
+      }
+
+      setShowModal(false);
+      setEditingId(null);
+      setFormData(emptyForm);
+      // Products are listed by productId ascending, so a new one lands on the last page.
+      const lastPage = Math.max(1, Math.ceil((totalCount + (isEdit ? 0 : 1)) / pageSize));
+      if (!isEdit && !searchText && lastPage !== pageNumber) setPageNumber(lastPage);
+      else fetchProducts();
+    } catch (error) {
+      console.error('Failed to save product:', error, error?.response?.data);
+      toast.error(error?.message || 'Failed to save product');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const hasNextPage = pageNumber * pageSize < totalCount;
-  const hasPrevPage = pageNumber > 1;
+  const productActions = (product) =>
+    [
+      { key: 'view', show: true, label: 'View product', variant: 'view', onClick: () => setDetailProduct(product) },
+      { key: 'edit', show: !permissionsLoading && canUpdate, label: 'Edit product', variant: 'edit', onClick: () => handleEdit(product) },
+      { key: 'delete', show: !permissionsLoading && canDelete, label: 'Delete product', variant: 'delete', onClick: () => handleDelete(product) },
+    ].filter((action) => action.show);
 
-  const formatPrice = (value) => {
-    if (value === null || value === undefined) return '-';
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format(Number(value));
-  };
+  const renderActions = (product, className = '') => (
+    <div className={`flex items-center gap-1.5 ${className}`}>
+      {productActions(product).map((action) => (
+        <ActionIconButton key={action.key} label={action.label} variant={action.variant} onClick={action.onClick} />
+      ))}
+    </div>
+  );
 
-  const formatDateTime = (value) => {
-    if (!value) return '-';
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return '-';
-    return d.toLocaleString();
-  };
+  const statusPill = (product) =>
+    product.isActive === false ? <StatusPill tone="danger">Inactive</StatusPill> : <StatusPill tone="success">Active</StatusPill>;
+
+  const tableColumns = [
+    {
+      id: 'product',
+      header: 'Product',
+      cell: (product) => (
+        <button type="button" onClick={() => setDetailProduct(product)} className="flex min-w-0 items-center gap-3 border-0 bg-transparent p-0 text-left">
+          <ProductImage product={product} className="h-11 w-11 shrink-0 rounded-xl" letterClassName="text-base" />
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-semibold text-gray-900 hover:text-indigo-600 dark:text-white">{product.name || '-'}</span>
+            <span className="block text-xs text-gray-500">#{product.productId}</span>
+          </span>
+        </button>
+      ),
+    },
+    {
+      id: 'description',
+      header: 'Description',
+      cell: (product) => (
+        <span className="block max-w-[320px] truncate text-sm text-gray-600 dark:text-gray-300" title={product.description}>
+          {product.description || '—'}
+        </span>
+      ),
+    },
+    { id: 'type', header: 'Type', cell: (product) => (product.productType ? <StatusPill tone="primary">{product.productType}</StatusPill> : '—') },
+    { id: 'price', header: 'Price', align: 'right', cell: (product) => <span className="font-semibold tabular-nums">{formatPrice(product.price)}</span> },
+    { id: 'status', header: 'Status', cell: statusPill },
+    { id: 'actions', header: 'Actions', align: 'center', sticky: 'right', cell: (product) => renderActions(product, 'justify-center') },
+  ];
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const isFormLocked = permissionsLoading || (editingId ? !canUpdate : !canAdd);
 
   return (
     <>
-      <PageHeader title="Products" description="Browse available products like an e-commerce catalog.">
+      <PageHeader title="Products" description="Browse and manage the products sold on orders.">
         {!permissionsLoading && canAdd ? (
-          <LiquidGlassButton
-            type="button"
-            onClick={handleCreate}
-            className="w-full sm:w-auto text-center"
-          >
-            <Plus className="w-4 h-4 liquid-glass-btn__icon" />
+          <LiquidGlassButton type="button" onClick={handleCreate} className="w-full sm:w-auto">
+            <Plus className="h-4 w-4" />
             Add New Product
           </LiquidGlassButton>
         ) : null}
       </PageHeader>
 
       <TableCard>
-
-        <Toolbar
-          searchInput={searchTerm}
-          onSearchChange={handleSearchChange}
-          onClearSearch={handleClearSearch}
-          total={totalCount}
+        <ListToolbar
           shown={products.length}
+          total={totalCount}
+          itemName="Products"
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          onSearchClear={() => setSearchTerm('')}
+          onSearchSubmit={applySearchNow}
+          searchPlaceholder="Search products..."
           onRefresh={fetchProducts}
+          loading={loading}
         />
 
-        <div className="p-4">
-          {loading && products.length === 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="flex flex-col rounded-xl border border-gray-200 bg-white dark:bg-slate-900 shadow-sm overflow-hidden animate-pulse">
-                  <div className="h-40 bg-gray-200" />
-                  <div className="flex flex-col flex-1 p-3 gap-2">
-                    <div className="h-4 bg-gray-200 rounded w-3/4" />
-                    <div className="h-3 bg-gray-200 rounded w-full" />
-                    <div className="h-3 bg-gray-200 rounded w-5/6" />
-                    <div className="mt-2 flex items-center justify-between">
-                      <div className="h-4 bg-gray-200 rounded w-16" />
-                      <div className="h-6 bg-gray-200 rounded-full w-14" />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : products.length === 0 ? (
-            <div className="py-10 text-center text-gray-500 text-sm">No products found.</div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {products.map((product) => (
-                <div
-                  key={product.productId}
-                  className="flex flex-col rounded-xl border border-gray-200 bg-white dark:bg-slate-900 shadow-sm overflow-hidden hover:shadow-md transition-shadow relative"
-                >
-                  <div className="absolute top-2 right-2 flex gap-1 z-10">
-                    {!permissionsLoading && canUpdate ? (
-                      <ActionIconButton
-                        label="Edit product"
-                        onClick={() => handleEdit(product)}
-                        className="w-8 h-8 bg-white/90 dark:bg-slate-800/90 shadow hover:bg-white dark:hover:bg-slate-800 text-gray-700 border-transparent"
-                      >
-                        <Edit2 size={14} />
-                      </ActionIconButton>
-                    ) : null}
-                    {!permissionsLoading && canDelete ? (
-                      <ActionIconButton
-                        variant="delete"
-                        label="Delete product"
-                        onClick={() => handleDelete(product)}
-                        className="w-8 h-8 bg-white/90 dark:bg-slate-800/90 shadow hover:bg-white dark:hover:bg-slate-800 text-red-600 dark:text-red-400 border-transparent"
-                      >
-                        <Trash2 size={14} />
-                      </ActionIconButton>
-                    ) : null}
-                  </div>
-                  <div className="relative h-40 bg-gray-100 flex items-center justify-center overflow-hidden">
-                    {product.photo ? (
-                      <img
-                        src={toAbsoluteUrl(product.photo)}
-                        alt={product.name}
-                        className="h-full w-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                        }}
-                      />
-                    ) : (
-                      <span className="text-4xl font-semibold text-gray-400">
-                        {product.name?.charAt(0)?.toUpperCase() || 'P'}
-                      </span>
-                    )}
-                    {product.productType && (
-                      <span className="absolute top-2 left-2 inline-flex items-center rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-medium text-white">
-                        {product.productType}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex flex-col flex-1 p-3">
-                    <h3 className="text-sm font-semibold text-gray-900 mb-1 line-clamp-2 min-h-[2.5rem]">
-                      {product.name}
-                    </h3>
-                    <p className="text-xs text-gray-600 mb-3 line-clamp-3 min-h-[3.5rem]">
-                      {product.description || 'No description provided.'}
-                    </p>
-                    <div className="mt-auto flex items-center justify-between">
-                      <span className="text-base font-semibold text-gray-900">
-                        {formatPrice(product.price)}
-                      </span>
-                      {product.isActive === false ? (
-                        <span className="text-[11px] font-medium text-red-500 dark:text-red-400">Unavailable</span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => handleView(product)}
-                          className="inline-flex items-center rounded-full bg-[#2e1065] dark:bg-purple-600 px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
-                        >
-                          View
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {totalCount > pageSize && (
-            <div className="flex items-center justify-between mt-6 text-sm text-gray-600">
-              <span>
-                Page {pageNumber} of {Math.max(1, Math.ceil(totalCount / pageSize))}
-              </span>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => hasPrevPage && handlePageChange(pageNumber - 1)}
-                  disabled={!hasPrevPage}
-                  className={`px-3 py-1.5 rounded-lg border text-xs font-medium ${hasPrevPage
-                    ? 'border-gray-300 text-gray-700 hover:bg-gray-100'
-                    : 'border-gray-200 text-gray-400 cursor-not-allowed'
-                    }`}
-                >
-                  Previous
-                </button>
-                <button
-                  type="button"
-                  onClick={() => hasNextPage && handlePageChange(pageNumber + 1)}
-                  disabled={!hasNextPage}
-                  className={`px-3 py-1.5 rounded-lg border text-xs font-medium ${hasNextPage
-                    ? 'border-gray-300 text-gray-700 hover:bg-gray-100'
-                    : 'border-gray-200 text-gray-400 cursor-not-allowed'
-                    }`}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
+        <div className="flex items-center justify-end border-b border-slate-200 px-3 py-2 dark:border-white/10">
+          <GlassSegmentedControl
+            ariaLabel="Product layout"
+            value={viewMode}
+            onChange={setViewMode}
+            options={VIEW_OPTIONS}
+          />
         </div>
+
+        {loadError && (
+          <div className="mx-3 mt-3 flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span className="flex-1">{loadError}</span>
+            <button type="button" onClick={fetchProducts} className="font-semibold underline-offset-2 hover:underline">
+              Retry
+            </button>
+          </div>
+        )}
+
+        {!permissionsLoading && !codesLoading && !canSeeProducts ? (
+          <div className="px-4 py-16 text-center text-sm text-gray-500">You don&apos;t have permission to view products.</div>
+        ) : viewMode === 'table' ? (
+          <div className="grid">
+            <CommonTable
+              columns={tableColumns}
+              data={products}
+              isLoading={loading}
+              rowKey="productId"
+              emptyState={{ icon: <Package size={28} />, title: 'No products found', description: 'Try a different search term.' }}
+              pagination={{ pageNumber, pageSize, totalCount, itemName: 'Products', showPageSize: false, onPageChange: setPageNumber }}
+            />
+          </div>
+        ) : (
+          <div className="p-4">
+            {loading ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4" role="status" aria-label="Loading products">
+                {Array.from({ length: Math.min(pageSize, products.length || 8) }).map((_, i) => (
+                  <ProductCardSkeleton key={i} />
+                ))}
+              </div>
+            ) : products.length === 0 ? (
+              <div className="mx-auto flex max-w-sm flex-col items-center py-14 text-center">
+                <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-50 text-purple-600 dark:bg-purple-950/30 dark:text-purple-400">
+                  <Package size={28} />
+                </div>
+                <h4 className="mb-1 text-base font-semibold text-gray-900 dark:text-white">No products found</h4>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {searchText ? 'Try a different search term.' : 'Products you add will appear here.'}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                {products.map((product) => (
+                  <article
+                    key={product.productId}
+                    className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
+                  >
+                    <button type="button" onClick={() => setDetailProduct(product)} className="relative block border-0 bg-transparent p-0 text-left" aria-label={`View ${product.name}`}>
+                      <ProductImage product={product} className="h-40 w-full" />
+                      {product.productType && (
+                        <span className="absolute left-3 top-3 inline-flex items-center rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-sm backdrop-blur dark:bg-slate-900/80 dark:text-slate-200">
+                          {product.productType}
+                        </span>
+                      )}
+                      <span className="absolute right-3 top-3">{statusPill(product)}</span>
+                    </button>
+                    <div className="flex flex-1 flex-col p-4">
+                      <h3 className="mb-1 line-clamp-2 text-sm font-semibold text-gray-900 dark:text-white">{product.name}</h3>
+                      <p className="mb-4 line-clamp-2 text-xs text-gray-500 dark:text-gray-400">{product.description || 'No description provided.'}</p>
+                      <div className="mt-auto flex items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+                        <span className="text-lg font-bold tabular-nums text-gray-900 dark:text-white">{formatPrice(product.price)}</span>
+                        {renderActions(product)}
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+
+            {totalCount > pageSize && (
+              <div className="mt-6 flex flex-col items-center justify-between gap-3 border-t border-slate-200 pt-4 text-xs text-gray-500 dark:border-white/10 sm:flex-row">
+                <span>
+                  Page <strong className="text-gray-800 dark:text-gray-200">{pageNumber}</strong> of{' '}
+                  <strong className="text-gray-800 dark:text-gray-200">{totalPages}</strong> · {totalCount} products
+                </span>
+                <AnchorPagination currentPage={pageNumber} totalPages={totalPages} onPageChange={setPageNumber} disabled={loading} />
+              </div>
+            )}
+          </div>
+        )}
 
         <DeleteConfirmModal
           open={deleteConfirmOpen}
@@ -461,338 +545,135 @@ const ProductsTable = () => {
           onConfirm={handleConfirmDelete}
           title="Delete Product"
           itemName={deleteContext?.name || 'this product'}
-          confirmText={isDeleting ? 'Deleting...' : 'Delete'}
+          confirmText="Delete"
           cancelText="Cancel"
           loading={isDeleting}
         />
 
-        {showDetail && detailProduct && (
-          <ModalPortal>
-            <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-              <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-slate-700">
-                <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur">
-                  <div>
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-slate-100">
-                      {detailProduct.name}
-                    </h3>
-                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                      {detailProduct.productType || 'Product detail'}
-                    </p>
-                  </div>
-                  <GlassCloseButton
-                    onClick={() => {
-                      setShowDetail(false);
-                      setDetailProduct(null);
-                    }}
-                    label="Close details"
-                  />
-                </div>
-
-                <div className="flex flex-col md:flex-row gap-6 p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
-                  <div className="md:w-1/2 w-full">
-                    <div className="relative w-full rounded-xl overflow-hidden bg-gray-100 flex items-center justify-center aspect-[4/3]">
-                      {detailProduct.photo ? (
-                        <img
-                          src={toAbsoluteUrl(detailProduct.photo)}
-                          alt={detailProduct.name}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-5xl font-semibold text-gray-400">
-                          {detailProduct.name?.charAt(0)?.toUpperCase() || 'P'}
-                        </span>
-                      )}
-                      {detailProduct.productType && (
-                        <span className="absolute top-3 left-3 inline-flex items-center rounded-full bg-black/70 px-3 py-1 text-[11px] font-medium text-white">
-                          {detailProduct.productType}
-                        </span>
-                      )}
-                      {detailProduct.isActive === false && (
-                        <span className="absolute bottom-3 left-3 inline-flex items-center rounded-full bg-red-500 px-3 py-1 text-[11px] font-medium text-white">
-                          Unavailable
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="md:w-1/2 w-full flex flex-col gap-4">
-                    <div>
-                      <h4 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-1">
-                        {detailProduct.name}
-                      </h4>
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="text-2xl font-bold text-gray-900">
-                          {formatPrice(detailProduct.price)}
-                        </span>
-                        {detailProduct.productType && (
-                          <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-[11px] font-medium text-gray-700">
-                            Type: {detailProduct.productType}
-                          </span>
-                        )}
-                        {detailProduct.isActive === false && (
-                          <span className="inline-flex items-center rounded-full bg-red-100 dark:bg-red-500/15 px-3 py-1 text-[11px] font-medium text-red-600 dark:text-red-300">
-                            Inactive
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h5 className="text-sm font-semibold text-gray-800 dark:text-slate-200 mb-1">Description</h5>
-                      <p className="text-sm text-gray-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
-                        {detailProduct.description || 'No description provided for this product.'}
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-gray-600 dark:text-slate-300 mt-1">
-                      <div className="space-y-1">
-                        <div>
-                          <span className="font-semibold">Product ID: </span>
-                          <span>{detailProduct.productId ?? '-'}</span>
-                        </div>
-                        <div>
-                          <span className="font-semibold">Created By: </span>
-                          <span>{detailProduct.createdByName || detailProduct.createdBy || '-'}</span>
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <div>
-                          <span className="font-semibold">Created Date: </span>
-                          <span>{formatDateTime(detailProduct.createdDate)}</span>
-                        </div>
-                        <div>
-                          <span className="font-semibold">Active: </span>
-                          <span>{detailProduct.isActive ? 'Yes' : 'No'}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-auto flex flex-col sm:flex-row sm:items-center gap-3 pt-2 border-t border-gray-200 dark:border-slate-700">
-                      <Button
-                        type="button"
-                        onClick={() => {
-                          setShowDetail(false);
-                          if (detailProduct) {
-                            handleEdit(detailProduct);
-                          }
-                        }}
-                        disabled={permissionsLoading || !canUpdate}
-                      >
-                        Edit Product
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          setShowDetail(false);
-                          setDetailProduct(null);
-                        }}
-                        className="sm:ml-auto"
-                      >
-                        Close
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </ModalPortal>
-        )}
-
-        {showModal && (
-          <ModalPortal>
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-              <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-slate-700">
-                <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
-                      {editingId ? 'Edit Product' : 'Add Product'}
-                    </h3>
-                    <p className="text-sm text-gray-500 dark:text-slate-400">Provide product details below.</p>
-                  </div>
-                  <GlassCloseButton
-                    onClick={() => {
-                      setShowModal(false);
-                      setEditingId(null);
-                      setFormData(emptyForm);
-                    }}
-                  />
-                </div>
-
-                <form
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    try {
-                      const isEdit = Boolean(editingId);
-
-                      if (permissionsLoading) {
-                        toast.error('Permissions are still loading. Please try again.');
-                        return;
-                      }
-                      if (isEdit && !canUpdate) {
-                        toast.error("You don't have permission to update products.");
-                        return;
-                      }
-                      if (!isEdit && !canAdd) {
-                        toast.error("You don't have permission to add products.");
-                        return;
-                      }
-
-                      const payload = {
-                        ...formData,
-                        price: Number(formData.price) || 0,
-                        createdDate: formData.createdDate || new Date().toISOString(),
-                      };
-
-                      if (isEdit) {
-                        await productService.updateProduct(payload);
-                        toast.success('Product updated');
-                      } else {
-                        await productService.createProduct(payload);
-                        toast.success('Product created');
-                      }
-
-                      setShowModal(false);
-                      setEditingId(null);
-                      setFormData(emptyForm);
-                      fetchProducts();
-                    } catch (error) {
-                      console.error('Failed to save product:', error, error?.response?.data);
-                      toast.error(error?.message || 'Failed to save product');
-                    }
+        <AppModal
+          open={Boolean(detailProduct)}
+          onClose={() => setDetailProduct(null)}
+          icon={Package}
+          title={detailProduct?.name}
+          description={detailProduct ? `Product #${detailProduct.productId}` : ''}
+          size="lg"
+          footer={(
+            <>
+              <LiquidGlassButton variant="secondary" onClick={() => setDetailProduct(null)}>
+                Close
+              </LiquidGlassButton>
+              {!permissionsLoading && canUpdate && (
+                <LiquidGlassButton
+                  onClick={() => {
+                    const product = detailProduct;
+                    setDetailProduct(null);
+                    handleEdit(product);
                   }}
-                  className="p-6 space-y-4 overflow-y-auto max-h-[calc(90vh-140px)]"
                 >
-                  <fieldset
-                    disabled={
-                      permissionsLoading ||
-                      (editingId ? !canUpdate : !canAdd)
-                    }
-                    className="contents"
-                  >
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Name *</label>
-                        <input
-                          name="name"
-                          value={formData.name}
-                          onChange={(e) =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              name: e.target.value,
-                            }))
-                          }
-                          required
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent dark:bg-slate-700 dark:border-slate-600 dark:text-white"
-                        />
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Description</label>
-                        <textarea
-                          name="description"
-                          value={formData.description}
-                          onChange={(e) =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              description: e.target.value,
-                            }))
-                          }
-                          rows={3}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent dark:bg-slate-700 dark:border-slate-600 dark:text-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Price</label>
-                        <input
-                          name="price"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={formData.price}
-                          onChange={(e) =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              price: e.target.value,
-                            }))
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent dark:bg-slate-700 dark:border-slate-600 dark:text-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Product Type</label>
-                        <input
-                          name="productType"
-                          value={formData.productType}
-                          onChange={(e) =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              productType: e.target.value,
-                            }))
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent dark:bg-slate-700 dark:border-slate-600 dark:text-white"
-                        />
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Photo URL</label>
-                        <input
-                          name="photo"
-                          value={formData.photo}
-                          onChange={(e) =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              photo: e.target.value,
-                            }))
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent dark:bg-slate-700 dark:border-slate-600 dark:text-white"
-                        />
-                      </div>
-                      <div className="md:col-span-2 rounded-xl border border-gray-200 dark:border-slate-700 px-4 py-3">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                          Status
-                        </label>
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="text-sm text-gray-600 dark:text-slate-400">
-                            {formData.isActive ? 'Active' : 'Inactive'}
-                          </span>
-                          <IosToggle
-                            checked={!!formData.isActive}
-                            onCheckedChange={(nextChecked) =>
-                              setFormData((prev) => ({ ...prev, isActive: !!nextChecked }))
-                            }
-                            title={formData.isActive ? 'Active' : 'Inactive'}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                  </fieldset>
-
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2 border-t border-gray-200 dark:border-slate-700">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setShowModal(false);
-                        setEditingId(null);
-                        setFormData(emptyForm);
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                    <LiquidGlassButton type="submit" className="sm:ml-auto text-center">
-                      Save
-                    </LiquidGlassButton>
-                  </div>
-                </form>
+                  Edit Product
+                </LiquidGlassButton>
+              )}
+            </>
+          )}
+        >
+          {detailProduct && (
+            <div className="grid gap-6 md:grid-cols-2">
+              <ProductImage product={detailProduct} className="aspect-[4/3] w-full rounded-2xl" letterClassName="text-6xl" />
+              <div className="flex min-w-0 flex-col gap-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-3xl font-bold tabular-nums text-gray-900 dark:text-white">{formatPrice(detailProduct.price)}</span>
+                  {statusPill(detailProduct)}
+                </div>
+                <p className="whitespace-pre-line text-sm leading-relaxed text-gray-600 dark:text-slate-300">
+                  {detailProduct.description || 'No description provided for this product.'}
+                </p>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-white/[0.03]">
+                  <DetailFields
+                    fields={[
+                      { label: 'Product ID', value: <span className="inline-flex items-center gap-1"><Hash size={13} />{detailProduct.productId ?? '-'}</span> },
+                      { label: 'Type', value: detailProduct.productType },
+                      { label: 'Created By', value: <span className="inline-flex items-center gap-1"><UserRound size={13} />{detailProduct.createdByName || detailProduct.createdBy || '-'}</span> },
+                      { label: 'Created', value: <span className="inline-flex items-center gap-1"><CalendarDays size={13} />{formatDateTime(detailProduct.createdDate)}</span> },
+                    ]}
+                  />
+                </div>
               </div>
             </div>
-          </ModalPortal>
-        )}
+          )}
+        </AppModal>
+
+        <AppModal
+          open={showModal}
+          onClose={closeForm}
+          onSubmit={handleSave}
+          busy={saving}
+          icon={Package}
+          title={editingId ? 'Edit Product' : 'Add Product'}
+          description="Provide product details below."
+          size="lg"
+          footer={(
+            <>
+              <LiquidGlassButton variant="secondary" onClick={closeForm} disabled={saving}>
+                Cancel
+              </LiquidGlassButton>
+              <LiquidGlassButton type="submit" loading={saving} disabled={isFormLocked}>
+                {saving ? 'Saving...' : editingId ? 'Save Changes' : 'Create Product'}
+              </LiquidGlassButton>
+            </>
+          )}
+        >
+          <fieldset disabled={isFormLocked || saving} className="grid gap-5 md:grid-cols-[minmax(0,1fr)_180px]">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {FORM_FIELDS.map(({ name, label, required, wide, multiline, ...inputProps }) => (
+                <label key={name} className={`block ${wide ? 'md:col-span-2' : ''}`}>
+                  <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    {label}
+                    {required && <span className="ml-0.5 text-rose-500">*</span>}
+                  </span>
+                  {multiline ? (
+                    <textarea
+                      name={name}
+                      rows={3}
+                      value={formData[name]}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, [name]: e.target.value }))}
+                      placeholder={inputProps.placeholder}
+                      className={`${inputClass} resize-y`}
+                    />
+                  ) : (
+                    <input
+                      name={name}
+                      value={formData[name]}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, [name]: e.target.value }))}
+                      required={required}
+                      {...inputProps}
+                      className={`${inputClass} h-11`}
+                    />
+                  )}
+                </label>
+              ))}
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-700 md:col-span-2">
+                <div>
+                  <div className="text-sm font-medium text-slate-700 dark:text-slate-300">Status</div>
+                  <div className="text-xs text-slate-500">{formData.isActive ? 'Active' : 'Inactive'}</div>
+                </div>
+                <IosToggle
+                  checked={!!formData.isActive}
+                  onCheckedChange={(nextChecked) => setFormData((prev) => ({ ...prev, isActive: !!nextChecked }))}
+                  title={formData.isActive ? 'Active' : 'Inactive'}
+                />
+              </div>
+            </div>
+            <div className="hidden md:block">
+              <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Preview</span>
+              <ProductImage product={formData} className="aspect-square w-full rounded-2xl border border-slate-200 dark:border-slate-700" letterClassName="text-5xl" />
+              <div className="mt-2 truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{formData.name || 'Product name'}</div>
+              <div className="text-sm font-bold tabular-nums text-slate-900 dark:text-white">{formatPrice(Number(formData.price) || 0)}</div>
+            </div>
+          </fieldset>
+        </AppModal>
       </TableCard>
     </>
   );
 };
 
 export { ProductsTable };
-
-

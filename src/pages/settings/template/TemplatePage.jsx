@@ -10,7 +10,6 @@ import {
   ArrowUp,
   ArrowDown,
   ShieldAlert,
-  Mail
 } from 'lucide-react';
 import { toast } from 'sonner';
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import * as LucideIcons from 'lucide-react';
-import { Search, Copy, Check } from 'lucide-react';
+import { Search, Check } from 'lucide-react';
 
 // -----------------------|| FEATHER (Now Lucide Icons) ||-----------------------//
 // The "Feather" route now shows Lucide icons (Feather is the predecessor of Lucide)

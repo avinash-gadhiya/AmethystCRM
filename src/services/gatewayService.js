@@ -109,6 +109,30 @@ export const gatewayService = {
     return { data, totalCount: data.length };
   },
 
+  // Gateways that belong to one brand. GatewayDropdown rows carry no brand and the API
+  // ignores its BrandId filter, so the full /Gateway records (which include brandId) are
+  // used and filtered exactly. Falls back to the brand-filtered dropdown if /Gateway fails.
+  async getBrandGateways(brandId, signal) {
+    const id = Number(brandId) || 0;
+    if (!id) return { data: [], totalCount: 0 };
+
+    try {
+      const result = unwrapList(
+        await request('/Gateway', { params: pageParams({ BrandId: id, PageSize: 500, IsDescending: false }, 'gatewayId'), signal })
+      );
+      const data = result.data
+        .map(normalizeGatewayOption)
+        .filter((option) => Number(option.brandId ?? option.BrandId) === id && option.gatewayName)
+        .map((option) => ({ ...option, brandId: id }));
+      return { data, totalCount: data.length };
+    } catch (error) {
+      if (error?.name === 'AbortError') throw error;
+      const fallback = await this.getGatewayDropdown({ BrandId: id }, signal);
+      const data = fallback.data.filter((option) => !Number(option.brandId) || Number(option.brandId) === id);
+      return { data, totalCount: data.length };
+    }
+  },
+
   async createGateway(gateway) {
     return request('/Gateway', { method: 'POST', data: gateway });
   },

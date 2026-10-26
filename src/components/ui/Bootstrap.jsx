@@ -5,6 +5,8 @@
  */
 import { createContext, forwardRef, useContext } from 'react';
 
+import { ModalBodyArea, ModalFooterBar, ModalHeaderBar, ModalShell } from '@/components/common/AppModal';
+
 // --- Row / Col (12-Column Responsive Grid) ---
 export const Row = ({ children, className = '', ...props }) => (
   <div className={`row ${className}`} {...props}>{children}</div>
@@ -175,63 +177,33 @@ InputGroup.Text = ({ children, className = '', ...props }) => (
 // --- Modal ---
 const ModalContext = createContext({ onHide: () => {} });
 
-export const Modal = ({ children, show, onHide, size, className = '', ...props }) => {
-  if (!show) return null;
-  const widthClass = size === 'lg' ? 'max-w-3xl' : size === 'xl' ? 'max-w-5xl' : size === 'sm' ? 'max-w-sm' : 'max-w-lg';
-  return (
-    <ModalContext.Provider value={{ onHide }}>
-      <div
-        className="modal-backdrop"
-        onClick={(e) => { if (e.target === e.currentTarget) onHide?.(); }}
-        role="dialog"
-        aria-modal="true"
-      >
-        <div className={`modal-box ${widthClass} ${className}`} {...props}>
-          {children}
-        </div>
-      </div>
-    </ModalContext.Provider>
-  );
-};
+// Renders the shared AppModal design so every <Modal> in the app matches.
+export const Modal = ({ children, show, onHide, size, className = '' }) => (
+  <ModalContext.Provider value={{ onHide }}>
+    <ModalShell open={Boolean(show)} onClose={onHide} size={size === 'sm' ? 'sm' : size === 'lg' ? 'lg' : size === 'xl' ? 'xl' : 'md'} className={className}>
+      {children}
+    </ModalShell>
+  </ModalContext.Provider>
+);
 
-Modal.Header = ({ children, closeButton, onHide, className = '', ...props }) => {
+const ModalHeader = ({ children, closeButton, onHide, icon, description, className = '' }) => {
   const context = useContext(ModalContext);
   const handleClose = onHide || context?.onHide;
-
   return (
-    <div className={`flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white rounded-t-2xl ${className}`} {...props}>
-      <div className="flex-1">{children}</div>
-      {closeButton && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            handleClose?.();
-          }}
-          className="text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg p-2 transition-colors ml-4 border-0 bg-transparent cursor-pointer inline-flex items-center justify-center text-lg font-bold leading-none"
-          aria-label="Close"
-        >
-          ✕
-        </button>
-      )}
-    </div>
+    <ModalHeaderBar icon={icon} description={description} onClose={closeButton ? handleClose : undefined} className={className}>
+      {children}
+    </ModalHeaderBar>
   );
 };
+Modal.Header = ModalHeader;
 
-Modal.Title = ({ children, className = '', as: Tag = 'h5', ...props }) => (
-  <Tag className={`text-base font-bold text-gray-800 mb-0 ${className}`} {...props}>{children}</Tag>
+Modal.Title = ({ children, className = '', as: Tag = 'h3', ...props }) => (
+  <Tag className={`mb-0 truncate text-lg font-semibold text-slate-900 dark:text-white ${className}`} {...props}>{children}</Tag>
 );
 
-Modal.Body = ({ children, className = '', ...props }) => (
-  <div className={`px-6 py-5 bg-white ${className}`} {...props}>{children}</div>
-);
+Modal.Body = ({ children, className = '' }) => <ModalBodyArea className={className}>{children}</ModalBodyArea>;
 
-Modal.Footer = ({ children, className = '', ...props }) => (
-  <div className={`flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50/70 rounded-b-2xl ${className}`} {...props}>
-    {children}
-  </div>
-);
+Modal.Footer = ({ children, className = '' }) => <ModalFooterBar className={className}>{children}</ModalFooterBar>;
 
 // --- Alert ---
 const ALERT_BG = {

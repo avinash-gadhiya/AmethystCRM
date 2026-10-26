@@ -14,9 +14,6 @@ const ConfigContext = createContext({});
 const { Provider } = ConfigContext;
 
 function ConfigProvider({ children }) {
-  let trigger = [];
-  let open = [];
-
   const [state, dispatch] = useReducer((stateData, action) => {
     switch (action.type) {
       case actionType.COLLAPSE_MENU:
