@@ -214,6 +214,8 @@ const CreateOrderPage = () => {
   // Keep all dropdown triggers consistent with inputs on this page
   const selectTriggerClass = `${inputCompactClass} font-medium`;
   const selectTriggerCompactClass = selectTriggerClass;
+  const paymentSelectClass =
+    'h-11 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 shadow-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 disabled:!opacity-100 disabled:bg-slate-100 disabled:text-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:disabled:bg-slate-800 dark:disabled:text-slate-400';
   const [products, setProducts] = useState([]);
   const [productDropdownItems, setProductDropdownItems] = useState([]);
   const [productCache, setProductCache] = useState({});
@@ -3793,7 +3795,7 @@ const CreateOrderPage = () => {
                 </div>
                 <FieldError errorKey="payment.paymentType" />
 
-                <div className="mb-3">
+                <div className="mb-5 mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-3 dark:border-white/10 dark:bg-white/[0.03] sm:p-4">
                   {(isEditMode || isAddPaymentMode) && (
                     <div className="mb-3">
                       <p className="text-xs font-semibold text-gray-600 mb-1">Payment Status</p>
@@ -3849,16 +3851,16 @@ const CreateOrderPage = () => {
                         onClick={clearPaymentBrandAndGateway}
                         title="Clear brand & gateway"
                         aria-label="Clear brand and gateway"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:border-rose-300 dark:hover:border-rose-500/40 hover:bg-rose-50 dark:hover:bg-rose-500/15 hover:text-rose-600 dark:hover:text-rose-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/30"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-600 shadow-sm transition-colors hover:border-red-300 hover:bg-red-100 hover:text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400 dark:hover:border-red-500/50 dark:hover:bg-red-500/20 dark:hover:text-red-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30"
                       >
                         <Eraser size={15} aria-hidden="true" />
                       </button>
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 text-sm">
-                    <div className={activeTab === 'card' ? 'lg:col-span-6' : 'lg:col-span-12'}>
-                      <label className={labelClass}>Brand<RequiredMark /></label>
+                  <div className={cn('grid min-w-0 grid-cols-1 gap-4 text-sm', activeTab === 'card' && 'sm:grid-cols-2')}>
+                    <div className="min-w-0 space-y-1.5">
+                      <label htmlFor="payment-brand" className={labelClass}>Brand<RequiredMark /></label>
                       <Select
                         value={payment.brandId ? String(payment.brandId) : ''}
                         onValueChange={(value) => {
@@ -3874,7 +3876,7 @@ const CreateOrderPage = () => {
                           });
                         }}
                       >
-                        <SelectTrigger className={withErrorClass(selectTriggerCompactClass, getError('payment.brandId'))}>
+                        <SelectTrigger id="payment-brand" className={withErrorClass(paymentSelectClass, getError('payment.brandId'))}>
                           <SelectValue placeholder="Select Brand" />
                         </SelectTrigger>
                         <SelectContent>
@@ -3903,8 +3905,8 @@ const CreateOrderPage = () => {
                       <FieldError errorKey="payment.brandId" />
                     </div>
 
-                    {activeTab === 'card' && (<div className="lg:col-span-6">
-                      <label className={labelClass}>Gateway<RequiredMark /></label>
+                    {activeTab === 'card' && (<div className="min-w-0 space-y-1.5">
+                      <label htmlFor="payment-gateway" className={labelClass}>Gateway<RequiredMark /></label>
                       <Select
                         value={payment.gatewayId ? String(payment.gatewayId) : ''}
                         disabled={!Number(payment.brandId) || loadingBrandGateways}
@@ -3925,7 +3927,7 @@ const CreateOrderPage = () => {
                           }));
                         }}
                       >
-                        <SelectTrigger className={withErrorClass(selectTriggerCompactClass, getError('payment.gatewayId'))}>
+                        <SelectTrigger id="payment-gateway" className={withErrorClass(paymentSelectClass, getError('payment.gatewayId'))}>
                           <SelectValue placeholder={!Number(payment.brandId) ? 'Select a brand first' : loadingBrandGateways ? 'Loading gateways...' : 'Select Gateway'} />
                         </SelectTrigger>
                         <SelectContent>
@@ -3947,12 +3949,8 @@ const CreateOrderPage = () => {
                       <FieldError errorKey="payment.gatewayId" />
                     </div>)}
 
-                    {/* Amount moved up into the section header. */}
-                    <div className="lg:col-span-12">
-                      <FieldError errorKey="payment.amount" />
-                    </div>
-
                   </div>
+                  {getError('payment.amount') && <div className="mt-2"><FieldError errorKey="payment.amount" /></div>}
                 </div>
 
                 {/* Tab-specific fields styled like real cards */}

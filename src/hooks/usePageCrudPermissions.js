@@ -65,7 +65,7 @@ export const usePageCrudPermissions = (options = {}) => {
         }
 
         if (!cancelled) {
-          setState({ loading: false, ...(resolved || DEFAULT_PERMS) });
+          setState({ ...(resolved || DEFAULT_PERMS), loading: false });
         }
       } catch (error) {
         console.error('Failed to resolve CRUD permissions for paths:', candidatePaths, error);

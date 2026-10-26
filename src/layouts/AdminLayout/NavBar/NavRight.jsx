@@ -7,7 +7,6 @@ import { Bell, User, LogOut, CheckCircle2, ChevronDown, Search } from 'lucide-re
 // project imports
 import authService from 'services/authService';
 import activityNotificationService, { ACTIVITY_NOTIFICATIONS_CHANGED_EVENT } from 'services/activityNotificationService';
-import attendanceService from 'services/attendanceService';
 
 // -----------------------|| NAV RIGHT ||-----------------------//
 
@@ -86,50 +85,6 @@ export default function NavRight() {
     return () => {
       window.clearInterval(clockTimer);
       window.removeEventListener(ACTIVITY_NOTIFICATIONS_CHANGED_EVENT, refreshNotifications);
-    };
-  }, [canViewNotifications]);
-
-  useEffect(() => {
-    if (!canViewNotifications) return undefined;
-
-    const controller = new AbortController();
-    let requestInProgress = false;
-
-    const pollAttendance = async () => {
-      if (requestInProgress || controller.signal.aborted) return;
-      requestInProgress = true;
-
-      const today = new Date();
-      const year = today.getFullYear();
-      const month = String(today.getMonth() + 1).padStart(2, '0');
-      const day = String(today.getDate()).padStart(2, '0');
-      const date = `${year}-${month}-${day}`;
-
-      try {
-        const response = await attendanceService.getRegister(
-          {
-            FromDate: `${date}T00:00:00`,
-            ToDate: `${date}T23:59:59`,
-            IncludeInactiveUsers: false,
-            PageNumber: 1,
-            PageSize: 1000,
-            IsDescending: false
-          },
-          controller.signal
-        );
-        activityNotificationService.syncAttendanceRegister(response);
-      } catch (error) {
-        if (error.name !== 'AbortError') console.warn('Unable to refresh attendance notifications:', error);
-      } finally {
-        requestInProgress = false;
-      }
-    };
-
-    pollAttendance();
-    const pollTimer = window.setInterval(pollAttendance, 60_000);
-    return () => {
-      controller.abort();
-      window.clearInterval(pollTimer);
     };
   }, [canViewNotifications]);
 

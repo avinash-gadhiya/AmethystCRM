@@ -28,7 +28,7 @@ const requestReport = async (reportName, params, signal) => {
     signal
   });
 
-  if (response.status === 401) handleSessionExpired();
+  if (response.status === 401) handleSessionExpired(token);
   let payload;
   try {
     payload = await response.json();

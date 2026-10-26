@@ -25,7 +25,7 @@ class Storage {
   }
 }
 function load(file, globals = {}, dependencies = {}) {
-  const source = transformSync(fs.readFileSync(file, 'utf8'), { format: 'cjs' }).code;
+  const source = transformSync(fs.readFileSync(file, 'utf8'), { loader: 'jsx', format: 'cjs' }).code;
   const context = {
     module: { exports: {} },
     Event,
@@ -39,6 +39,68 @@ function load(file, globals = {}, dependencies = {}) {
   return context.module.exports;
 }
 const ipService = (storage, fetch) => load('src/services/clientIpService.js', { window: { localStorage: storage }, fetch });
+
+test('notification mount and clock updates make no attendance requests; activity events and mark-read still work', async () => {
+  const React = require('react');
+  const window = new EventTarget();
+  const document = new EventTarget();
+  const timers = new Map();
+  let nextTimer = 0;
+  window.setInterval = (callback) => { timers.set(++nextTimer, callback); return nextTimer; };
+  window.clearInterval = (id) => timers.delete(id);
+  window.setTimeout = window.setInterval;
+  window.clearTimeout = window.clearInterval;
+  const activity = load('src/services/activityNotificationService.js', { window });
+  const user = { userId: 10, userName: 'developer', displayName: 'CRM Developer', role: 'Developer' };
+  activity.default.record('login', user);
+  const values = [];
+  const effects = [];
+  let cursor = 0;
+  let requests = 0;
+  const hooks = {
+    ...React,
+    useState(initial) {
+      const index = cursor++;
+      if (!(index in values)) values[index] = typeof initial === 'function' ? initial() : initial;
+      return [values[index], (value) => { values[index] = typeof value === 'function' ? value(values[index]) : value; }];
+    },
+    useRef: (current) => ({ current }),
+    useEffect: (callback) => effects.push(callback)
+  };
+  const Stub = () => null;
+  const NavRight = load('src/layouts/AdminLayout/NavBar/NavRight.jsx', {
+    React: hooks, window, document,
+    fetch: async () => { requests++; return { data: {} }; }
+  }, {
+    react: hooks,
+    'react-router-dom': { Link: Stub, useNavigate: () => () => {} },
+    'lucide-react': new Proxy({}, { get: () => Stub }),
+    'services/authService': { __esModule: true, default: { getUser: () => user } },
+    'services/activityNotificationService': activity,
+    'services/attendanceService': { __esModule: true, default: { getRegister: async () => { requests++; return { data: {} }; } } }
+  }).default;
+  const render = () => { cursor = 0; return NavRight(); };
+  const nodes = (element) => !element || typeof element !== 'object' ? [] : [element, ...React.Children.toArray(element.props?.children).flatMap(nodes)];
+  const text = (element) => typeof element === 'string' ? element : React.Children.toArray(element?.props?.children).map(text).join('');
+  let tree = render();
+  const cleanup = effects.splice(0).map((effect) => effect()).filter(Boolean);
+  try {
+    await new Promise(setImmediate);
+    [...timers.values()].forEach((callback) => callback());
+    await new Promise(setImmediate);
+    assert.equal(requests, 0, 'neither mount nor the minute clock polls AttendanceReport');
+    activity.default.record('logout', { ...user, userId: 11, displayName: 'Other User' });
+    tree = render();
+    nodes(tree).find((node) => node.props?.['aria-label'] === 'Notifications').props.onClick();
+    tree = render();
+    assert.match(text(tree), /Other User logged out/);
+    assert.equal(activity.default.getUnreadCount(user), 0);
+    assert.equal(requests, 0, 'opening notifications only reads local activity');
+  } finally {
+    cleanup.forEach((callback) => callback());
+  }
+  assert.equal(timers.size, 0);
+});
 
 test('removes old activity storage, keeps authentication, and leaves one public IP entry', () => {
   const storage = new Storage({

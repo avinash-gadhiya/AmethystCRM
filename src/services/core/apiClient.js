@@ -59,7 +59,7 @@ export const apiClient = {
       signal
     });
 
-    if (response.status === 401) handleSessionExpired();
+    if (response.status === 401) handleSessionExpired(token);
     if (response.status === 204) return { success: true, data: null, status: response.status };
 
     const payload = await readPayload(response);

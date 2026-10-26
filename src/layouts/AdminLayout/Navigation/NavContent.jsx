@@ -51,7 +51,7 @@ export default function NavContent({ navigation }) {
   return (
     <>
       <div className="m-header">
-        <Link to={firstNavigationPath || '/Dashboards'} className="b-brand">
+        <Link to={firstNavigationPath || '/MyProfile'} className="b-brand">
           <span className="sidebar-brand-mark" aria-hidden="true">
             <Blocks size={23} strokeWidth={2.2} />
           </span>

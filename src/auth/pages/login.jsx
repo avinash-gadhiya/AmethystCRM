@@ -113,7 +113,7 @@ export default function SignIn() {
         const redirectPath =
           (requestedPath && permissionService.hasPath(requestedPath, navResult) && requestedPath) ||
           permissionService.getFirstAvailablePath(navResult) ||
-          '/Dashboards';
+          '/MyProfile';
 
         const authenticatedUser = authService.getUser();
         setPendingRedirectPath(redirectPath);

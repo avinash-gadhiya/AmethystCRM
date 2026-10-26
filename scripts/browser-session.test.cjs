@@ -32,6 +32,9 @@ function load(file, dependencies = {}, globals = {}) {
     module: { exports: {} },
     console: { ...console, error() {} },
     Event,
+    AbortController,
+    setTimeout,
+    clearTimeout,
     require: (name) => dependencies[name],
     ...globals
   };
@@ -211,10 +214,11 @@ const menus = (url = '/Orders') => [
     ]
   }
 ];
-function permissions(handler = async () => menus()) {
+function permissions(handler = async () => menus(), fetchOverride, globals = {}) {
   const local = new Storage();
   const state = { user: { roleId: 2, userId: 10, roleName: 'Agent', permissionCodes: ['View_Order'] }, token: 'test-session' };
   const window = new EventTarget();
+  let expired = 0;
   const service = load(
     'src/services/permissionService.js',
     {
@@ -223,20 +227,21 @@ function permissions(handler = async () => menus()) {
         AUTH_SESSION_CHANGED_EVENT: 'auth-session-changed',
         default: { getUser: () => state.user, getToken: () => state.token }
       },
-      './http': { handleSessionExpired() {} },
+      './http': { handleSessionExpired() { expired++; } },
       '@/lib/browserStorage': storageModule(local)
     },
     {
       localStorage: local,
       window,
-      fetch: async () => ({
+      fetch: fetchOverride || (async () => ({
         ok: true,
         status: 200,
         json: async () => ({ data: [{ roleId: state.user?.roleId || 2, permissionMenuDTOs: await handler() }] })
-      })
+      })),
+      ...globals
     }
   ).default;
-  return { service, local, state, window };
+  return { service, local, state, window, getExpiredCount: () => expired };
 }
 
 test('menus, navigation, and page actions work in memory without writing permission storage', async () => {
@@ -297,4 +302,235 @@ test('cache invalidation prevents an older response from replacing fresh permiss
   release(menus('/Old'));
   await old;
   assert.equal(service.getPermissionMenus()[0].menuPermissionPageDTOs[0].pageUrl, '/Fresh');
+});
+
+test('permission consumers reuse one session request, including empty permission results', async () => {
+  for (const tree of [menus(), []]) {
+    let calls = 0;
+    const { service } = permissions(async () => { calls++; return tree; });
+    await Promise.all([service.fetchPermissions(), service.getCrudPermissionsForPath('/Orders'), service.fetchPermissions()]);
+    await service.fetchPermissions();
+    await service.getGrantedPermissionCodesForPath('/Orders');
+    assert.equal(calls, 1);
+    assert.equal(service.hasLoadedPermissions(), true);
+  }
+});
+
+test('denied View hides menus while partially granted menus and their permitted pages remain visible', () => {
+  const { service, state } = permissions();
+  const partial = menus();
+  partial[0].hasPermission = false; // Aggregate checkbox: not every child is granted.
+  partial[0].menuPermissionPageDTOs[0].hasPermission = false;
+  assert.equal(service.hasPath('/Orders', service.transformMenuDTOsToNavItems(partial)), true);
+  partial[0].menuPermissionPageDTOs[0].menuPagePermissionDTOs[0].hasPermission = false;
+  state.user.permissionCodes = ['View_Order', 'Delete_Order'];
+  assert.equal(service.hasPath('/Orders', service.transformMenuDTOsToNavItems(partial)), false, 'explicit denial overrides login codes');
+  partial[0].menuPermissionPageDTOs[0].menuPagePermissionDTOs = [];
+  assert.equal(service.getFirstAvailablePath(service.transformMenuDTOsToNavItems(partial)), '', 'unassigned pages do not grant themselves access');
+});
+
+test('personal permissions use UserPermission and cannot inherit another user or role grants', async () => {
+  const calls = [];
+  const { service, state } = permissions(undefined, async (url) => {
+    calls.push(url);
+    return { ok: true, status: 200, json: async () => ({ data: [
+      { userId: 999, roleId: 2, permissionMenuDTOs: menus('/OtherUser') },
+      { userId: 10, roleId: 2, permissionMenuDTOs: menus('/Personal') }
+    ] }) };
+  });
+  state.user.isAssignPersonalPermission = true;
+  await service.fetchPermissions();
+  assert.match(calls[0], /\/UserPermission\?userId=10$/);
+  assert.equal(service.hasPath('/Personal'), true);
+  assert.equal(service.hasPath('/OtherUser'), false);
+  assert.equal(service.hasPath('/Orders'), false);
+});
+
+test('clearing a session immediately clears subscriber menus and direct tab URLs require grants', async () => {
+  const { service, window, state } = permissions();
+  await service.fetchPermissions();
+  let latest;
+  service.subscribe((navigation) => { latest = navigation; });
+  state.user = { ...state.user, userId: 11 };
+  window.dispatchEvent(new Event('auth-session-changed'));
+  assert.equal(service.getFirstAvailablePath(latest), '');
+  assert.equal(service.hasLoadedPermissions(), false);
+  assert.equal(service.hasPath('/settings/group-email'), false);
+  assert.equal(service.hasPath('/settings/brand-template'), false);
+  assert.equal(service.hasPath('/MyProfile'), true);
+});
+
+test('an old account 401 cannot expire the replacement account', async () => {
+  let release;
+  let calls = 0;
+  const { service, state, window, getExpiredCount } = permissions(undefined, async () => {
+    if (++calls === 1) return new Promise((resolve) => { release = resolve; });
+    return { ok: true, status: 200, json: async () => ({ data: [{ roleId: 2, permissionMenuDTOs: menus('/Current') }] }) };
+  });
+  const old = service.fetchPermissions();
+  await new Promise(setImmediate);
+  state.user = { ...state.user, userId: 11 };
+  state.token = 'replacement-session';
+  window.dispatchEvent(new Event('auth-session-changed'));
+  await service.fetchPermissions();
+  release({ ok: false, status: 401 });
+  await old;
+  assert.equal(getExpiredCount(), 0);
+  assert.equal(service.hasPath('/Current'), true);
+});
+
+test('permission failures remove previous grants, stop repeated reads, and recover with explicit retry', async () => {
+  let fail = false, calls = 0;
+  const { service } = permissions(async () => {
+    calls++;
+    if (fail) throw Error('Permission API unavailable');
+    return menus();
+  });
+  await service.fetchPermissions();
+  fail = true;
+  await service.fetchPermissions(undefined, { force: true });
+  assert.equal(service.hasPath('/Orders'), false);
+  assert.match(service.getPermissionError(), /Unable to load/);
+  await service.fetchPermissions();
+  assert.equal(calls, 2, 'failed permissions do not create an API request loop');
+  fail = false;
+  await service.fetchPermissions(undefined, { force: true });
+  assert.equal(service.getPermissionError(), '');
+  assert.equal(service.hasPath('/Orders'), true);
+});
+
+test('a stalled permission request is aborted and resolves to a retryable error', async () => {
+  let timeout;
+  const { service } = permissions(undefined, (_url, options) => new Promise((_resolve, reject) => {
+    options.signal.addEventListener('abort', () => reject(Object.assign(Error('Aborted'), { name: 'AbortError' })));
+  }), {
+    setTimeout: (callback, duration) => { assert.equal(duration, 15000); timeout = callback; return 1; },
+    clearTimeout() {}
+  });
+  const pending = service.fetchPermissions();
+  await new Promise(setImmediate);
+  timeout();
+  await pending;
+  assert.equal(service.hasLoadedPermissions(), true);
+  assert.match(service.getPermissionError(), /timed out/);
+  assert.equal(service.getFirstAvailablePath(), '');
+});
+
+function routeHarness(session) {
+  const React = require('react');
+  let cursor = 0, dirty = true, tree;
+  const slots = [], pending = [];
+  const location = { pathname: '/Orders' };
+  const same = (a, b) => a && b && a.length === b.length && a.every((v, i) => Object.is(v, b[i]));
+  const hooks = {
+    ...React,
+    useState(initial) {
+      const i = cursor++;
+      if (!slots[i]) slots[i] = { value: typeof initial === 'function' ? initial() : initial };
+      return [slots[i].value, (value) => {
+        const next = typeof value === 'function' ? value(slots[i].value) : value;
+        if (!Object.is(next, slots[i].value)) { slots[i].value = next; dirty = true; }
+      }];
+    },
+    useEffect(callback, deps) {
+      const i = cursor++;
+      if (!slots[i] || !same(slots[i].deps, deps)) {
+        const cleanup = slots[i]?.cleanup;
+        slots[i] = { deps };
+        pending.push(() => { cleanup?.(); slots[i].cleanup = callback(); });
+      }
+    },
+    useSyncExternalStore(subscribe, getSnapshot) {
+      hooks.useEffect(() => subscribe(() => { dirty = true; }), [subscribe]);
+      return getSnapshot();
+    }
+  };
+  const auth = { getUser: () => session.state.user, getToken: () => session.state.token,
+    isAuthenticated: () => Boolean(session.state.token), logout() { session.state.token = null; session.window.dispatchEvent(new Event('auth-session-changed')); } };
+  const useAuthSession = load('src/hooks/useAuthSession.js', {
+    react: hooks, '@/services/authService': { __esModule: true, default: auth, AUTH_SESSION_CHANGED_EVENT: 'auth-session-changed' }
+  }, { window: session.window }).default;
+  const Navigate = () => null, Outlet = () => null, Loader = () => null;
+  const routes = load('src/auth/ProtectedRoute.jsx', {
+    react: hooks,
+    'react-router-dom': { Navigate, Outlet, Link: () => null, useLocation: () => location },
+    'services/authService': { __esModule: true, default: auth },
+    'services/permissionService': { __esModule: true, default: session.service },
+    'components/loaders/Loader': { __esModule: true, default: Loader },
+    '@/hooks/useAuthSession': { __esModule: true, default: useAuthSession }
+  }, { window: session.window, React: hooks });
+  const render = () => { cursor = 0; dirty = false; tree = routes.ProtectedRoute(); return tree; };
+  return {
+    Navigate, Outlet, Loader, location, render,
+    cleanup: () => slots.forEach((slot) => slot?.cleanup?.()),
+    async settle() {
+      for (let i = 0; i < 20; i++) {
+        if (dirty) render();
+        pending.splice(0).forEach((callback) => callback());
+        await new Promise(setImmediate);
+        if (!dirty && !pending.length) return tree;
+      }
+      throw Error('Route did not settle');
+    }
+  };
+}
+
+test('route navigation uses cached grants without a page-wide reload, and denied URLs redirect', async (t) => {
+  let calls = 0;
+  const session = permissions(async () => { calls++; return menus(); });
+  const view = routeHarness(session);
+  t.after(view.cleanup);
+  assert.equal(view.render().type, view.Loader);
+  assert.equal((await view.settle()).type, view.Outlet);
+  view.location.pathname = '/Settings/Users';
+  const redirected = view.render();
+  assert.equal(redirected.type, view.Navigate);
+  assert.equal(redirected.props.to, '/Orders');
+  view.location.pathname = '/Orders';
+  assert.equal(view.render().type, view.Outlet);
+  await view.settle();
+  assert.equal(calls, 1);
+});
+
+test('same-tab user switch immediately hides the old page and an account with no grants reaches Profile', async (t) => {
+  let calls = 0;
+  const session = permissions(async () => ++calls === 1 ? menus() : []);
+  const view = routeHarness(session);
+  t.after(view.cleanup);
+  const first = await view.settle();
+  assert.equal(first.type, view.Outlet);
+  session.state.user = { ...session.state.user, userId: 11, permissionCodes: [] };
+  session.state.token = 'restricted-session';
+  session.window.dispatchEvent(new Event('auth-session-changed'));
+  assert.equal(view.render().type, view.Loader);
+  const redirected = await view.settle();
+  assert.equal(redirected.type, view.Navigate);
+  assert.equal(redirected.props.to, '/MyProfile');
+  view.location.pathname = '/MyProfile';
+  const profile = view.render();
+  assert.equal(profile.type, view.Outlet);
+  assert.notEqual(profile.key, first.key, 'account switching remounts page state and memoized permission checks');
+  await view.settle();
+  assert.equal(calls, 2);
+});
+
+test('cross-tab user changes reload only the new permissions and logout removes the protected layout', async (t) => {
+  let calls = 0;
+  const session = permissions(async () => ++calls === 1 ? menus() : []);
+  const view = routeHarness(session);
+  t.after(view.cleanup);
+  await view.settle();
+  session.state.user = { ...session.state.user, userId: 12, permissionCodes: [] };
+  session.state.token = 'other-tab-session';
+  const event = new Event('storage');
+  Object.defineProperty(event, 'key', { value: 'user' });
+  session.window.dispatchEvent(event);
+  assert.equal(view.render().type, view.Loader);
+  assert.equal((await view.settle()).props.to, '/MyProfile');
+  assert.equal(calls, 2);
+  session.state.token = null;
+  session.window.dispatchEvent(new Event('auth-session-changed'));
+  const logout = view.render();
+  assert.equal(logout.type, view.Navigate);
+  assert.equal(logout.props.to, '/login');
 });

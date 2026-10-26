@@ -23,7 +23,8 @@ export const redirectToLogin = () => {
 
 // Global 401 session expiration handling, shared by axios and fetch-based clients
 let isRedirecting401 = false;
-export const handleSessionExpired = () => {
+export const handleSessionExpired = (requestToken) => {
+  if (requestToken !== undefined && requestToken !== authService.getToken()) return;
   if (isRedirecting401) return;
   isRedirecting401 = true;
   try {
@@ -33,7 +34,8 @@ export const handleSessionExpired = () => {
   }
   authService.logout();
   setTimeout(() => {
-    redirectToLogin();
+    // A different account may have signed in while the expiry toast was shown.
+    if (!authService.getToken()) redirectToLogin();
     isRedirecting401 = false;
   }, 1000);
 };
@@ -41,7 +43,12 @@ export const handleSessionExpired = () => {
 axios.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error?.response?.status === 401) handleSessionExpired();
+    if (error?.response?.status === 401) {
+      const headers = error?.config?.headers || error?.response?.config?.headers;
+      const authorization = headers?.get?.('Authorization') ?? headers?.Authorization ?? headers?.authorization;
+      const match = typeof authorization === 'string' && authorization.match(/^Bearer\s+(.+)$/i);
+      if (match) handleSessionExpired(match[1]);
+    }
     return Promise.reject(error);
   }
 );

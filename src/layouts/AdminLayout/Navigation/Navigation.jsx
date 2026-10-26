@@ -21,8 +21,8 @@ export default function Navigation() {
   useEffect(() => {
     let active = true;
 
-    const refreshNavigation = ({ force = false } = {}) =>
-      permissionService.fetchPermissions(undefined, { force }).then((res) => {
+    const refreshNavigation = () =>
+      permissionService.fetchPermissions().then((res) => {
         if (!active) return;
         if (res && Array.isArray(res.items) && res.items.length > 0) {
           setNavItems(res.items);
@@ -41,14 +41,12 @@ export default function Navigation() {
       }
     });
 
-    // Page/PagePermission mutations clear the cache and emit this event.
-    const handleRoutesInvalidated = () => refreshNavigation({ force: true });
-    window.addEventListener('app:routes-invalidated', handleRoutesInvalidated);
+    // ProtectedRoute owns permission refreshes. This layout consumes the same
+    // session cache and updates without forcing another network request.
 
     return () => {
       active = false;
       unsubscribe();
-      window.removeEventListener('app:routes-invalidated', handleRoutesInvalidated);
     };
   }, []);
 

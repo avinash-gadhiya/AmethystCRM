@@ -63,6 +63,7 @@ const MENU_ICON_MAP = {
 const listeners = new Set();
 const requests = new Map();
 const permissionMenus = new Map();
+const permissionErrors = new Map();
 let permissionSession = '';
 let cacheGeneration = 0;
 
@@ -137,9 +138,10 @@ const getPermissionRows = (page) => {
 
 const canDisplayPage = (page, grantedCodes) => {
   if (!page || normalizeBoolean(page.isActive) === false || !normalizeRoute(page.pageUrl)) return false;
+  const pageGrant = normalizeBoolean(page.hasPermission ?? page.isGranted);
 
   const permissionRows = getPermissionRows(page).filter(Boolean);
-  if (permissionRows.length === 0) return true;
+  if (permissionRows.length === 0) return pageGrant === true;
 
   const isViewPermission = (permission) => {
     const name = String(permission.permissionName ?? '')
@@ -597,7 +599,7 @@ const moveGatewayPageToSettings = (menus = []) => {
   return clonedMenus;
 };
 
-const extractMenuDTOs = (payload, roleId) => {
+const extractMenuDTOs = (payload, roleId, userId) => {
   let data = payload;
   for (let depth = 0; depth < 3 && data && !Array.isArray(data) && !data.permissionMenuDTOs; depth += 1) {
     data = data.data;
@@ -607,10 +609,12 @@ const extractMenuDTOs = (payload, roleId) => {
   const matchingNodes = roleNodes.filter((node) => {
     if (!node || !Array.isArray(node.permissionMenuDTOs)) return false;
     const nodeRoleId = Number(node.roleId);
-    return !nodeRoleId || !roleId || nodeRoleId === Number(roleId);
+    const nodeUserId = Number(node.userId);
+    return (!nodeRoleId || !roleId || nodeRoleId === Number(roleId)) && (!userId || !nodeUserId || nodeUserId === Number(userId));
   });
 
-  return matchingNodes.flatMap((node) => node.permissionMenuDTOs);
+  if (matchingNodes.length) return matchingNodes.flatMap((node) => node.permissionMenuDTOs);
+  return roleNodes.filter((node) => Array.isArray(node?.menuPermissionPageDTOs));
 };
 
 const getIdentity = (targetRoleId) => {
@@ -624,12 +628,14 @@ const getCacheKey = ({ roleId, userId }) => `${roleId}:${userId}`;
 
 const ensurePermissionSession = () => {
   const identity = getIdentity();
-  const next = `${identity.roleId}:${identity.userId}:${authService.getToken() || ''}`;
+  const user = authService.getUser();
+  const next = JSON.stringify([identity.roleId, identity.userId, authService.getToken(), user?.permissionCodes, user?.isAssignPersonalPermission]);
   if (next !== permissionSession) {
     permissionSession = next;
     cacheGeneration += 1;
     requests.clear();
     permissionMenus.clear();
+    permissionErrors.clear();
   }
 };
 
@@ -813,6 +819,16 @@ export const permissionService = {
     return permissionMenus.get(getCacheKey(getIdentity(targetRoleId))) || [];
   },
 
+  hasLoadedPermissions(targetRoleId) {
+    ensurePermissionSession();
+    return Boolean(authService.getToken()) && permissionMenus.has(getCacheKey(getIdentity(targetRoleId)));
+  },
+
+  getPermissionError(targetRoleId) {
+    ensurePermissionSession();
+    return permissionErrors.get(getCacheKey(getIdentity(targetRoleId))) || '';
+  },
+
   async fetchPermissions(targetRoleId, { force = false } = {}) {
     ensurePermissionSession();
     const identity = getIdentity(targetRoleId);
@@ -820,21 +836,37 @@ export const permissionService = {
     if (!identity.roleId || !token) return this.getNavigation(targetRoleId);
     const requestKey = getCacheKey(identity);
     if (!force && requests.has(requestKey)) return requests.get(requestKey);
+    if (!force && permissionMenus.has(requestKey)) return this.getNavigation(targetRoleId);
     const generation = cacheGeneration;
+    const user = authService.getUser();
+    const personalPermissions = normalizeBoolean(user?.isAssignPersonalPermission) === true &&
+      (!targetRoleId || Number(targetRoleId) === Number(user?.roleId));
+    const endpoint = personalPermissions
+      ? '/UserPermission?userId=' + encodeURIComponent(identity.userId)
+      : '/Permission?roleId=' + encodeURIComponent(identity.roleId);
     const request = Promise.resolve().then(async () => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 15000);
+      const isCurrent = () => {
+        ensurePermissionSession();
+        return generation === cacheGeneration && requests.get(requestKey) === request;
+      };
       try {
-        const response = await fetch(API_BASE_URL + '/Permission?roleId=' + encodeURIComponent(identity.roleId), {
+        const response = await fetch(API_BASE_URL + endpoint, {
           method: 'GET',
-          headers: { Accept: 'application/json', Authorization: 'Bearer ' + token }
+          headers: { Accept: 'application/json', Authorization: 'Bearer ' + token },
+          signal: controller.signal
         });
-        if (response.status === 401) handleSessionExpired();
+        if (!isCurrent()) return this.getNavigation();
+        if (response.status === 401) handleSessionExpired(token);
         if (!response.ok) throw new Error('Permission request failed with status ' + response.status);
         const payload = await response.json();
         if (payload?.success === false) throw new Error(payload.message || 'Permission request was rejected');
         ensurePermissionSession();
         if (generation !== cacheGeneration || requests.get(requestKey) !== request) return this.getNavigation();
-        const menus = extractMenuDTOs(payload, identity.roleId);
+        const menus = extractMenuDTOs(payload, identity.roleId, personalPermissions ? identity.userId : undefined);
         permissionMenus.set(requestKey, menus);
+        permissionErrors.delete(requestKey);
         const navigation = this.transformMenuDTOsToNavItems(menus);
         this.notify(navigation);
         return navigation;
@@ -842,10 +874,13 @@ export const permissionService = {
         ensurePermissionSession();
         if (generation !== cacheGeneration || requests.get(requestKey) !== request) return this.getNavigation();
         console.error('Unable to load sidebar permissions:', error);
+        permissionMenus.set(requestKey, []);
+        permissionErrors.set(requestKey, controller.signal.aborted ? 'Permission loading timed out. Please retry.' : 'Unable to load your permissions. Please retry.');
         const navigation = this.getNavigation(targetRoleId);
         this.notify(navigation);
         return navigation;
       } finally {
+        clearTimeout(timer);
         if (requests.get(requestKey) === request) requests.delete(requestKey);
       }
     });
@@ -862,19 +897,18 @@ export const permissionService = {
   },
 
   hasPath(path, navigation = this.getNavigation()) {
-    const normalized = normalizeRoute(path).toLowerCase();
-    if (
-      normalized === '/myprofile' ||
-      normalized === '/profile' ||
-      normalized === '/settings/brand-template' ||
-      normalized === '/settings/group-email' ||
-      normalized === '/settings/groupemail' ||
-      normalized.includes('brandtemplate') ||
-      normalized.includes('groupemail')
-    ) {
-      return true;
-    }
-    return containsUrl(navigation?.items || [], path);
+    const normalized = normalizeRoute(path).toLowerCase().replace(/\/+$/, '');
+    if (normalized === '/myprofile' || normalized === '/profile') return true;
+    if (containsUrl(navigation?.items || [], normalized)) return true;
+    // Tab pages may be hidden from the sidebar, but still require their own
+    // backend permission record when opened directly.
+    const granted = getStoredPermissionCodes();
+    return this.getPermissionMenus().some((menu) =>
+      menu && normalizeBoolean(menu.isActive) !== false &&
+      (Array.isArray(menu.menuPermissionPageDTOs) ? menu.menuPermissionPageDTOs : []).some((page) =>
+        page && normalizeRoute(page.pageUrl).toLowerCase().replace(/\/+$/, '') === normalized && canDisplayPage(page, granted)
+      )
+    );
   },
 
   getPageActionPermissions(pathOrAliases, targetRoleId) {
@@ -900,7 +934,7 @@ export const permissionService = {
         return clean.length > 3 && clean.endsWith('s') ? clean.slice(0, -1) : clean;
       };
       const requestedKeys = new Set(requestedValues.map(pageKey).filter(Boolean));
-      const pages = (Array.isArray(menus) ? menus : []).flatMap((menu) =>
+      const pages = (Array.isArray(menus) ? menus : []).filter((menu) => normalizeBoolean(menu.isActive) !== false).flatMap((menu) =>
         Array.isArray(menu?.menuPermissionPageDTOs) ? menu.menuPermissionPageDTOs : []
       );
       const page =
@@ -917,7 +951,7 @@ export const permissionService = {
         permissions.some((permission) => classifyPermissionAction(permission) === action && isPermissionGranted(permission, grantedCodes));
 
       return {
-        canView: hasAction('view'),
+        canView: canDisplayPage(page, grantedCodes),
         canAdd: hasAction('add'),
         canUpdate: hasAction('update'),
         canDelete: hasAction('delete')
@@ -933,7 +967,7 @@ export const permissionService = {
       .trim()
       .toLowerCase()
       .replace(/[^a-z]/g, '');
-    if (['superadmin', 'admin', 'developer'].includes(roleName)) {
+    if (['superadmin', 'admin', 'developer'].includes(roleName) && normalizeBoolean(authService.getUser()?.isAssignPersonalPermission) !== true) {
       return { canView: true, canAdd: true, canUpdate: true, canDelete: true };
     }
     return this.getPageActionPermissions(path, targetRoleId);
@@ -957,7 +991,7 @@ export const permissionService = {
         .trim()
         .toLowerCase()
         .replace(/[^a-z]/g, '');
-      const systemRole = ['superadmin', 'admin', 'developer'].includes(roleName);
+      const systemRole = ['superadmin', 'admin', 'developer'].includes(roleName) && normalizeBoolean(authService.getUser()?.isAssignPersonalPermission) !== true;
       return new Set(
         getPermissionRows(page)
           .filter((permission) => normalizeBoolean(permission.isActive) !== false)
@@ -992,7 +1026,9 @@ export const permissionService = {
     cacheGeneration += 1;
     requests.clear();
     permissionMenus.clear();
+    permissionErrors.clear();
     clearStoredPermissionMenus();
+    this.notify(createNavigation());
   },
 
   subscribe(callback) {
