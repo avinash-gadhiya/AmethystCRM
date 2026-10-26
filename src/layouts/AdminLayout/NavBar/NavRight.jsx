@@ -80,17 +80,12 @@ export default function NavRight() {
     if (!canViewNotifications) return undefined;
 
     const refreshNotifications = () => setNotifications(activityNotificationService.getActivities());
-    const handleStorage = (event) => {
-      if (event.key === activityNotificationService.storageKey) refreshNotifications();
-    };
     const clockTimer = window.setInterval(() => setClock(Date.now()), 60_000);
 
     window.addEventListener(ACTIVITY_NOTIFICATIONS_CHANGED_EVENT, refreshNotifications);
-    window.addEventListener('storage', handleStorage);
     return () => {
       window.clearInterval(clockTimer);
       window.removeEventListener(ACTIVITY_NOTIFICATIONS_CHANGED_EVENT, refreshNotifications);
-      window.removeEventListener('storage', handleStorage);
     };
   }, [canViewNotifications]);
 

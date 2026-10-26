@@ -11,6 +11,14 @@ const toBoolean = (value, fallback = true) => {
   return Boolean(value);
 };
 
+const normalizeFields = (value) => {
+  if (Array.isArray(value)) return value.map(normalizeFields);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [key.charAt(0).toLowerCase() + key.slice(1), normalizeFields(item)])
+  );
+};
+
 export const clearGroupEmailCache = () => {
   cacheGeneration += 1;
   emailCache.clear();
@@ -18,13 +26,12 @@ export const clearGroupEmailCache = () => {
 };
 
 const unwrapList = (payload) => {
+  payload = normalizeFields(payload);
   if (!payload) return { list: [], container: {} };
   if (Array.isArray(payload)) return { list: payload, container: {} };
-  if (Array.isArray(payload?.data)) return { list: payload.data, container: payload };
-  if (Array.isArray(payload?.data?.data)) {
-    return { list: payload.data.data, container: payload.data };
-  }
-  return { list: [], container: payload?.data || payload || {} };
+  const container = payload.data && !Array.isArray(payload.data) ? payload.data : payload;
+  const list = [container.data, container.items, container.list, container.rows, container.records].find(Array.isArray);
+  return { list: list || [], container: { ...payload, ...container } };
 };
 
 const normalizeGroupEmailList = (payload) => {
@@ -53,7 +60,7 @@ const groupEmailPayload = (item, isCreate = false) => ({
   location: String(item.location || '').trim(),
   groupId: Number(item.groupId || 0),
   groupName: String(item.groupName || '').trim(),
-  isActive: item.isActive !== false
+  isActive: toBoolean(item.isActive)
 });
 
 export const groupEmailService = {
@@ -75,7 +82,7 @@ export const groupEmailService = {
       return emailCache.get(cacheKey);
     }
 
-    const requestKey = `${cacheGeneration}:${cacheKey}`;
+    const requestKey = `${cacheGeneration}:${forceFresh ? 'fresh:' : ''}${cacheKey}`;
     if (inFlightRequests.has(requestKey)) {
       return inFlightRequests.get(requestKey);
     }
@@ -130,9 +137,7 @@ export const groupEmailService = {
   },
 
   /**
-   * Delete a Group Email with fallback support
-   * Preferred: DELETE /GroupEmail/{groupEmailId}
-   * Fallback: DELETE /GroupEmail?id={groupEmailId}
+   * DELETE /GroupEmail?id={groupEmailId}
    */
   async deleteGroupEmail(groupEmailId) {
     const id = Number(groupEmailId);
@@ -140,13 +145,7 @@ export const groupEmailService = {
       throw new Error('A valid group email ID is required.');
     }
 
-    let response;
-    try {
-      response = await apiClient.delete(`/GroupEmail/${encodeURIComponent(id)}`);
-    } catch (error) {
-      if (![400, 404, 405].includes(error?.status)) throw error;
-      response = await apiClient.delete('/GroupEmail', { id });
-    }
+    const response = await apiClient.delete('/GroupEmail', { id });
 
     clearGroupEmailCache();
     return response?.data || response;
@@ -154,38 +153,45 @@ export const groupEmailService = {
 
   /**
    * Load Group options for dropdown
-   * GET /Group?Text=&PageNumber=1&PageSize=1000
+   * GET /Group/GroupDropdown
    */
-  async getGroupDropdownOptions(_signal, forceFresh = false) {
+  async getGroupDropdownOptions(signal, forceFresh = false) {
     const cacheKey = 'groupDropdownOptions';
     if (!forceFresh && dropdownCache.has(cacheKey)) {
       return dropdownCache.get(cacheKey);
     }
 
+    const requestGeneration = cacheGeneration;
+    let response;
     try {
-      const response = await apiClient.get('/Group', {
-        Text: '',
-        PageNumber: 1,
-        PageSize: 1000,
-        SortProperty: 'groupName',
-        IsDescending: false
-      });
-
-      const { list } = unwrapList(response);
-      const options = list
-        .map((g) => ({
-          id: Number(g?.groupId ?? g?.id ?? 0),
-          name: String(g?.groupName ?? g?.name ?? '').trim(),
-          isActive: g?.isActive !== undefined ? toBoolean(g?.isActive) : true
-        }))
-        .filter((g) => g.id > 0 && g.name);
-
-      dropdownCache.set(cacheKey, options);
-      return options;
+      response = await apiClient.get('/Group/GroupDropdown', {}, signal);
     } catch (error) {
-      console.warn('Failed to load group dropdown options:', error);
-      return [];
+      // Older API versions may only expose the paginated Group endpoint.
+      if (![404, 405].includes(error?.status)) throw error;
+      response = await apiClient.get(
+        '/Group',
+        {
+          Text: '',
+          PageNumber: 1,
+          PageSize: 1000,
+          SortProperty: 'groupName',
+          IsDescending: false
+        },
+        signal
+      );
     }
+
+    const { list } = unwrapList(response);
+    const options = list
+      .map((g) => ({
+        id: Number(g?.groupId ?? g?.id ?? 0),
+        name: String(g?.groupName ?? g?.name ?? '').trim(),
+        isActive: g?.isActive !== undefined ? toBoolean(g?.isActive) : true
+      }))
+      .filter((g) => g.id > 0 && g.name);
+
+    if (requestGeneration === cacheGeneration) dropdownCache.set(cacheKey, options);
+    return options;
   },
 
   clearCache: clearGroupEmailCache

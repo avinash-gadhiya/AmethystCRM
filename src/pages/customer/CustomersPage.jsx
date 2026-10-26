@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Col, Form, Modal, Row } from 'components/ui/Bootstrap';
+import { Modal } from 'components/ui/Bootstrap';
+import CustomerFormModal from '@/components/customer/CustomerFormModal';
 import { CalendarDays, Database, History, Mail, MapPin, Phone, Plus, UserRound, UsersRound } from 'lucide-react';
 
 import authService from 'services/authService';
@@ -42,19 +43,6 @@ const EMPTY_FORM = {
   salesPersonName: ''
 };
 
-const FORM_FIELDS = [
-  { field: 'name', label: 'Name *', md: 6 },
-  { field: 'email', label: 'Email *', md: 6, type: 'email' },
-  { field: 'phone', label: 'Phone *', md: 4 },
-  { field: 'phone2', label: 'Phone 2', md: 4 },
-  { field: 'leadId', label: 'Lead ID *', md: 4, type: 'number' },
-  { field: 'salesPerson', label: 'Sales Person ID *', md: 4, type: 'number' },
-  { field: 'countryId', label: 'Country ID *', md: 4, type: 'number' },
-  { field: 'stateId', label: 'State ID *', md: 4, type: 'number' },
-  { field: 'city', label: 'City *', md: 5 },
-  { field: 'zipCode', label: 'Zip Code', md: 3 }
-];
-
 const formatDateTime = (value) => {
   if (!value) return '-';
   const date = new Date(value);
@@ -89,8 +77,6 @@ export default function CustomersPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [showEditor, setShowEditor] = useState(false);
   const [formData, setFormData] = useState(EMPTY_FORM);
-  const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState('');
   const [showDetails, setShowDetails] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
@@ -120,15 +106,16 @@ export default function CustomersPage() {
           },
           signal
         );
+        if (signal?.aborted) return;
         setCustomers(response.data);
         setTotalCount(response.totalCount);
       } catch (requestError) {
-        if (requestError.name === 'AbortError') return;
+        if (requestError.name === 'AbortError' || signal?.aborted) return;
         setCustomers([]);
         setTotalCount(0);
         setError(requestError.message || 'Unable to load customers.');
       } finally {
-        if (!signal.aborted) setLoading(false);
+        if (!signal?.aborted) setLoading(false);
       }
     },
     [fromDate, page, pageSize, searchField, searchText, toDate]
@@ -154,14 +141,12 @@ export default function CustomersPage() {
   const openCreate = () => {
     if (!permissions.canAdd) return;
     setFormData({ ...EMPTY_FORM, createdBy: authService.getUser()?.userId || 0, createdDate: new Date().toISOString() });
-    setFormError('');
     setShowEditor(true);
   };
 
   const openEdit = (customer) => {
     if (!permissions.canUpdate) return;
     setFormData({ ...EMPTY_FORM, ...customer, updatedBy: authService.getUser()?.userId || 0, updatedDate: new Date().toISOString() });
-    setFormError('');
     setShowEditor(true);
   };
 
@@ -190,48 +175,6 @@ export default function CustomersPage() {
       setViewRows([]);
     } finally {
       setViewsLoading(false);
-    }
-  };
-
-  const updateForm = (field, value) => setFormData((current) => ({ ...current, [field]: value }));
-
-  const saveCustomer = async (event) => {
-    event.preventDefault();
-    if (Number(formData.customerId) > 0 ? !permissions.canUpdate : !permissions.canAdd) return;
-    setFormError('');
-    const requiredIds = [formData.leadId, formData.salesPerson, formData.countryId, formData.stateId];
-    if (!formData.name.trim() || !formData.email.trim() || !formData.phone.trim() || !formData.city.trim()) {
-      setFormError('Name, email, phone and city are required.');
-      return;
-    }
-    if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
-      setFormError('Enter a valid email address.');
-      return;
-    }
-    if (requiredIds.some((value) => Number(value) <= 0)) {
-      setFormError('Lead, sales person, country and state IDs are required.');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const payload = {
-        ...formData,
-        leadId: Number(formData.leadId),
-        salesPerson: Number(formData.salesPerson),
-        countryId: Number(formData.countryId),
-        stateId: Number(formData.stateId),
-        phone: formData.phone.replace(/\D/g, ''),
-        phone2: formData.phone2.replace(/\D/g, '')
-      };
-      if (Number(formData.customerId) > 0) await customerService.updateCustomer(payload);
-      else await customerService.createCustomer(payload);
-      setShowEditor(false);
-      setRefreshKey((value) => value + 1);
-    } catch (requestError) {
-      setFormError(requestError.message || 'Unable to save customer.');
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -404,7 +347,7 @@ export default function CustomersPage() {
           )}
           {permissions.canAdd && (
             <LiquidGlassButton onClick={openCreate}>
-              <Plus size={16} /> New Customer
+              <Plus size={16} /> Add Customer
             </LiquidGlassButton>
           )}
         </div>
@@ -471,49 +414,24 @@ export default function CustomersPage() {
         </div>
       </TableCard>
 
-      <Modal show={showEditor} onHide={() => !saving && setShowEditor(false)} size="lg">
-        <form onSubmit={saveCustomer}>
-          <Modal.Header closeButton icon={UserRound} description="Provide customer details below.">
-            <Modal.Title>{formData.customerId ? `Edit Customer #${formData.customerId}` : 'Create Customer'}</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            {formError && (
-              <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700">{formError}</div>
-            )}
-            <Row className="g-3">
-              {FORM_FIELDS.map(({ field, label, md, type = 'text' }) => (
-                <Col md={md} key={field}>
-                  <Form.Label>{label}</Form.Label>
-                  <Form.Control
-                    type={type}
-                    min={type === 'number' ? '1' : undefined}
-                    value={formData[field]}
-                    onChange={(event) => updateForm(field, type === 'number' ? Number(event.target.value) : event.target.value)}
-                  />
-                </Col>
-              ))}
-              <Col md={4}>
-                <div className="mt-4 flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <IosToggle checked={formData.isActive !== false} onCheckedChange={(next) => updateForm('isActive', next)} title="Active Customer" />
-                  Active Customer
-                </div>
-              </Col>
-              <Col xs={12}>
-                <Form.Label>Address</Form.Label>
-                <Form.Control as="textarea" rows={3} value={formData.address} onChange={(event) => updateForm('address', event.target.value)} />
-              </Col>
-            </Row>
-          </Modal.Body>
-          <Modal.Footer>
-            <LiquidGlassButton variant="secondary" onClick={() => setShowEditor(false)} disabled={saving}>
-              Cancel
-            </LiquidGlassButton>
-            <LiquidGlassButton type="submit" loading={saving}>
-              {saving ? 'Saving...' : 'Save Customer'}
-            </LiquidGlassButton>
-          </Modal.Footer>
-        </form>
-      </Modal>
+      <CustomerFormModal
+        open={showEditor}
+        onOpenChange={setShowEditor}
+        mode={Number(formData.customerId) > 0 ? 'edit' : 'add'}
+        initialValues={formData}
+        canAdd={permissions.canAdd}
+        canUpdate={permissions.canUpdate}
+        onSaved={() => {
+          if (!Number(formData.customerId)) {
+            setSearchInput('');
+            setSearchText('');
+            setFromDate('');
+            setToDate('');
+            setPage(1);
+          }
+          setRefreshKey((value) => value + 1);
+        }}
+      />
 
       <Modal show={showDetails} onHide={() => setShowDetails(false)} size="xl">
         <Modal.Header

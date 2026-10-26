@@ -1,20 +1,27 @@
 import apiClient from './core/apiClient';
+import { getCurrentLoginIpv4 } from './clientIpService';
+import authService from './authService';
+import { buildCustomerPayload } from '@/lib/customerPayload';
 
-const getViewIp = () => {
-  try {
-    return (
-      localStorage.getItem('clientIp') ||
-      localStorage.getItem('client_ip') ||
-      localStorage.getItem('loginIp') ||
-      window.location.hostname ||
-      '127.0.0.1'
-    );
-  } catch {
-    return '127.0.0.1';
-  }
+const normalizeFields = (value) => {
+  if (Array.isArray(value)) return value.map(normalizeFields);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [key.charAt(0).toLowerCase() + key.slice(1), normalizeFields(item)])
+  );
+};
+
+const unwrapCustomer = (payload, fallback, requestedId = Number(fallback?.customerId) || 0) => {
+  let value = normalizeFields(payload);
+  while (value && typeof value === 'object' && !Array.isArray(value) && value.data !== undefined) value = value.data;
+  if (Array.isArray(value)) value = requestedId ? value.find((item) => Number(item.customerId) === requestedId) : value[0];
+  if (value && typeof value === 'object' && Number(value.customerId) > 0) return { ...fallback, ...value };
+  if ((typeof value === 'number' || typeof value === 'string') && Number(value) > 0) return { ...fallback, customerId: Number(value) };
+  return fallback || null;
 };
 
 const normalizeList = (payload) => {
+  payload = normalizeFields(payload);
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.data)) return payload.data;
   if (Array.isArray(payload?.items)) return payload.items;
@@ -42,7 +49,10 @@ export const customerService = {
 
     return {
       data: normalizeList(payload),
-      totalCount: Number(payload?.totalCount ?? payload?.data?.totalCount ?? payload?.totalRecords) || 0
+      totalCount:
+        Number(
+          payload?.totalCount ?? payload?.data?.totalCount ?? payload?.totalRecords ?? payload?.TotalCount ?? normalizeList(payload).length
+        ) || 0
     };
   },
 
@@ -69,13 +79,12 @@ export const customerService = {
 
   async getCustomerById(customerId, signal) {
     if (!customerId) throw new Error('Customer ID is required.');
+    const ip = await getCurrentLoginIpv4();
     const payload = await apiClient.request(`/Customer/${customerId}`, {
-      params: { ip: getViewIp(), customerViewIp: getViewIp() },
+      params: { ip, customerViewIp: ip },
       signal
     });
-    const data = payload?.data;
-    if (Array.isArray(data)) return data.find((customer) => Number(customer.customerId) === Number(customerId)) || null;
-    return data || null;
+    return unwrapCustomer(payload, null, Number(customerId));
   },
 
   async getCustomerViews(params = {}, signal) {
@@ -96,13 +105,15 @@ export const customerService = {
   },
 
   async createCustomer(customer) {
-    const payload = await apiClient.request('/Customer', { method: 'POST', data: customer });
-    return payload?.data || null;
+    const data = buildCustomerPayload(customer, { isCreate: true, user: authService.getUser() || {} });
+    const payload = await apiClient.post('/Customer', data);
+    return unwrapCustomer(payload, data);
   },
 
   async updateCustomer(customer) {
-    const payload = await apiClient.request('/Customer', { method: 'PUT', data: customer });
-    return payload?.data || null;
+    const data = buildCustomerPayload(customer, { user: authService.getUser() || {} });
+    const payload = await apiClient.put('/Customer', data);
+    return unwrapCustomer(payload, data);
   },
 
   async toggleCustomerStatus(customerId) {

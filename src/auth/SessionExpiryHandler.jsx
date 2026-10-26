@@ -5,7 +5,7 @@ import authService, { AUTH_SESSION_CHANGED_EVENT } from 'services/authService';
 import { redirectToLogin } from 'services/http';
 
 const MAX_TIMEOUT_DELAY = 2_147_483_647;
-const AUTH_STORAGE_KEYS = new Set(['token', 'userToken', 'api_token', 'accessToken', 'authToken', 'user']);
+const AUTH_STORAGE_KEYS = new Set(['token', 'user']);
 
 export default function SessionExpiryHandler() {
   useEffect(() => {
@@ -46,6 +46,7 @@ export default function SessionExpiryHandler() {
 
     const handleStorageChange = (event) => {
       if (event.key && !AUTH_STORAGE_KEYS.has(event.key)) return;
+      authService.setupAxios();
 
       if (!authService.getToken()) {
         redirectToLogin();

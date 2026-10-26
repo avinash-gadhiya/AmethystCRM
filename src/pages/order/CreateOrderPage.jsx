@@ -17,11 +17,12 @@ import { productService, paymentService, orderService, orderLookupService, custo
 import { getCurrentLoginIpv4 } from '@/services/clientIpService';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/apiError';
+import { changePaymentMethod } from '@/lib/paymentMethod';
+import { normalizeOrderForEditor, buildOrderUpdatePayload } from '@/lib/orderEditor';
 import { usePageCrudPermissions } from '@/hooks/usePageCrudPermissions';
 import { usePagePermissionCodes } from '@/hooks/usePagePermissionCodes';
 import permissionService from '@/services/permissionService';
 import { resolveDynamicPaths } from '@/lib/dynamicPaths';
-import dashboardKitLogo from '@/assets/images/logo-dark.svg';
 
 // Marks a field that `validateBeforeSave` actually rejects when empty. Kept to
 // exactly those fields so the asterisk stays a promise rather than decoration -
@@ -127,8 +128,13 @@ const CreateOrderPage = () => {
   const leadIdFromState = Number(location.state?.leadId || 0);
   const initialLeadId = leadIdFromState || numericLeadId || Number(orderDataFromState?.leadId || 0);
   const paymentIdForEdit = numericId || paymentFromState?.paymentId || 0;
+  const isOrderEditMode = searchParams.get('mode') === 'edit' || !!location.state?.editOrderMode;
+  const orderIdForEdit = isOrderEditMode ? (numericOrderId || Number(orderDataFromState?.orderId) || 0) : 0;
   const isEditMode = !!(location.state?.isEditMode || paymentIdForEdit);
-  const isAddPaymentMode = !isEditMode && (!!location.state?.addPaymentMode || (!!numericOrderId && !Number.isNaN(numericOrderId)));
+  const isAddPaymentMode = !isOrderEditMode && !isEditMode && (!!location.state?.addPaymentMode || (!!numericOrderId && !Number.isNaN(numericOrderId)));
+  const [editingOrder, setEditingOrder] = useState(null);
+  const [loadingOrder, setLoadingOrder] = useState(isOrderEditMode);
+  const [orderLoadError, setOrderLoadError] = useState('');
   const [paths, setPaths] = useState({
     orders: '/Orders',
     products: '/Orders/Products',
@@ -251,12 +257,14 @@ const CreateOrderPage = () => {
   const [discountCode, setDiscountCode] = useState('');
   // Starts empty (not 0) so the required field doesn't look pre-filled.
   const [subscriptionMonths, setSubscriptionMonths] = useState('');
+  const [originalSubscriptionMonths, setOriginalSubscriptionMonths] = useState(0);
   // True when the "Custom" box is picked, which swaps the preset boxes for a
   // free-typed month count.
   const [subscriptionCustom, setSubscriptionCustom] = useState(false);
 
   const [brands, setBrands] = useState([]);
   const [gateways, setGateways] = useState([]);
+  const [loadingBrandGateways, setLoadingBrandGateways] = useState(false);
   const [gatewayPaymentTypes, setGatewayPaymentTypes] = useState([]);
   // The unfiltered gateway list from the lookup fetch. Kept so that clearing the
   // brand can restore it without re-requesting what we already hold.
@@ -357,18 +365,6 @@ const CreateOrderPage = () => {
     return <div className="mt-1 text-xs font-medium text-red-600 dark:text-red-400">{message}</div>;
   };
 
-  const paymentTabFromName = useCallback((name) => {
-    if (!name) return null;
-    const raw = String(name).trim().toLowerCase();
-    if (!raw) return null;
-    if (raw === 'card' || raw.includes('credit') || raw.includes('debit') || raw.includes('card')) return 'card';
-    if (raw === 'bank' || raw.includes('wire') || raw.includes('ach') || raw.includes('bank')) return 'bank';
-    if (raw === 'cheque' || raw === 'check' || raw.includes('cheque') || raw.includes('check')) return 'cheque';
-    if (raw.includes('zelle')) return 'zelle';
-    if (raw.includes('paypal') || raw.includes('pay pal')) return 'paypal';
-    return null;
-  }, []);
-
   const paymentTypeFromTab = useCallback((tab) => {
     if (tab === 'card') return 'Card';
     if (tab === 'bank') return 'Bank';
@@ -439,53 +435,6 @@ const CreateOrderPage = () => {
     return normalized;
   }, [gatewayPaymentTypes]);
 
-  const paymentEnabledGatewayIds = useMemo(
-    () => new Set(
-      activeGatewayPaymentTypeRecords
-        .map((record) => Number(record?.gatewayId ?? record?.GatewayId) || 0)
-        .filter((gatewayId) => gatewayId > 0),
-    ),
-    [activeGatewayPaymentTypeRecords],
-  );
-
-  const allowedPaymentTabs = useMemo(() => {
-    const gatewayId = Number(payment?.gatewayId) || 0;
-    if (!gatewayId) return null;
-
-    const records = activeGatewayPaymentTypeRecords.filter(
-      (r) => Number(r?.gatewayId ?? r?.GatewayId) === gatewayId,
-    );
-
-    if (records.length === 0) return [];
-
-    const tabsSet = new Set();
-    records.forEach((r) => {
-      const raw = r?.paymentTypeName ?? r?.PaymentTypeName;
-      const parts = String(raw || '')
-        .split(',')
-        .map((v) => v.trim())
-        .filter(Boolean);
-
-      if (parts.length === 0 && raw) parts.push(String(raw));
-
-      parts.forEach((name) => {
-        const tab = paymentTabFromName(name);
-        if (tab) tabsSet.add(tab);
-      });
-    });
-
-    const tabs = Array.from(tabsSet);
-    return tabs;
-  }, [activeGatewayPaymentTypeRecords, payment?.gatewayId, paymentTabFromName]);
-
-  const isPaymentTabAllowed = useCallback(
-    (tab) => {
-      if (!allowedPaymentTabs) return true;
-      return allowedPaymentTabs.includes(tab);
-    },
-    [allowedPaymentTabs],
-  );
-
   // Roles with a picker must explicitly choose a Sales Agent/Manager. Other
   // roles file the order under the logged-in user, matching the reference rule.
   useEffect(() => {
@@ -495,14 +444,6 @@ const CreateOrderPage = () => {
     if (selectedSalesPersonId) return;
     setSelectedSalesPersonId(currentUserId);
   }, [isEditMode, canPickSalesPerson, currentUserId, selectedSalesPersonId]);
-
-  useEffect(() => {
-    if (!allowedPaymentTabs) return;
-    if (allowedPaymentTabs.includes(activeTab)) return;
-
-    const next = ['card', 'bank', 'cheque', 'zelle', 'paypal'].find((t) => allowedPaymentTabs.includes(t));
-    setActiveTab(next || '');
-  }, [activeTab, allowedPaymentTabs]);
 
   const canAddProductsByCode = !productsCodesLoading && hasProductCode('Add_Product');
   const canAddOrdersByCode = !ordersCodesLoading && hasOrderCode('Save_Order');
@@ -571,7 +512,7 @@ const CreateOrderPage = () => {
 
   // Auto-select the first product and add qty 1 when opening create order.
   useEffect(() => {
-    if (isEditMode || isAddPaymentMode) return;
+    if (isEditMode || isAddPaymentMode || isOrderEditMode) return;
     if (!Array.isArray(productDropdownItems) || productDropdownItems.length === 0) return;
 
     const firstProductId = Number(productDropdownItems[0]?.productId) || 0;
@@ -583,7 +524,7 @@ const CreateOrderPage = () => {
       if (hasSelectedProduct) return prev;
       return { ...prev, [firstProductId]: 1 };
     });
-  }, [productDropdownItems, isEditMode, isAddPaymentMode]);
+  }, [productDropdownItems, isEditMode, isAddPaymentMode, isOrderEditMode]);
 
   // While Browse Products modal is open, refetch on search changes
   useEffect(() => {
@@ -731,8 +672,58 @@ const CreateOrderPage = () => {
     }
   }, [isEditMode, orderDataFromState]);
 
-  // No separate GET /Order/{id} endpoint is available, so edit mode
-  // relies only on the payment GET API and manual customer selection.
+  useEffect(() => {
+    if (!isOrderEditMode) return;
+    const controller = new AbortController();
+    const loadOrder = async () => {
+      setLoadingOrder(true);
+      setOrderLoadError('');
+      try {
+        if (!orderIdForEdit) throw new Error('Order ID is required.');
+        const saved = await orderService.getOrderById(orderIdForEdit, controller.signal);
+        const editor = normalizeOrderForEditor(saved);
+        if (controller.signal.aborted) return;
+        setEditingOrder(editor.order);
+        setSelectedCustomer(editor.customer);
+        setSelectedSalesPersonId(Number(editor.order.salesPersonId) || 0);
+        if (Number(editor.order.salesPersonId)) {
+          mergeSalesPersons([{
+            userId: Number(editor.order.salesPersonId),
+            fullName: editor.order.salesPersonName || editor.order.salesPerson?.fullName || `User ${editor.order.salesPersonId}`
+          }]);
+        }
+        setOrderNotes(editor.order.notes || '');
+        setDiscountAmount(Number(editor.order.discountAmount) || 0);
+        setDiscountType(editor.order.discountType || 'Fixed');
+        setDiscountCode(editor.order.discountCode || '');
+        setDiscountPercent(editor.discountPercent);
+        setSubscriptionMonths(editor.subscriptionMonths || '');
+        setOriginalSubscriptionMonths(editor.subscriptionMonths);
+        setSubscriptionCustom(editor.subscriptionMonths > 0 && !SUBSCRIPTION_MONTH_OPTIONS.includes(editor.subscriptionMonths));
+        setCustomItems(editor.items);
+        setQuantities({});
+        setShareSalesPersonTypeId(Number(editor.order.shareTypeId) || 0);
+        // Load the full saved customer instead of relying on the table's name.
+        if (Number(editor.customer.customerId)) {
+          try {
+            const customer = await customerService.getCustomerById(editor.customer.customerId);
+            if (!controller.signal.aborted && customer) setSelectedCustomer(customer);
+          } catch (error) {
+            if (!controller.signal.aborted) toast.error(getApiErrorMessage(error, 'Some customer details could not be loaded.'));
+          }
+        }
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        const message = getApiErrorMessage(error, 'Failed to load the saved order.');
+        setOrderLoadError(message);
+        toast.error(message);
+      } finally {
+        if (!controller.signal.aborted) setLoadingOrder(false);
+      }
+    };
+    loadOrder();
+    return () => controller.abort();
+  }, [isOrderEditMode, orderIdForEdit, mergeSalesPersons]);
 
   // If opened from Customer table (Create Order for a specific customer)
   // auto-load that customer and set it as selected.
@@ -887,7 +878,7 @@ const CreateOrderPage = () => {
         setGateways(gatewayList);
 
         // Already filtered by role name and de-duplicated.
-        setSalesPersons(Array.isArray(userResult) ? userResult : []);
+        mergeSalesPersons(Array.isArray(userResult) ? userResult : []);
 
         const saleTypeValues = Array.isArray(saleTypeResult?.data) ? saleTypeResult.data : [];
         setSaleTypes(
@@ -942,7 +933,7 @@ const CreateOrderPage = () => {
 
   // Default discount type to "Fixed" on new orders once the options are loaded.
   useEffect(() => {
-    if (isEditMode) return;
+    if (isEditMode || isOrderEditMode) return;
     if (discountType) return;
     if (!Array.isArray(discountTypeOptions) || discountTypeOptions.length === 0) return;
 
@@ -953,21 +944,20 @@ const CreateOrderPage = () => {
     if (fixedOption?.name) {
       setDiscountType(fixedOption.name);
     }
-  }, [discountTypeOptions, discountType, isEditMode]);
+  }, [discountTypeOptions, discountType, isEditMode, isOrderEditMode]);
 
   useEffect(() => {
     let cancelled = false;
 
     const fetchPaymentGateways = async () => {
+      setGateways([]);
+      setLoadingBrandGateways(true);
       try {
         const brandId = Number(payment?.brandId) || 0;
 
         // No brand picked: the lookup fetch already holds the unfiltered list,
         // so reuse it instead of firing the same request a second time.
         if (brandId <= 0) {
-          if (!cancelled && allGatewaysRef.current.length) {
-            setGateways(allGatewaysRef.current);
-          }
           return;
         }
 
@@ -980,7 +970,10 @@ const CreateOrderPage = () => {
       } catch (error) {
         if (!cancelled) {
           console.error('Failed to load gateways for selected brand', error);
+          toast.error(getApiErrorMessage(error, 'Failed to load gateways for the selected brand.'));
         }
+      } finally {
+        if (!cancelled) setLoadingBrandGateways(false);
       }
     };
 
@@ -1055,7 +1048,7 @@ const CreateOrderPage = () => {
       return;
     }
 
-    const canMutateOrder = isEditMode ? canUpdate : canAdd;
+    const canMutateOrder = isEditMode || isOrderEditMode ? canUpdate : canAdd;
     if (!canMutateOrder) {
       toast.error(isEditMode ? "You don't have permission to update orders." : "You don't have permission to create orders.");
       return;
@@ -1173,11 +1166,12 @@ const CreateOrderPage = () => {
 
     const customLines = customItems.map((item) => ({
       ...item,
+      subscriptionMonths: isOrderEditMode && Number(item.productId) > 0 && Number(subscriptionMonths) !== originalSubscriptionMonths ? Number(subscriptionMonths) || 0 : item.subscriptionMonths,
       totalPrice: (item.quantity || 0) * (item.price || 0),
     }));
 
     return [...productLines, ...customLines];
-  }, [products, productCache, quantities, customItems, subscriptionMonths, productPriceOverrides]);
+  }, [products, productCache, quantities, customItems, subscriptionMonths, productPriceOverrides, isOrderEditMode, originalSubscriptionMonths]);
 
   const orderSummary = useMemo(() => {
     const subtotal = orderLines.reduce((sum, line) => sum + line.totalPrice, 0);
@@ -1390,69 +1384,30 @@ const CreateOrderPage = () => {
     return matchedBrand?.brandName || matchedBrand?.name || '';
   }, [brands, inferredPaymentBrandId]);
 
-  // The same gateway/payment-type records that drive `allowedPaymentTabs`, read
-  // the other way round: which gateways accept the payment type on the active
-  // tab. Picking "Card" therefore narrows the Gateway list to the ones that can
-  // actually take a card. Brand is deliberately left unfiltered.
-  //
-  // Only applied once the records have loaded - filtering against an empty list
-  // would blank the dropdown while the lookup is still in flight.
-  const hasGatewayPaymentTypeData = activeGatewayPaymentTypeRecords.length > 0;
-
-  const gatewayIdsForActiveTab = useMemo(() => {
-    const ids = new Set();
-    if (!activeTab || !hasGatewayPaymentTypeData) return ids;
-
-    activeGatewayPaymentTypeRecords.forEach((record) => {
-      const gatewayId = Number(record?.gatewayId ?? record?.GatewayId) || 0;
-      if (!gatewayId) return;
-
-      String(record?.paymentTypeName ?? record?.PaymentTypeName ?? '')
-        .split(',')
-        .map((value) => value.trim())
-        .filter(Boolean)
-        .forEach((name) => {
-          if (paymentTabFromName(name) === activeTab) ids.add(gatewayId);
-        });
-    });
-
-    return ids;
-  }, [activeGatewayPaymentTypeRecords, activeTab, hasGatewayPaymentTypeData, paymentTabFromName]);
-
   const paymentBrands = useMemo(() => (Array.isArray(brands) ? brands : []), [brands]);
 
-  // With no brand picked the list is every payment-capable gateway; choosing one
-  // fills the brand in from the gateway. Once a brand is set the list narrows to
-  // that brand's gateways.
+  // Gateway selection never changes the payment method or hides its fields.
   const filteredGateways = useMemo(() => {
-    const selectedBrandId = Number(payment?.brandId) || 0;
-    const selectedGatewayId = Number(payment?.gatewayId) || 0;
-
+    const brandId = Number(payment.brandId) || 0;
+    if (!brandId || loadingBrandGateways) return [];
     return (gateways || []).filter((gateway) => {
-      const gatewayId = getGatewayIdValue(gateway);
-      const gatewayBrandId = gatewayBrandIdByGatewayId.get(gatewayId) || getGatewayBrandIdValue(gateway);
-      const isSelected = selectedGatewayId > 0 && gatewayId === selectedGatewayId;
-      const hasPaymentTypes = paymentEnabledGatewayIds.has(gatewayId);
-      const isActive = gateway?.isActive !== false;
-      const matchesBrand = !selectedBrandId || !gatewayBrandId || gatewayBrandId === selectedBrandId;
-      const matchesTab = !hasGatewayPaymentTypeData || gatewayIdsForActiveTab.has(gatewayId);
-
-      // A chosen brand shows all of its active gateways; the payment-type tabs then
-      // follow the gateway that is picked. Without a brand, keep narrowing by tab.
-      if (selectedBrandId) return matchesBrand && (isActive || isSelected);
-      return matchesBrand && ((hasPaymentTypes && isActive && matchesTab) || isSelected);
+      const id = getGatewayIdValue(gateway);
+      const gatewayBrandId = gatewayBrandIdByGatewayId.get(id) || getGatewayBrandIdValue(gateway);
+      return gatewayBrandId === brandId
+        && (gateway.isActive !== false || id === Number(payment.gatewayId));
     });
-  }, [
-    gateways,
-    gatewayBrandIdByGatewayId,
-    paymentEnabledGatewayIds,
-    gatewayIdsForActiveTab,
-    hasGatewayPaymentTypeData,
-    payment?.brandId,
-    payment?.gatewayId,
-    getGatewayBrandIdValue,
-    getGatewayIdValue,
-  ]);
+  }, [gateways, gatewayBrandIdByGatewayId, payment.brandId, payment.gatewayId, getGatewayIdValue, getGatewayBrandIdValue, loadingBrandGateways]);
+
+  const handlePaymentTabChange = (tab) => {
+    setActiveTab(tab);
+    setPayment((prev) => changePaymentMethod(prev, tab));
+    setFormErrors((prev) => Object.fromEntries(Object.entries(prev).filter(([key]) => !key.startsWith('payment.'))));
+  };
+
+  useEffect(() => {
+    if (activeTab === 'card') return;
+    setPayment((prev) => prev.gatewayId || prev.gatewayName ? { ...prev, gatewayId: 0, gatewayName: '' } : prev);
+  }, [activeTab, payment.gatewayId, payment.gatewayName]);
 
   // Wipes the brand/gateway pair back to unselected - the way out of a wrong
   // pick, since choosing a brand filters the gateway list and choosing a gateway
@@ -1471,13 +1426,13 @@ const CreateOrderPage = () => {
   // total. Typing a (partial) amount does not change the total, so the effect
   // won't run and the typed value is preserved until the total changes again.
   useEffect(() => {
-    if (isEditMode || isAddPaymentMode) return;
+    if (isEditMode || isAddPaymentMode || isOrderEditMode) return;
     setPayment((prev) =>
       Number(prev.amount) === totalAmountForPayment
         ? prev
         : { ...prev, amount: totalAmountForPayment },
     );
-  }, [isEditMode, isAddPaymentMode, totalAmountForPayment]);
+  }, [isEditMode, isAddPaymentMode, isOrderEditMode, totalAmountForPayment]);
 
   const sanitizeAmountInput = (value) => {
     const cleaned = String(value ?? '').replace(/[^0-9.]/g, '');
@@ -1798,9 +1753,14 @@ const CreateOrderPage = () => {
       }
 
       const monthsValue = Number(subscriptionMonths);
-      if (String(subscriptionMonths).trim() === '' || !Number.isFinite(monthsValue) || monthsValue <= 0) {
+      if (!isOrderEditMode && (String(subscriptionMonths).trim() === '' || !Number.isFinite(monthsValue) || monthsValue <= 0)) {
         nextErrors.subscriptionMonths = 'Subscription months is required.';
       }
+    }
+
+    if (isOrderEditMode) {
+      setFormErrors(nextErrors);
+      return Object.keys(nextErrors).length === 0;
     }
 
     const amountNumber = Number(payment?.amount);
@@ -1810,25 +1770,13 @@ const CreateOrderPage = () => {
 
     const brandId = inferredPaymentBrandId;
 
-    const gatewayId = Number(payment?.gatewayId) || 0;
-    if (!gatewayId) {
-      nextErrors['payment.gatewayId'] = 'Gateway is required.';
-    } else if (Array.isArray(filteredGateways) && filteredGateways.length > 0) {
-      const belongs = filteredGateways.some((g) => Number(g?.gatewayId) === gatewayId);
-      if (!belongs) {
+    if (!brandId) nextErrors['payment.brandId'] = 'Brand is required.';
+    if (activeTab === 'card') {
+      const gatewayId = Number(payment.gatewayId) || 0;
+      if (!gatewayId) {
+        nextErrors['payment.gatewayId'] = 'Gateway is required.';
+      } else if (gateways.length > 0 && !filteredGateways.some((gateway) => getGatewayIdValue(gateway) === gatewayId)) {
         nextErrors['payment.gatewayId'] = 'Please select a valid gateway.';
-      }
-    }
-
-    if (gatewayId && !brandId) {
-      nextErrors['payment.gatewayId'] = 'Selected gateway is missing a brand mapping.';
-    }
-
-    if (gatewayId && Array.isArray(allowedPaymentTabs)) {
-      if (allowedPaymentTabs.length === 0) {
-        nextErrors['payment.paymentType'] = 'No active payment types are configured for the selected gateway.';
-      } else if (!allowedPaymentTabs.includes(activeTab)) {
-        nextErrors['payment.paymentType'] = 'Selected payment type is not allowed for the selected gateway.';
       }
     }
 
@@ -1912,7 +1860,27 @@ const CreateOrderPage = () => {
   };
 
   const handleSavePayment = async () => {
+    if (loadingPayment) return;
     try {
+      if (isOrderEditMode) {
+        if (permissionsLoading || !canUpdate) throw new Error('You do not have permission to update orders.');
+        if (loadingOrder || orderLoadError || !editingOrder || Number(editingOrder.orderId) !== orderIdForEdit) throw new Error(orderLoadError || 'Wait for the saved order to load.');
+        if (!validateBeforeSave({ isEditPayment: false, isNewPaymentForExistingOrder: false })) {
+          toast.error('Please fix the highlighted fields');
+          return;
+        }
+        setLoadingPayment(true);
+        await orderService.updateOrder(buildOrderUpdatePayload(editingOrder, {
+          customerId: selectedCustomer?.customerId,
+          salesPersonId: selectedSalesPersonId,
+          lines: orderLines,
+          summary: orderSummary,
+          discountType, discountCode, notes: orderNotes
+        }));
+        toast.success(`Order #${orderIdForEdit} updated successfully`);
+        navigate(paths.orders);
+        return;
+      }
       // Get logged-in user ID from localStorage
       const currentUserId = Number(localStorage.getItem('userId')) || 0;
 
@@ -2326,6 +2294,10 @@ const CreateOrderPage = () => {
   };
 
   const handleDiscardOrder = () => {
+    if (isOrderEditMode) {
+      navigate(paths.orders);
+      return;
+    }
     resetOrderForm();
   };
 
@@ -2705,8 +2677,8 @@ const CreateOrderPage = () => {
   return (
     <div className="create-order-page relative min-h-full w-full overflow-x-clip bg-transparent p-4 sm:p-6">
       <PageHeader
-        title={isEditMode ? `Edit Payment #${payment.paymentId || paymentIdForEdit}` : isAddPaymentMode ? `Add Payment to Order #${payment.orderId || orderDataFromState?.orderId || numericOrderId}` : 'Create Order'}
-        description={isEditMode ? 'Update payment details for this order.' : isAddPaymentMode ? 'Add a new payment using the order’s existing details.' : 'Build the order, capture payment, and review the receipt before saving.'}
+        title={isOrderEditMode ? `Edit Order #${orderIdForEdit}` : isEditMode ? `Edit Payment #${payment.paymentId || paymentIdForEdit}` : isAddPaymentMode ? `Add Payment to Order #${payment.orderId || orderDataFromState?.orderId || numericOrderId}` : 'Create Order'}
+        description={isOrderEditMode ? 'Update the saved customer, products, discounts, and order details. Existing payments are kept.' : isEditMode ? 'Update payment details for this order.' : isAddPaymentMode ? 'Add a new payment using the order’s existing details.' : 'Build the order, capture payment, and review the receipt before saving.'}
       >
         <Button
           type="button"
@@ -2718,6 +2690,8 @@ const CreateOrderPage = () => {
           Back to Orders
         </Button>
       </PageHeader>
+      {isOrderEditMode && loadingOrder && <div role="status" className="mb-4 rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-700">Loading saved order details...</div>}
+      {isOrderEditMode && orderLoadError && <div role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{orderLoadError}</div>}
 
       {/* Customer details modal */}
       {!isAddPaymentMode && showCustomerDetailsModal && selectedCustomer && (
@@ -3238,7 +3212,7 @@ const CreateOrderPage = () => {
       )}
 
       <div className="w-full rounded-2xl border border-slate-200 bg-white/75 p-3 shadow-sm backdrop-blur dark:border-white/10 dark:bg-[#100d1d]/70 sm:p-4">
-        <div className="create-order-layout flex min-w-0 flex-col gap-4 xl:flex-row xl:items-start">
+        <fieldset disabled={isOrderEditMode && (loadingOrder || !!orderLoadError)} className="contents"><div className="create-order-layout flex min-w-0 flex-col gap-4 xl:flex-row xl:items-start">
           {/* Left: products & order summary */}
           <div className="order-first flex min-w-0 flex-1 flex-col gap-4">
             {!isEditMode && !isAddPaymentMode && (
@@ -3695,7 +3669,7 @@ const CreateOrderPage = () => {
             )}
 
             {/* Payment Information now below order summary */}
-            <div className="create-order-section overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#17132a]">
+            {!isOrderEditMode && (<div className="create-order-section overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#17132a]">
               <div className="border-b border-slate-200 bg-gradient-to-r from-violet-50 via-white to-indigo-50 px-4 py-3 dark:border-white/10 dark:from-violet-500/15 dark:via-transparent dark:to-indigo-500/10">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
@@ -3741,10 +3715,9 @@ const CreateOrderPage = () => {
               </div>
               <div className="px-4 pt-3">
                 <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 text-sm sm:grid-cols-3 sm:gap-3 sm:text-base md:grid-cols-5 dark:border-white/10 dark:bg-white/[0.03]">
-                  {isPaymentTabAllowed('card') && (
-                    <button
+                  <button
                       type="button"
-                      onClick={() => setActiveTab('card')}
+                      onClick={() => handlePaymentTabChange('card')}
                       className={`w-full rounded-xl px-3 py-2 border text-center flex items-center justify-center transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/30 ${activeTab === 'card'
                         ? 'border-violet-500 bg-gradient-to-br from-violet-600 to-indigo-600 text-white ring-2 ring-violet-500/15 shadow-violet-500/20'
                         : 'bg-white text-slate-700 dark:text-slate-300 border-slate-200 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'
@@ -3757,11 +3730,9 @@ const CreateOrderPage = () => {
                         <span className="font-semibold leading-none">Card</span>
                       </span>
                     </button>
-                  )}
-                  {isPaymentTabAllowed('bank') && (
-                    <button
+                  <button
                       type="button"
-                      onClick={() => setActiveTab('bank')}
+                      onClick={() => handlePaymentTabChange('bank')}
                       className={`w-full rounded-xl px-3 py-2 border text-center flex items-center justify-center transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/30 ${activeTab === 'bank'
                         ? 'border-violet-500 bg-gradient-to-br from-violet-600 to-indigo-600 text-white ring-2 ring-violet-500/15 shadow-violet-500/20'
                         : 'bg-white text-slate-700 dark:text-slate-300 border-slate-200 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'
@@ -3774,11 +3745,9 @@ const CreateOrderPage = () => {
                         <span className="font-semibold leading-none">Bank</span>
                       </span>
                     </button>
-                  )}
-                  {isPaymentTabAllowed('cheque') && (
-                    <button
+                  <button
                       type="button"
-                      onClick={() => setActiveTab('cheque')}
+                      onClick={() => handlePaymentTabChange('cheque')}
                       className={`w-full rounded-xl px-3 py-2 border text-center flex items-center justify-center transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/30 ${activeTab === 'cheque'
                         ? 'border-violet-500 bg-gradient-to-br from-violet-600 to-indigo-600 text-white ring-2 ring-violet-500/15 shadow-violet-500/20'
                         : 'bg-white text-slate-700 dark:text-slate-300 border-slate-200 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'
@@ -3791,11 +3760,9 @@ const CreateOrderPage = () => {
                         <span className="font-semibold leading-none">Cheque</span>
                       </span>
                     </button>
-                  )}
-                  {isPaymentTabAllowed('zelle') && (
-                    <button
+                  <button
                       type="button"
-                      onClick={() => setActiveTab('zelle')}
+                      onClick={() => handlePaymentTabChange('zelle')}
                       className={`w-full rounded-xl px-3 py-2 border text-center flex items-center justify-center transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/30 ${activeTab === 'zelle'
                         ? 'border-violet-500 bg-gradient-to-br from-violet-600 to-indigo-600 text-white ring-2 ring-violet-500/15 shadow-violet-500/20'
                         : 'bg-white text-slate-700 dark:text-slate-300 border-slate-200 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'
@@ -3808,11 +3775,9 @@ const CreateOrderPage = () => {
                         <span className="font-semibold leading-none">Zelle</span>
                       </span>
                     </button>
-                  )}
-                  {isPaymentTabAllowed('paypal') && (
-                    <button
+                  <button
                       type="button"
-                      onClick={() => setActiveTab('paypal')}
+                      onClick={() => handlePaymentTabChange('paypal')}
                       className={`w-full rounded-xl px-3 py-2 border text-center flex items-center justify-center transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/30 ${activeTab === 'paypal'
                         ? 'border-violet-500 bg-gradient-to-br from-violet-600 to-indigo-600 text-white ring-2 ring-violet-500/15 shadow-violet-500/20'
                         : 'bg-white text-slate-700 dark:text-slate-300 border-slate-200 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'
@@ -3825,7 +3790,6 @@ const CreateOrderPage = () => {
                         <span className="font-semibold leading-none">PayPal</span>
                       </span>
                     </button>
-                  )}
                 </div>
                 <FieldError errorKey="payment.paymentType" />
 
@@ -3893,7 +3857,7 @@ const CreateOrderPage = () => {
                   )}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 text-sm">
-                    <div className="lg:col-span-6">
+                    <div className={activeTab === 'card' ? 'lg:col-span-6' : 'lg:col-span-12'}>
                       <label className={labelClass}>Brand<RequiredMark /></label>
                       <Select
                         value={payment.brandId ? String(payment.brandId) : ''}
@@ -3939,10 +3903,11 @@ const CreateOrderPage = () => {
                       <FieldError errorKey="payment.brandId" />
                     </div>
 
-                    <div className="lg:col-span-6">
+                    {activeTab === 'card' && (<div className="lg:col-span-6">
                       <label className={labelClass}>Gateway<RequiredMark /></label>
                       <Select
                         value={payment.gatewayId ? String(payment.gatewayId) : ''}
+                        disabled={!Number(payment.brandId) || loadingBrandGateways}
                         onValueChange={(value) => {
                           const id = value ? Number(value) : 0;
                           clearError('payment.gatewayId');
@@ -3961,7 +3926,7 @@ const CreateOrderPage = () => {
                         }}
                       >
                         <SelectTrigger className={withErrorClass(selectTriggerCompactClass, getError('payment.gatewayId'))}>
-                          <SelectValue placeholder="Select Gateway" />
+                          <SelectValue placeholder={!Number(payment.brandId) ? 'Select a brand first' : loadingBrandGateways ? 'Loading gateways...' : 'Select Gateway'} />
                         </SelectTrigger>
                         <SelectContent>
                           {filteredGateways.length > 0 ? (
@@ -3980,7 +3945,7 @@ const CreateOrderPage = () => {
                         </SelectContent>
                       </Select>
                       <FieldError errorKey="payment.gatewayId" />
-                    </div>
+                    </div>)}
 
                     {/* Amount moved up into the section header. */}
                     <div className="lg:col-span-12">
@@ -4636,7 +4601,7 @@ const CreateOrderPage = () => {
                 </div>
 
               </div>
-            </div>
+            </div>)}
             {(isEditMode || isAddPaymentMode) && (
               <div className="flex justify-end">
                 <Button
@@ -4765,7 +4730,7 @@ const CreateOrderPage = () => {
                   </div>
                 )}
 
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                {!isOrderEditMode && (<div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">Share Sale</div>
                     <div className="flex items-center gap-2">
@@ -4821,7 +4786,7 @@ const CreateOrderPage = () => {
                       </div>
                     </div>
                   )}
-                </div>
+                </div>)}
 
                 <div>
                   <label className={labelClass}>Order Notes</label>
@@ -4839,12 +4804,8 @@ const CreateOrderPage = () => {
                     <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-500 via-indigo-500 to-purple-500" aria-hidden="true" />
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-2.5">
-                        <div className="flex h-9 w-28 shrink-0 items-center justify-center rounded-xl border border-violet-100 bg-white px-2 shadow-sm dark:border-white/10 dark:bg-white/10">
-                          <img src={dashboardKitLogo} alt="DashboardKit" className="h-5 w-full object-contain dark:brightness-0 dark:invert" />
-                        </div>
                         <div className="min-w-0">
                           <div className="truncate text-xs font-bold tracking-[0.18em] text-slate-800 dark:text-slate-100">ORDER RECEIPT</div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400">DashboardKit CRM</div>
                         </div>
                       </div>
                       <div className="text-[11px] text-slate-500">
@@ -4936,14 +4897,15 @@ const CreateOrderPage = () => {
                   type="button"
                   className="flex-1 w-full text-center"
                   onClick={handleSavePayment}
-                  disabled={loadingPayment || permissionsLoading || ordersCodesLoading || (!canAdd && !canAddOrdersByCode)}
+                  disabled={loadingPayment || loadingOrder || !!orderLoadError || permissionsLoading || ordersCodesLoading || (isOrderEditMode ? !canUpdate : (!canAdd && !canAddOrdersByCode))}
                 >
-                  {loadingPayment ? 'Saving...' : 'Create Order'}
+                  {loadingPayment ? 'Saving...' : isOrderEditMode ? 'Update Order' : 'Create Order'}
                 </LiquidGlassButton>
               </div>
             </div>
           )}
         </div>
+        </fieldset>
       </div>
 
       <DeleteConfirmModal
@@ -4961,7 +4923,7 @@ const CreateOrderPage = () => {
       />
 
       <ShareSaleModal
-        open={!isEditMode && !isAddPaymentMode && shareSaleModalOpen}
+        open={!isOrderEditMode && !isEditMode && !isAddPaymentMode && shareSaleModalOpen}
         onClose={closeShareSaleModal}
         onSave={handleShareSaleSave}
         saveButtonLabel="Save & Continue"

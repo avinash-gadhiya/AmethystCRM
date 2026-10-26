@@ -1,4 +1,5 @@
 import apiClient from './core/apiClient';
+import { normalizePaymentGateway } from '@/lib/paymentMethod';
 
 const normalizeList = (payload) => {
   if (Array.isArray(payload)) return payload;
@@ -47,7 +48,7 @@ export const orderService = {
     delete payload.payments;
     return apiClient.post('/Order', {
       ...payload,
-      payment: payload.payment || {},
+      payment: normalizePaymentGateway(payload.payment || {}),
       sharePayments: Array.isArray(payload.sharePayments) ? payload.sharePayments : []
     });
   },

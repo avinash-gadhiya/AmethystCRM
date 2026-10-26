@@ -9,8 +9,14 @@ const getApiBaseUrl = () => {
 const inFlightRequests = new Map();
 const stateCache = new Map();
 const countryNameCache = new Map();
+const normalizeFields = (value) => {
+  if (Array.isArray(value)) return value.map(normalizeFields);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key.charAt(0).toLowerCase() + key.slice(1), normalizeFields(item)]));
+};
 
 const normalizeCountryList = (payload) => {
+  payload = normalizeFields(payload);
   if (!payload) return { data: [], totalCount: 0 };
 
   // Format 1: { data: { data: [], totalCount: number } }
@@ -43,6 +49,7 @@ const normalizeCountryList = (payload) => {
 };
 
 const normalizeStateList = (payload) => {
+  payload = normalizeFields(payload);
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.data)) return payload.data;
   if (Array.isArray(payload?.data?.data)) return payload.data.data;

@@ -1,3 +1,5 @@
+import './bootstrap';
+
 // third party
 import { createRoot } from 'react-dom/client';
 import { ConfigProvider } from './providers/ConfigProvider';

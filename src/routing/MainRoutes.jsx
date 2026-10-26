@@ -1,5 +1,6 @@
 import { lazy, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import permissionService from 'services/permissionService';
 
 import AdminLayout from 'layouts/AdminLayout';
 import GuestLayout from 'layouts/GuestLayout';
@@ -43,94 +44,21 @@ const ProductsPage = lazy(() => import('../pages/order/ProductsPage').then((modu
 const PaymentsPage = lazy(() => import('../pages/order/PaymentsPage').then((module) => ({ default: module.PaymentsPage })));
 const LeadsPage = lazy(() => import('../pages/leads/leadpage/LeadsPage'));
 
-const isConfiguredLocationPath = (pathname) => {
-  try {
-    const normalizedPath = String(pathname || '').toLowerCase().replace(/\/+$/, '') || '/';
-    const cacheKeys = Object.keys(localStorage).filter(
-      (key) => key.startsWith('crm_permission_menus:') || key === 'crm_permission_menus'
-    );
-
-    return cacheKeys.some((key) => {
-      const menus = JSON.parse(localStorage.getItem(key) || '[]');
-      return (Array.isArray(menus) ? menus : []).some((menu) =>
-        (menu?.menuPermissionPageDTOs || []).some((page) => {
-          const name = String(page?.pageName || page?.pageDisplayName || '').trim().toLowerCase();
-          const url = String(page?.pageUrl || '').trim().toLowerCase().replace(/\/+$/, '') || '/';
-          return (name === 'location' || name === 'locations') && url === normalizedPath;
-        })
-      );
-    });
-  } catch {
-    return false;
-  }
+const isConfiguredPagePath = (pathname, names) => {
+  const normalizePath = (value) => String(value || '').trim().toLowerCase().replace(/\/+$/, '') || '/';
+  const normalizedPath = normalizePath(pathname);
+  return permissionService.getPermissionMenus().some((menu) =>
+    (menu?.menuPermissionPageDTOs || []).some((page) => {
+      const name = String(page?.pageName || page?.pageDisplayName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      return names.includes(name) && normalizePath(page.pageUrl) === normalizedPath;
+    })
+  );
 };
-
-const isConfiguredBrandTemplatePath = (pathname) => {
-  try {
-    const normalizedPath = String(pathname || '').toLowerCase().replace(/\/+$/, '') || '/';
-    const cacheKeys = Object.keys(localStorage).filter(
-      (key) => key.startsWith('crm_permission_menus:') || key === 'crm_permission_menus'
-    );
-
-    return cacheKeys.some((key) => {
-      const menus = JSON.parse(localStorage.getItem(key) || '[]');
-      return (Array.isArray(menus) ? menus : []).some((menu) =>
-        (menu?.menuPermissionPageDTOs || []).some((page) => {
-          const name = String(page?.pageName || page?.pageDisplayName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-          const url = String(page?.pageUrl || '').trim().toLowerCase().replace(/\/+$/, '') || '/';
-          return (name === 'brandtemplate' || name === 'brandtemplates') && url === normalizedPath;
-        })
-      );
-    });
-  } catch {
-    return false;
-  }
-};
-
-const isConfiguredGroupEmailPath = (pathname) => {
-  try {
-    const normalizedPath = String(pathname || '').toLowerCase().replace(/\/+$/, '') || '/';
-    const cacheKeys = Object.keys(localStorage).filter(
-      (key) => key.startsWith('crm_permission_menus:') || key === 'crm_permission_menus'
-    );
-
-    return cacheKeys.some((key) => {
-      const menus = JSON.parse(localStorage.getItem(key) || '[]');
-      return (Array.isArray(menus) ? menus : []).some((menu) =>
-        (menu?.menuPermissionPageDTOs || []).some((page) => {
-          const name = String(page?.pageName || page?.pageDisplayName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-          const url = String(page?.pageUrl || '').trim().toLowerCase().replace(/\/+$/, '') || '/';
-          return (name === 'groupemail' || name === 'groupemails') && url === normalizedPath;
-        })
-      );
-    });
-  } catch {
-    return false;
-  }
-};
-
-const isConfiguredDashboardPath = (pathname) => {
-  try {
-    const normalizedPath = String(pathname || '').toLowerCase().replace(/\/+$/, '') || '/';
-    if (normalizedPath === '/dashboard' || normalizedPath === '/dashboards') return true;
-    const cacheKeys = Object.keys(localStorage).filter(
-      (key) => key.startsWith('crm_permission_menus:') || key === 'crm_permission_menus'
-    );
-
-    return cacheKeys.some((key) => {
-      const menus = JSON.parse(localStorage.getItem(key) || '[]');
-      return (Array.isArray(menus) ? menus : []).some((menu) =>
-        (menu?.menuPermissionPageDTOs || []).some((page) => {
-          const name = String(page?.pageName || page?.pageDisplayName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-          const url = String(page?.pageUrl || '').trim().toLowerCase().replace(/\/+$/, '') || '/';
-          return (name === 'dashboard' || name === 'dashboards') && url === normalizedPath;
-        })
-      );
-    });
-  } catch {
-    return false;
-  }
-};
+const isConfiguredLocationPath = (path) => isConfiguredPagePath(path, ['location', 'locations']);
+const isConfiguredBrandTemplatePath = (path) => isConfiguredPagePath(path, ['brandtemplate', 'brandtemplates']);
+const isConfiguredGroupEmailPath = (path) => isConfiguredPagePath(path, ['groupemail', 'groupemails']);
+const isConfiguredDashboardPath = (path) =>
+  ['/dashboard', '/dashboards'].includes(String(path || '').toLowerCase().replace(/\/+$/, '')) || isConfiguredPagePath(path, ['dashboard', 'dashboards']);
 
 const AuthenticatedDynamicRoute = () => {
   const location = useLocation();
@@ -138,8 +66,9 @@ const AuthenticatedDynamicRoute = () => {
 
   useEffect(() => {
     const handleInvalidation = () => setNavigationVersion((version) => version + 1);
+    const unsubscribe = permissionService.subscribe(handleInvalidation);
     window.addEventListener('app:routes-invalidated', handleInvalidation);
-    return () => window.removeEventListener('app:routes-invalidated', handleInvalidation);
+    return () => { unsubscribe(); window.removeEventListener('app:routes-invalidated', handleInvalidation); };
   }, []);
 
   if (isConfiguredDashboardPath(location.pathname)) return <DashboardPage />;

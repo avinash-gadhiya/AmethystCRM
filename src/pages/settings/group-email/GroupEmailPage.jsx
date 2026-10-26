@@ -210,7 +210,7 @@ const GroupEmailPage = () => {
 
   // Delete Handler with page clamping
   const handleConfirmDelete = async () => {
-    if (!deleteTarget || !perms.canDelete) return;
+    if (!deleteTarget || !perms.canDelete || deleting) return;
 
     try {
       setDeleting(true);

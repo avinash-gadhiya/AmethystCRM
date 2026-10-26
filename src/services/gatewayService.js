@@ -1,52 +1,17 @@
-import authService from './authService';
-import { handleSessionExpired } from './http';
+import apiClient from './core/apiClient';
 
-const API_BASE_URL = (import.meta.env.VITE_APP_API_URL || 'https://demoapi.enstasol.com/api').replace(/\/$/, '');
+const request = (path, options) => apiClient.request(path, options);
 
-const buildQuery = (params = {}) => {
-  const query = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value === '' || value === null || value === undefined) return;
-    query.set(key, String(value));
-  });
-  return query.toString();
-};
-
-const request = async (path, { method = 'GET', params, data, signal } = {}) => {
-  const token = authService.getToken();
-  if (!token) throw new Error('Your session has expired. Please sign in again.');
-
-  const query = buildQuery(params);
-  const response = await fetch(`${API_BASE_URL}${path}${query ? `?${query}` : ''}`, {
-    method,
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...(data !== undefined ? { 'Content-Type': 'application/json' } : {})
-    },
-    body: data !== undefined ? JSON.stringify(data) : undefined,
-    signal
-  });
-
-  if (response.status === 401) handleSessionExpired();
-  let payload;
-  try {
-    payload = await response.json();
-  } catch {
-    payload = null;
-  }
-
-  if (!response.ok || payload?.success === false) {
-    const validationMessage = payload?.errors ? Object.values(payload.errors).flat().join(', ') : '';
-    const error = new Error(payload?.message || validationMessage || `Gateway request failed (${response.status}).`);
-    error.status = response.status;
-    throw error;
-  }
-
-  return payload || {};
+const normalizeFields = (value) => {
+  if (Array.isArray(value)) return value.map(normalizeFields);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [key.charAt(0).toLowerCase() + key.slice(1), normalizeFields(item)])
+  );
 };
 
 const unwrapList = (payload) => {
+  payload = normalizeFields(payload);
   let source = [];
   if (Array.isArray(payload?.data)) {
     source = payload.data;
@@ -111,7 +76,7 @@ export const gatewayService = {
 
   // Gateways that belong to one brand. GatewayDropdown rows carry no brand and the API
   // ignores its BrandId filter, so the full /Gateway records (which include brandId) are
-  // used and filtered exactly. Falls back to the brand-filtered dropdown if /Gateway fails.
+  // used and filtered exactly. Uses only explicitly matching brand IDs if an older API needs the dropdown route.
   async getBrandGateways(brandId, signal) {
     const id = Number(brandId) || 0;
     if (!id) return { data: [], totalCount: 0 };
@@ -126,9 +91,9 @@ export const gatewayService = {
         .map((option) => ({ ...option, brandId: id }));
       return { data, totalCount: data.length };
     } catch (error) {
-      if (error?.name === 'AbortError') throw error;
+      if (error?.name === 'AbortError' || ![404, 405].includes(error?.status)) throw error;
       const fallback = await this.getGatewayDropdown({ BrandId: id }, signal);
-      const data = fallback.data.filter((option) => !Number(option.brandId) || Number(option.brandId) === id);
+      const data = fallback.data.filter((option) => Number(option.brandId) === id);
       return { data, totalCount: data.length };
     }
   },

@@ -6,6 +6,7 @@ import TableRefreshButton from '@/components/common/TableRefreshButton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { paymentService } from '@/services';
 import { getApiErrorMessage } from '@/lib/apiError';
+import { isCardPayment } from '@/lib/paymentMethod';
 import { usePageCrudPermissions } from '@/hooks/usePageCrudPermissions';
 import usePagePermissionCodes from '@/hooks/usePagePermissionCodes';
 import { useSearchFieldFetchGuard } from '@/hooks/useSearchFieldFetchGuard';
@@ -279,7 +280,9 @@ const getColumns = () => [
     cell: ({ row }) => (
       <div className="flex flex-col gap-0.5">
         <span className="text-sm font-semibold text-gray-900">{row.original.brandName || '-'}</span>
-        <span className="text-xs text-gray-600">{row.original.gatewayName || '-'}</span>
+        {isCardPayment(row.original.paymentType) && row.original.gatewayName && (
+          <span className="text-xs text-gray-600">{row.original.gatewayName}</span>
+        )}
       </div>
     ),
   },
@@ -553,7 +556,7 @@ const PaymentsTable = () => {
           p.transactionId || '',
           p.authCode || '',
           p.brandName || '',
-          p.gatewayName || '',
+          isCardPayment(p.paymentType) ? p.gatewayName || '' : '',
           status,
           Number(p.amount ?? 0).toFixed(2),
           formatDateTime(p.paymentDate),

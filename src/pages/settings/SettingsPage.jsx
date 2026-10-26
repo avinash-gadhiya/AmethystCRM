@@ -30,6 +30,7 @@ import { useLocation } from 'react-router-dom';
 
 import settingService from 'services/settingService';
 import roleService from 'services/roleService';
+import permissionService from 'services/permissionService';
 import BlockedIpPage from './ip/BlockedIpPage';
 import CountryPage from './country/CountryPage';
 import SettingPage from './setting/SettingPage';
@@ -89,13 +90,7 @@ const sectionFromPath = (pathname) => {
   // Resolve custom URLs supplied by the Page API from the permission cache.
   try {
     const normalizedPath = lower.replace(/\/+$/, '') || '/';
-    const cacheKeys = Object.keys(localStorage).filter(
-      (key) => key.startsWith('crm_permission_menus:') || key === 'crm_permission_menus'
-    );
-    const menus = cacheKeys.flatMap((key) => {
-      const value = JSON.parse(localStorage.getItem(key) || '[]');
-      return Array.isArray(value) ? value : [];
-    });
+    const menus = permissionService.getPermissionMenus();
     const matchingPages = menus.flatMap((menu) => menu?.menuPermissionPageDTOs || []).filter((page) => {
         const name = String(page?.pageName || page?.pageDisplayName || '').trim().toLowerCase();
         const url = String(page?.pageUrl || '').trim().toLowerCase().replace(/\/+$/, '') || '/';
@@ -201,7 +196,9 @@ export default function SettingsPage() {
   const section = SECTIONS.find((item) => item.id === activeSection) || SECTIONS[0];
 
   useEffect(() => {
-    setActiveSection(sectionFromPath(location.pathname));
+    const syncSection = () => setActiveSection(sectionFromPath(location.pathname));
+    syncSection();
+    return permissionService.subscribe(syncSection);
   }, [location.pathname]);
 
   // Load settings list for dropdowns

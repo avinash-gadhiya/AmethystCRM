@@ -104,6 +104,7 @@
    NORMAL MODERN DESIGN TOKENS & BASE STYLING
    ===================================================== */
 :root {
+  color-scheme: only light;
   --primary: #4f46e5;
   --primary-hover: #4338ca;
   --bg-app: #f8fafc;

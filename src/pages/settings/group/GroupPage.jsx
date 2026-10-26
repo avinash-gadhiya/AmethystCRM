@@ -175,8 +175,10 @@ const GroupPage = () => {
   const [emailUpdatingStatusIds, setEmailUpdatingStatusIds] = useState(new Set());
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [editingEmail, setEditingEmail] = useState(null);
+  const latestEmailRequestRef = useRef(0);
 
   const fetchGroupEmails = useCallback(async (forceFresh = false) => {
+    const requestId = ++latestEmailRequestRef.current;
     if (!emailPerms.canView) {
       setGroupEmails([]);
       setEmailTotal(0);
@@ -197,15 +199,17 @@ const GroupPage = () => {
         undefined,
         forceFresh
       );
+      if (requestId !== latestEmailRequestRef.current) return;
       setGroupEmails(res.data || []);
       setEmailTotal(res.totalCount || 0);
     } catch (err) {
+      if (requestId !== latestEmailRequestRef.current) return;
       console.error('Failed to fetch group emails:', err);
       toast.error(getApiErrorMessage(err, 'Failed to fetch group emails'));
       setGroupEmails([]);
       setEmailTotal(0);
     } finally {
-      setEmailLoading(false);
+      if (requestId === latestEmailRequestRef.current) setEmailLoading(false);
     }
   }, [emailPerms.canView, emailSearch, emailPage, emailPageSize, emailSortProp, emailSortDesc]);
 
@@ -272,6 +276,9 @@ const GroupPage = () => {
       }
       fetchGroupEmails();
     }
+    return () => {
+      latestEmailRequestRef.current += 1;
+    };
   }, [activeTab, fetchGroupEmails]);
 
   // =========================================================================
@@ -282,7 +289,8 @@ const GroupPage = () => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleConfirmDelete = async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget || isDeleting) return;
+    if (deleteTarget.type === 'group' ? !groupPerms.canDelete : !emailPerms.canDelete) return;
     setIsDeleting(true);
 
     try {
@@ -1034,18 +1042,20 @@ const GroupPage = () => {
 
       {/* Add / Edit Group Email Modal */}
       <GroupEmailModal
-        isOpen={emailModalOpen}
+        open={emailModalOpen}
         onClose={() => {
           setEmailModalOpen(false);
           setEditingEmail(null);
         }}
         groupEmail={editingEmail}
         groupOptions={groupOptions}
-        onRefreshGroups={loadGroupDropdownOptions}
-        onSaved={() => {
+        onRefreshGroups={() => loadGroupDropdownOptions(true)}
+        canAdd={emailPerms.canAdd}
+        canUpdate={emailPerms.canUpdate}
+        onSuccess={() => {
           setEmailModalOpen(false);
           setEditingEmail(null);
-          fetchGroupEmails();
+          fetchGroupEmails(true);
         }}
       />
 

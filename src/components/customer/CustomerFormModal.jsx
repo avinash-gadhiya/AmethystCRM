@@ -19,8 +19,9 @@ import SelectSearchInput from '@/components/common/SelectSearchInput';
 import UserOptionBadges, { getUserBadgeSearchText } from '@/components/common/UserOptionBadges';
 import { normalizeDigits, validateOptionalUsPhone, validateUsPhone } from '@/lib/usPhone';
 import { fetchSalesPersonList } from '@/lib/salesRoles';
+import authService from '@/services/authService';
 
-const API_URL = import.meta.env.VITE_APP_API_URL;
+const API_URL = (import.meta.env.VITE_APP_API_URL || 'https://demoapi.enstasol.com/api').replace(/\/$/, '');
 const ADDRESS_SEARCH_URL = import.meta.env.VITE_APP_ADDRESS_SEARCH_URL;
 
 // Google Places API (New). Unlike the legacy Places web service it allows
@@ -224,9 +225,7 @@ const validateCustomerForm = (data) => {
   const address = String(data.address || '').trim();
   if (address && address.length < 5) errors.address = 'Address must be at least 5 characters';
 
-  // Country is a fixed, read-only USA value that the user cannot change, so it
-  // must never block Save. (Its id is still resolved and sent when available.)
-  //
+  if (!Number(data.countryId)) errors.countryId = 'Wait for the country lookup or retry loading options';
   // A saved state that the country filter happens to exclude is not the user's
   // mistake and must not block Save either - only a missing state is an error.
   // The previous cross-check rejected any state absent from `filteredStates`,
@@ -353,6 +352,8 @@ export default function CustomerFormModal({
   initialValues,
   defaultSalesPersonId,
   canPickSalesPerson = true,
+  canAdd = true,
+  canUpdate = true,
   title,
   onSaved,
   overlayZIndex = 9999,
@@ -360,6 +361,20 @@ export default function CustomerFormModal({
   const [formData, setFormData] = useState(emptyForm);
   const [formErrors, setFormErrors] = useState({});
   const [showValidationErrors, setShowValidationErrors] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const [saveError, setSaveError] = useState('');
+  const [lookupError, setLookupError] = useState('');
+  const [salesError, setSalesError] = useState('');
+  const [lookupsLoading, setLookupsLoading] = useState(false);
+  const [lookupVersion, setLookupVersion] = useState(0);
+
+  useEffect(() => {
+    if (!open || typeof document === 'undefined' || !document.body) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, [open]);
 
   const [salesPersons, setSalesPersons] = useState([]);
   const [salesPersonsLoading, setSalesPersonsLoading] = useState(false);
@@ -664,65 +679,59 @@ export default function CustomerFormModal({
     }
   }, [fetchLeads, leadSearch]);
 
-  // Sales Person uses the shared active Sales Agent + Sales Manager lookup.
-  // Admins, developers, and unrelated roles are filtered out by the adapter.
+  // Fetch authenticated choices when the customer form is opened.
   useEffect(() => {
+    if (!open) return;
     let active = true;
-
     setSalesPersonsLoading(true);
+    setSalesError('');
     fetchSalesPersonList({ pageSize: 1000 })
-      .then((users) => {
-        if (!active) return;
-        setSalesPersons(Array.isArray(users) ? users : []);
-      })
-      .catch((error) => {
-        console.error('Failed to load Sales Persons:', error);
-        if (active) setSalesPersons([]);
-      })
-      .finally(() => {
-        if (active) setSalesPersonsLoading(false);
-      });
+      .then((users) => { if (active) setSalesPersons(Array.isArray(users) ? users : []); })
+      .catch((error) => { if (active) setSalesError(getApiErrorMessage(error, 'Failed to load sales people.')); })
+      .finally(() => { if (active) setSalesPersonsLoading(false); });
+    return () => { active = false; };
+  }, [open, lookupVersion]);
 
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  // Resolve USA through the Country API, then use its real id for the
-  // country-scoped State API. The UI and payload consistently use "USA" even
-  // when an environment stores the matching country row as "america".
   useEffect(() => {
+    if (!open) return;
     let active = true;
-
+    setLookupsLoading(true);
+    setLookupError('');
     const loadLookups = async () => {
       try {
-        const countriesResult = await countryService.getCountryDropdown();
-        const countryRows = countriesResult.data || [];
-        const usa = findUsaCountry(countryRows);
-        const usaId = getCountryIdValue(usa);
-        const stateRows = usaId
-          ? await countryService.getStates({ CountryId: usaId, PageNumber: 1, PageSize: 1000, countryName: 'USA' })
-          : [];
-
+        const result = await countryService.getCountryDropdown();
+        let rows = result.data || [];
+        const savedCountryId = mode === 'edit' ? Number(initialValues?.countryId) || 0 : 0;
+        if (!savedCountryId && !findUsaCountry(rows)) {
+          const fullList = await countryService.getCountries({ PageNumber: 1, PageSize: 1000, IsDescending: false });
+          rows = fullList.data || rows;
+        }
+        const country = savedCountryId ? rows.find((row) => getCountryIdValue(row) === savedCountryId) : findUsaCountry(rows);
+        const countryId = savedCountryId || getCountryIdValue(country);
+        if (!countryId) throw new Error('USA is missing from the Country API. Add the country or retry loading options.');
+        const countryName = savedCountryId ? country?.countryName || initialValues?.countryName || '' : 'USA';
+        const stateRows = await countryService.getStates({ CountryId: countryId, PageNumber: 1, PageSize: 1000, countryName });
         if (!active) return;
-        setCountries(countryRows);
-        setStates(Array.isArray(stateRows) ? stateRows : []);
+        if (!Array.isArray(stateRows) || !stateRows.length) throw new Error('No states were returned for the selected country.');
+        setCountries(rows);
+        setStates(stateRows);
+        setFormData((prev) => ({ ...prev, countryId, countryName }));
       } catch (error) {
-        console.error('Failed to load customer lookups:', error);
+        if (active) setLookupError(getApiErrorMessage(error, 'Failed to load countries and states.'));
+      } finally {
+        if (active) setLookupsLoading(false);
       }
     };
-
     loadLookups();
-    return () => {
-      active = false;
-    };
-  }, []);
+    return () => { active = false; };
+  }, [open, mode, initialValues?.countryId, initialValues?.countryName, lookupVersion]);
 
   useEffect(() => {
     if (!open) return;
 
-    const userId = Number(localStorage.getItem('userId') || 0);
-    const userName = localStorage.getItem('userName') || '';
+    const user = authService.getUser() || {};
+    const userId = Number(user.userId) || 0;
+    const userName = user.displayName || [user.firstName, user.lastName].filter(Boolean).join(' ') || user.userName || '';
 
     const seed = { ...emptyForm, ...(initialValues || {}) };
 
@@ -730,6 +739,7 @@ export default function CustomerFormModal({
     if (!String(seed.countryName || '').trim()) seed.countryName = 'USA';
 
     if (mode === 'add') {
+      seed.customerId = 0;
       // No Status toggle on the add form, so a new customer is always Active -
       // pinned here so a stray initialValues can't send it through as inactive.
       seed.isActive = true;
@@ -751,6 +761,7 @@ export default function CustomerFormModal({
     }
 
     setFormData(seed);
+    setSaveError('');
     setFormErrors({});
     setShowValidationErrors(false);
     setLeadSearch('');
@@ -769,6 +780,7 @@ export default function CustomerFormModal({
   // whenever the form is seeded AND the lists are in hand, in either order.
   useEffect(() => {
     if (!open) return;
+    if (mode === 'edit' && Number(initialValues?.countryId) > 0) return;
     if (!countries || countries.length === 0) return;
 
     const usa = findUsaCountry(countries);
@@ -817,7 +829,7 @@ export default function CustomerFormModal({
         stateName: nextStateName,
       };
     });
-  }, [open, countries, states]);
+  }, [open, countries, states, mode, initialValues?.countryId]);
 
   // The dropdown is intentionally limited to sales roles. Do not inject a
   // historical admin/developer assignment back into the selectable options.
@@ -906,48 +918,6 @@ export default function CustomerFormModal({
 
     return () => clearTimeout(id);
   }, [open, addressSearch, searchAddresses]);
-
-  // Country is fixed to USA (read-only field). Resolve its real countryId from
-  // the Country API: first from the already-loaded list, then via a targeted
-  // search so the payload always carries USA's id even if it isn't on page 1.
-  useEffect(() => {
-    if (!open) return;
-    if (Number(formData.countryId) > 0) return;
-
-    let cancelled = false;
-
-    const applyUsa = (usa) => {
-      const usaId = getCountryIdValue(usa);
-      if (!usaId) return false;
-      setFormData((prev) =>
-        Number(prev.countryId) > 0
-          ? prev
-          : { ...prev, countryId: usaId, countryName: 'USA' },
-      );
-      return true;
-    };
-
-    const resolveUsa = async () => {
-      // 1) Try the list loaded on mount.
-      const fromList = findUsaCountry(countries);
-      if (fromList && applyUsa(fromList)) return;
-
-      // 2) Fall back to fetching the Country dropdown API directly.
-      try {
-        const res = await countryService.getCountryDropdown();
-        const list = res?.data || [];
-        const usa = findUsaCountry(list) || list[0];
-        if (usa && !cancelled) applyUsa(usa);
-      } catch {
-        // Leave countryId unresolved; the read-only USA field won't block Save.
-      }
-    };
-
-    resolveUsa();
-    return () => {
-      cancelled = true;
-    };
-  }, [open, countries, formData.countryId]);
 
   useEffect(() => {
     if (!open) return;
@@ -1042,6 +1012,13 @@ export default function CustomerFormModal({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (savingRef.current) return;
+    if (mode === 'edit' ? !canUpdate : !canAdd) {
+      setSaveError('You do not have permission to save this customer.');
+      return;
+    }
+    if (lookupsLoading || salesPersonsLoading) return;
+    setSaveError('');
     setShowValidationErrors(true);
     const errors = validateCustomerForm(formData);
     if (Object.keys(errors).length > 0) {
@@ -1050,6 +1027,9 @@ export default function CustomerFormModal({
       return;
     }
 
+    savingRef.current = true;
+    setSaving(true);
+    let saved;
     try {
       const payload = {
         ...formData,
@@ -1062,15 +1042,21 @@ export default function CustomerFormModal({
         createdDate: formData.createdDate || new Date().toISOString(),
       };
 
-      const saved = mode === 'edit' ? await customerService.updateCustomer(payload) : await customerService.createCustomer(payload);
-      toast.success(mode === 'edit' ? 'Customer updated' : 'Customer created');
-      if (typeof onSaved === 'function') onSaved(saved);
-      if (typeof onOpenChange === 'function') onOpenChange(false);
+      saved = mode === 'edit' ? await customerService.updateCustomer(payload) : await customerService.createCustomer(payload);
     } catch (error) {
-      console.error('Failed to save customer:', error);
-      // Fixed frontend message - the API's own error text is logged, not shown.
-      toast.error(mode === 'edit' ? 'Failed to update customer' : 'Failed to create customer');
+      const errors = error?.payload?.errors || error?.response?.data?.errors;
+      const details = errors && typeof errors === 'object' ? Object.values(errors).flat().join(' ') : '';
+      const message = details || getApiErrorMessage(error, mode === 'edit' ? 'Failed to update customer' : 'Failed to create customer');
+      setSaveError(message);
+      toast.error(message);
+      return;
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
     }
+    toast.success(mode === 'edit' ? 'Customer updated' : 'Customer created');
+    if (typeof onSaved === 'function') onSaved(saved);
+    if (typeof onOpenChange === 'function') onOpenChange(false);
   };
 
   // The lead list floats over the form, so close it on any click outside the picker.
@@ -1124,12 +1110,12 @@ export default function CustomerFormModal({
       className={cn('fixed inset-0 flex items-center justify-center overflow-y-auto bg-slate-950/60 p-3 sm:p-6 backdrop-blur-sm animate-in fade-in duration-200', modalRootClass)}
       style={{ zIndex: overlayZIndex }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) onOpenChange?.(false);
+        if (e.target === e.currentTarget && !savingRef.current) onOpenChange?.(false);
       }}
     >
       <div
         data-modal-surface="true"
-        className="customer-form-modal relative my-auto flex w-full max-w-4xl max-h-[calc(100dvh-2.5rem)] flex-col overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-200/80 bg-white shadow-[0_25px_70px_-15px_rgba(15,23,42,0.35)] dark:border-white/10 dark:bg-[#141122] animate-in zoom-in-95 duration-200"
+        className="customer-form-modal relative my-auto flex w-full max-w-4xl max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-3rem)] flex-col overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-200/80 bg-white shadow-[0_25px_70px_-15px_rgba(15,23,42,0.35)] dark:border-white/10 dark:bg-[#141122] animate-in zoom-in-95 duration-200"
         style={{ zIndex: contentZ }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -1143,11 +1129,18 @@ export default function CustomerFormModal({
               <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Provide customer details below.</p>
             </div>
           </div>
-          <GlassCloseButton onClick={() => onOpenChange(false)} className="ml-4 shrink-0 !h-9 !w-9 !rounded-xl dark:!border-white/10 dark:!bg-white/5 dark:!text-slate-300" />
+          <GlassCloseButton disabled={saving} onClick={() => !savingRef.current && onOpenChange?.(false)} className="ml-4 shrink-0 !h-9 !w-9 !rounded-xl dark:!border-white/10 dark:!bg-white/5 dark:!text-slate-300" />
         </div>
 
-        <form onSubmit={handleSubmit} autoComplete="off" className="flex min-h-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto bg-slate-50/40 p-4 dark:bg-black/10 sm:p-6">
+        <form onSubmit={handleSubmit} noValidate autoComplete="off" aria-busy={saving} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <fieldset disabled={saving} className="contents">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain bg-slate-50/40 p-4 dark:bg-black/10 sm:p-6">
+            {saveError && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{saveError}</div>}
+            {(lookupError || salesError) && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <p>{[lookupError, salesError].filter(Boolean).join(' ')}</p>
+              <button type="button" className="mt-2 font-semibold underline" disabled={saving || lookupsLoading || salesPersonsLoading} onClick={() => setLookupVersion((value) => value + 1)}>Retry loading options</button>
+            </div>}
+            {(lookupsLoading || salesPersonsLoading) && <p role="status" className="text-sm text-slate-500">Loading customer options...</p>}
             {showValidationErrors && Object.keys(formErrors).length > 0 && (
               <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">Please fix the highlighted fields.</div>
             )}
@@ -1260,11 +1253,11 @@ export default function CustomerFormModal({
               </div>
             </Field>
 
-            <Field label="Sales Person" error={showValidationErrors && formErrors.salesPerson}>
+            <Field label="Sales Person" required error={showValidationErrors && formErrors.salesPerson}>
               <Select
                 value={formData.salesPerson ? String(formData.salesPerson) : ''}
                 onValueChange={handleSalesPersonChange}
-                disabled={!canPickSalesPerson}
+                disabled={!canPickSalesPerson || saving || salesPersonsLoading}
               >
                 <SelectTrigger
                   className={cn(
@@ -1419,6 +1412,7 @@ export default function CustomerFormModal({
             <Field label="State" required error={showValidationErrors && formErrors.stateId}>
               <Select
                 value={formData.stateId ? String(formData.stateId) : ''}
+                disabled={saving || lookupsLoading}
                 onValueChange={(value) => {
                   setStateSearchText('');
                   handleStateChange(value);
@@ -1474,9 +1468,9 @@ export default function CustomerFormModal({
                   showValidationErrors && formErrors.countryId && errorFieldClass,
                 )}
                 data-field="countryId"
-                title="Customers are created in the USA"
+                title={formData.countryName || 'USA'}
               >
-                <span>United States (USA)</span>
+                <span>{mode === 'edit' && getZipKind(formData.countryName) !== 'US' ? formData.countryName : 'United States (USA)'}</span>
                 <Lock className="h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
               </div>
             </Field>
@@ -1499,20 +1493,23 @@ export default function CustomerFormModal({
           )}
 
           </div>
+          </fieldset>
 
           <div className="flex shrink-0 flex-col-reverse gap-2.5 border-t border-slate-200/80 bg-slate-50/50 px-5 py-3.5 dark:border-white/10 dark:bg-[#141122] sm:flex-row sm:items-center sm:justify-end sm:px-6">
             <button
               type="button"
-              onClick={() => onOpenChange(false)}
+              disabled={saving}
+              onClick={() => !savingRef.current && onOpenChange?.(false)}
               className="h-10 px-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-transparent text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 transition-all shadow-xs"
             >
               Cancel
             </button>
             <LiquidGlassButton
               type="submit"
+              disabled={saving || lookupsLoading || salesPersonsLoading || (mode === 'edit' ? !canUpdate : !canAdd)}
               className="!h-10 !rounded-xl px-6 text-center !text-sm !font-semibold shadow-md shadow-violet-500/20 hover:shadow-lg hover:shadow-violet-500/30 transition-all"
             >
-              {mode === 'edit' ? 'Save Changes' : 'Create Customer'}
+              {saving ? 'Saving...' : mode === 'edit' ? 'Save Changes' : 'Create Customer'}
             </LiquidGlassButton>
           </div>
         </form>

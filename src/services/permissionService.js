@@ -1,8 +1,8 @@
-import authService from './authService';
+import authService, { AUTH_SESSION_CHANGED_EVENT } from './authService';
 import { handleSessionExpired } from './http';
+import { clearStoredPermissionMenus } from '@/lib/browserStorage';
 
 const API_BASE_URL = (import.meta.env.VITE_APP_API_URL || 'https://demoapi.enstasol.com/api').replace(/\/$/, '');
-const CACHE_PREFIX = 'crm_permission_menus:v2:';
 
 const MENU_ICON_MAP = {
   attendance: 'clock',
@@ -62,6 +62,9 @@ const MENU_ICON_MAP = {
 
 const listeners = new Set();
 const requests = new Map();
+const permissionMenus = new Map();
+let permissionSession = '';
+let cacheGeneration = 0;
 
 const normalizeBoolean = (value) => {
   if (value === true || value === false) return value;
@@ -125,16 +128,7 @@ const parsePermissionCodes = (value) => {
     .filter(Boolean);
 };
 
-const getStoredPermissionCodes = () => {
-  const userCodes = parsePermissionCodes(authService.getUser()?.permissionCodes);
-  if (userCodes.length > 0) return new Set(userCodes);
-
-  try {
-    return new Set(parsePermissionCodes(localStorage.getItem('permissionCodes')));
-  } catch {
-    return new Set();
-  }
-};
+const getStoredPermissionCodes = () => new Set(parsePermissionCodes(authService.getUser()?.permissionCodes));
 
 const getPermissionRows = (page) => {
   const candidates = [page?.menuPagePermissionDTOs, page?.pagePermissionDTOs, page?.permissions];
@@ -626,7 +620,18 @@ const getIdentity = (targetRoleId) => {
   return { roleId, userId };
 };
 
-const getCacheKey = ({ roleId, userId }) => `${CACHE_PREFIX}${roleId}:${userId}`;
+const getCacheKey = ({ roleId, userId }) => `${roleId}:${userId}`;
+
+const ensurePermissionSession = () => {
+  const identity = getIdentity();
+  const next = `${identity.roleId}:${identity.userId}:${authService.getToken() || ''}`;
+  if (next !== permissionSession) {
+    permissionSession = next;
+    cacheGeneration += 1;
+    requests.clear();
+    permissionMenus.clear();
+  }
+};
 
 const findFirstUrl = (items = []) => {
   for (const item of items) {
@@ -801,60 +806,55 @@ export const permissionService = {
     return createNavigation(menuItems);
   },
 
-  async fetchPermissions(targetRoleId, { force = false } = {}) {
-    const identity = getIdentity(targetRoleId);
-    if (!identity.roleId || !authService.getToken()) return this.getNavigation(targetRoleId);
+  // Read-only snapshots are cached only for the active browser session.
+  getPermissionMenus(targetRoleId) {
+    ensurePermissionSession();
+    if (!authService.getToken()) return [];
+    return permissionMenus.get(getCacheKey(getIdentity(targetRoleId))) || [];
+  },
 
+  async fetchPermissions(targetRoleId, { force = false } = {}) {
+    ensurePermissionSession();
+    const identity = getIdentity(targetRoleId);
+    const token = authService.getToken();
+    if (!identity.roleId || !token) return this.getNavigation(targetRoleId);
     const requestKey = getCacheKey(identity);
     if (!force && requests.has(requestKey)) return requests.get(requestKey);
-
-    const request = (async () => {
+    const generation = cacheGeneration;
+    const request = Promise.resolve().then(async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/Permission?roleId=${encodeURIComponent(identity.roleId)}`, {
+        const response = await fetch(API_BASE_URL + '/Permission?roleId=' + encodeURIComponent(identity.roleId), {
           method: 'GET',
-          headers: {
-            Accept: 'application/json',
-            Authorization: `Bearer ${authService.getToken()}`
-          }
+          headers: { Accept: 'application/json', Authorization: 'Bearer ' + token }
         });
-
         if (response.status === 401) handleSessionExpired();
-        if (!response.ok) throw new Error(`Permission request failed with status ${response.status}`);
-
+        if (!response.ok) throw new Error('Permission request failed with status ' + response.status);
         const payload = await response.json();
         if (payload?.success === false) throw new Error(payload.message || 'Permission request was rejected');
-
-        const permissionMenuDTOs = extractMenuDTOs(payload, identity.roleId);
-        localStorage.setItem(requestKey, JSON.stringify(permissionMenuDTOs));
-
-        const navigation = this.transformMenuDTOsToNavItems(permissionMenuDTOs);
+        ensurePermissionSession();
+        if (generation !== cacheGeneration || requests.get(requestKey) !== request) return this.getNavigation();
+        const menus = extractMenuDTOs(payload, identity.roleId);
+        permissionMenus.set(requestKey, menus);
+        const navigation = this.transformMenuDTOsToNavItems(menus);
         this.notify(navigation);
         return navigation;
       } catch (error) {
+        ensurePermissionSession();
+        if (generation !== cacheGeneration || requests.get(requestKey) !== request) return this.getNavigation();
         console.error('Unable to load sidebar permissions:', error);
         const navigation = this.getNavigation(targetRoleId);
         this.notify(navigation);
         return navigation;
       } finally {
-        requests.delete(requestKey);
+        if (requests.get(requestKey) === request) requests.delete(requestKey);
       }
-    })();
-
+    });
     requests.set(requestKey, request);
     return request;
   },
 
   getNavigation(targetRoleId) {
-    const identity = getIdentity(targetRoleId);
-    if (!identity.roleId) return createNavigation();
-
-    try {
-      const cached = localStorage.getItem(getCacheKey(identity));
-      const permissionMenuDTOs = cached ? JSON.parse(cached) : [];
-      return this.transformMenuDTOsToNavItems(permissionMenuDTOs);
-    } catch {
-      return createNavigation();
-    }
+    return this.transformMenuDTOsToNavItems(this.getPermissionMenus(targetRoleId));
   },
 
   getFirstAvailablePath(navigation = this.getNavigation()) {
@@ -883,8 +883,7 @@ export const permissionService = {
     if (!identity.roleId) return denied;
 
     try {
-      const cached = localStorage.getItem(getCacheKey(identity));
-      const menus = cached ? JSON.parse(cached) : [];
+      const menus = this.getPermissionMenus(targetRoleId);
       const requestedValues = (Array.isArray(pathOrAliases) ? pathOrAliases : [pathOrAliases])
         .map((value) => String(value ?? '').trim())
         .filter(Boolean);
@@ -946,8 +945,7 @@ export const permissionService = {
     if (!identity.roleId) return new Set();
 
     try {
-      const cached = localStorage.getItem(getCacheKey(identity));
-      const menus = cached ? JSON.parse(cached) : [];
+      const menus = this.getPermissionMenus(targetRoleId);
       const normalizedPath = normalizeRoute(path).toLowerCase().replace(/\/+$/, '');
       const page = (Array.isArray(menus) ? menus : [])
         .flatMap((menu) => (Array.isArray(menu?.menuPermissionPageDTOs) ? menu.menuPermissionPageDTOs : []))
@@ -966,10 +964,16 @@ export const permissionService = {
           .filter((permission) => {
             if (systemRole) return true;
             const explicit = normalizeBoolean(permission.hasPermission ?? permission.isGranted);
-            const code = String(permission.permissionCode || '').trim().toLowerCase();
+            const code = String(permission.permissionCode || '')
+              .trim()
+              .toLowerCase();
             return explicit === true || (explicit === undefined && granted.has(code));
           })
-          .map((permission) => String(permission.permissionCode || '').trim().toLowerCase())
+          .map((permission) =>
+            String(permission.permissionCode || '')
+              .trim()
+              .toLowerCase()
+          )
           .filter(Boolean)
       );
     } catch {
@@ -985,14 +989,10 @@ export const permissionService = {
   },
 
   clearCache() {
+    cacheGeneration += 1;
     requests.clear();
-    try {
-      Object.keys(localStorage)
-        .filter((key) => key.startsWith(CACHE_PREFIX) || key === 'crm_permission_menus')
-        .forEach((key) => localStorage.removeItem(key));
-    } catch {
-      // Storage may be unavailable in restricted browser contexts.
-    }
+    permissionMenus.clear();
+    clearStoredPermissionMenus();
   },
 
   subscribe(callback) {
@@ -1010,5 +1010,15 @@ export const permissionService = {
     });
   }
 };
+
+if (typeof window !== 'undefined') {
+  window.addEventListener(AUTH_SESSION_CHANGED_EVENT, () => permissionService.clearCache());
+  window.addEventListener('storage', (event) => {
+    if (event.key === null || event.key === 'token' || event.key === 'user') {
+      permissionService.clearCache();
+      window.dispatchEvent(new Event('app:routes-invalidated'));
+    }
+  });
+}
 
 export default permissionService;

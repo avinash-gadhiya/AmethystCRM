@@ -1,9 +1,9 @@
-const ACTIVITY_STORAGE_KEY = 'crm_auth_activity_notifications';
-const ATTENDANCE_SNAPSHOT_KEY = 'crm_auth_activity_attendance_snapshot';
-const READ_STORAGE_PREFIX = 'crm_auth_activity_notifications_read:';
 export const ACTIVITY_NOTIFICATIONS_CHANGED_EVENT = 'activity-notifications-changed';
 
 const MAX_ACTIVITIES = 50;
+let activities = [];
+let attendanceSnapshot = {};
+const readAtByViewer = new Map();
 
 const firstValue = (record, keys) => {
   for (const key of keys) {
@@ -25,23 +25,8 @@ const toBoolean = (value) => {
   return null;
 };
 
-const readSnapshot = () => {
-  try {
-    const value = JSON.parse(localStorage.getItem(ATTENDANCE_SNAPSHOT_KEY) || '{}');
-    return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
-  } catch {
-    return {};
-  }
-};
-
-const readActivities = () => {
-  try {
-    const value = JSON.parse(localStorage.getItem(ACTIVITY_STORAGE_KEY) || '[]');
-    return Array.isArray(value) ? value : [];
-  } catch {
-    return [];
-  }
-};
+const readSnapshot = () => attendanceSnapshot;
+const readActivities = () => activities;
 
 const getViewerKey = (user) => String(user?.userId || user?.userName || 'unknown').toLowerCase();
 
@@ -60,7 +45,7 @@ const activityNotificationService = {
   },
 
   getActivities() {
-    return readActivities().sort((left, right) => new Date(right.timestamp) - new Date(left.timestamp));
+    return [...readActivities()].sort((left, right) => new Date(right.timestamp) - new Date(left.timestamp));
   },
 
   record(type, user, details = {}) {
@@ -86,10 +71,10 @@ const activityNotificationService = {
         timestamp
       };
 
-      localStorage.setItem(ACTIVITY_STORAGE_KEY, JSON.stringify([activity, ...readActivities()].slice(0, MAX_ACTIVITIES)));
+      activities = [activity, ...readActivities()].slice(0, MAX_ACTIVITIES);
       notifyChanged();
     } catch {
-      // Authentication must continue when browser storage is unavailable.
+      // Invalid activity data must not interrupt authentication.
     }
   },
 
@@ -161,7 +146,7 @@ const activityNotificationService = {
         }
       });
 
-      localStorage.setItem(ATTENDANCE_SNAPSHOT_KEY, JSON.stringify(nextSnapshot));
+      attendanceSnapshot = nextSnapshot;
     } catch {
       // A malformed report must not affect the navigation or authentication flow.
     }
@@ -169,7 +154,7 @@ const activityNotificationService = {
 
   getUnreadCount(user, activities = readActivities()) {
     try {
-      const readAt = Number(localStorage.getItem(`${READ_STORAGE_PREFIX}${getViewerKey(user)}`)) || 0;
+      const readAt = readAtByViewer.get(getViewerKey(user)) || 0;
       return activities.filter((activity) => new Date(activity.timestamp).getTime() > readAt).length;
     } catch {
       return 0;
@@ -178,23 +163,21 @@ const activityNotificationService = {
 
   markAllAsRead(user) {
     try {
-      localStorage.setItem(`${READ_STORAGE_PREFIX}${getViewerKey(user)}`, String(Date.now()));
+      readAtByViewer.set(getViewerKey(user), Date.now());
       notifyChanged();
     } catch {
-      // Ignore unavailable browser storage.
+      // Notification listeners must not interrupt read-state updates.
     }
   },
 
   isActivityRead(activity, user) {
     try {
-      const readAt = Number(localStorage.getItem(`${READ_STORAGE_PREFIX}${getViewerKey(user)}`)) || 0;
+      const readAt = readAtByViewer.get(getViewerKey(user)) || 0;
       return new Date(activity.timestamp).getTime() <= readAt;
     } catch {
       return true;
     }
-  },
-
-  storageKey: ACTIVITY_STORAGE_KEY
+  }
 };
 
 export default activityNotificationService;

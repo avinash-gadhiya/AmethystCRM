@@ -23,6 +23,7 @@ import { brandService, gatewayService, orderLookupService, orderService, payment
 import { getCurrentLoginIpv4 } from '@/services/clientIpService';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/apiError';
+import { changePaymentMethod, isCardPayment, getOrderGatewayName } from '@/lib/paymentMethod';
 import { usePageCrudPermissions } from '@/hooks/usePageCrudPermissions';
 import usePagePermissionCodes from '@/hooks/usePagePermissionCodes';
 import { useSearchFieldFetchGuard } from '@/hooks/useSearchFieldFetchGuard';
@@ -61,23 +62,6 @@ const PAYMENT_TABS = [
     { key: 'paypal', label: 'PayPal', icon: Wallet, tone: 'bg-blue-50 text-blue-600' },
 ];
 
-// Maps a payment type name coming from /GatewayPaymentType onto one of the
-// modal's tabs. Same mapping the Create Order page uses, so a gateway offers the
-// same payment types in both places.
-const paymentTabFromName = (name) => {
-    const raw = String(name || '').trim().toLowerCase();
-    if (!raw) return null;
-    if (raw === 'card' || raw.includes('credit') || raw.includes('debit') || raw.includes('card')) return 'card';
-    if (raw === 'bank' || raw.includes('wire') || raw.includes('ach') || raw.includes('bank')) return 'bank';
-    if (raw === 'cheque' || raw === 'check' || raw.includes('cheque') || raw.includes('check')) return 'cheque';
-    if (raw.includes('zelle')) return 'zelle';
-    if (raw.includes('paypal') || raw.includes('pay pal')) return 'paypal';
-    return null;
-};
-
-const PAYMENT_TAB_ORDER = ['card', 'bank', 'cheque', 'zelle', 'paypal'];
-
-// â”€â”€ Date helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const toYmd = (date) => {
     if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
     const y = date.getFullYear();
@@ -336,7 +320,7 @@ const dateForInput = (value) => {
     if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
     const d = new Date(v);
     if (Number.isNaN(d.getTime())) return '';
-    return d.toISOString().slice(0, 10);
+    return toYmd(d);
 };
 
 const OrdersTable = () => {
@@ -361,6 +345,7 @@ const OrdersTable = () => {
     const {
         loading: permissionsLoading,
         canAdd,
+        canUpdate,
         canDelete,
     } = usePageCrudPermissions();
 
@@ -433,6 +418,9 @@ const OrdersTable = () => {
     const [refundOriginalPayment, setRefundOriginalPayment] = useState(null);
     const [refundLoading, setRefundLoading] = useState(false);
     const [refundSaving, setRefundSaving] = useState(false);
+    const [refundError, setRefundError] = useState('');
+    const [refundAvailableAmount, setRefundAvailableAmount] = useState(0);
+    const refundRequestIdRef = useRef(0);
 
     const [voidConfirmOpen, setVoidConfirmOpen] = useState(false);
     const [voidContext, setVoidContext] = useState(null);
@@ -565,7 +553,7 @@ const OrdersTable = () => {
         if (!brandId) errors.brandId = 'Brand is required.';
 
         const gatewayId = Number(draft.gatewayId) || 0;
-        if (!gatewayId) errors.gatewayId = 'Gateway is required.';
+        if (activeTab === 'card' && !gatewayId) errors.gatewayId = 'Gateway is required.';
 
         const paymentDate = dateForInput(draft.paymentDate);
         if (!paymentDate) errors.paymentDate = 'Payment date is required.';
@@ -744,17 +732,10 @@ const OrdersTable = () => {
         return 'card';
     };
 
-    const paymentTypeFromTab = (tab) => {
-        if (tab === 'bank') return 'Bank';
-        if (tab === 'cheque') return 'Cheque';
-        if (tab === 'zelle') return 'Zelle';
-        if (tab === 'paypal') return 'PayPal';
-        return 'Card';
-    };
-
     const setPaymentTab = (tab) => {
         setPaymentActiveTab(tab);
-        setPaymentDraft((prev) => ({ ...prev, paymentType: paymentTypeFromTab(tab) }));
+        setPaymentDraft((prev) => changePaymentMethod(prev, tab));
+        setPaymentErrors({});
     };
 
     // Wipes the brand/gateway pair back to unselected - the way out of a wrong
@@ -1067,70 +1048,6 @@ const OrdersTable = () => {
         return normalized;
     }, [gatewayPaymentTypes]);
 
-    const hasGatewayPaymentTypeData = activeGatewayPaymentTypeRecords.length > 0;
-
-    const paymentEnabledGatewayIds = useMemo(
-        () => new Set(
-            activeGatewayPaymentTypeRecords
-                .map((record) => Number(record?.gatewayId) || 0)
-                .filter((gatewayId) => gatewayId > 0),
-        ),
-        [activeGatewayPaymentTypeRecords],
-    );
-
-    // Which payment type tiles the selected gateway accepts. `null` means no
-    // gateway is picked yet, so every tile stays available.
-    const allowedPaymentTabs = useMemo(() => {
-        const gatewayId = Number(paymentDraft?.gatewayId) || 0;
-        if (!gatewayId || !hasGatewayPaymentTypeData) return null;
-
-        const tabs = new Set();
-        activeGatewayPaymentTypeRecords
-            .filter((record) => Number(record?.gatewayId) === gatewayId)
-            .forEach((record) => {
-                String(record?.paymentTypeName ?? record?.PaymentTypeName ?? '')
-                    .split(',')
-                    .map((value) => value.trim())
-                    .filter(Boolean)
-                    .forEach((name) => {
-                        const tab = paymentTabFromName(name);
-                        if (tab) tabs.add(tab);
-                    });
-            });
-
-        return Array.from(tabs);
-    }, [activeGatewayPaymentTypeRecords, hasGatewayPaymentTypeData, paymentDraft?.gatewayId]);
-
-    const isPaymentTabAllowed = useCallback(
-        (tab) => {
-            if (!allowedPaymentTabs) return true;
-            return allowedPaymentTabs.includes(tab);
-        },
-        [allowedPaymentTabs],
-    );
-
-    // The mapping read the other way round: which gateways accept the payment
-    // type on the active tile, so picking "Card" narrows the Gateway list.
-    const gatewayIdsForActiveTab = useMemo(() => {
-        const ids = new Set();
-        if (!paymentActiveTab || !hasGatewayPaymentTypeData) return ids;
-
-        activeGatewayPaymentTypeRecords.forEach((record) => {
-            const gatewayId = Number(record?.gatewayId) || 0;
-            if (!gatewayId) return;
-
-            String(record?.paymentTypeName ?? record?.PaymentTypeName ?? '')
-                .split(',')
-                .map((value) => value.trim())
-                .filter(Boolean)
-                .forEach((name) => {
-                    if (paymentTabFromName(name) === paymentActiveTab) ids.add(gatewayId);
-                });
-        });
-
-        return ids;
-    }, [activeGatewayPaymentTypeRecords, hasGatewayPaymentTypeData, paymentActiveTab]);
-
     // Gateway id -> brand id, resolved from whatever carries it. Gateway rows
     // often arrive with no brand id at all, so this falls back to the
     // /GatewayPaymentType records and finally to the gateway's own name, which is
@@ -1186,44 +1103,15 @@ const OrdersTable = () => {
     );
 
     const filteredGateways = useMemo(() => {
-        const brandId = Number(paymentDraft?.brandId) || 0;
-        const selectedGatewayId = Number(paymentDraft?.gatewayId) || 0;
-        const all = Array.isArray(gateways) ? gateways : [];
-
-        return all.filter((g) => {
-            const gatewayId = Number(g?.gatewayId) || 0;
-            // The already-saved gateway always stays selectable, so opening an
-            // existing payment never blanks its own gateway.
-            if (selectedGatewayId > 0 && gatewayId === selectedGatewayId) return true;
-
-            // The GatewayDropdown response may not carry a brand id per row
-            // (normalized to 0). Show gateways tied to the selected brand PLUS any
-            // that aren't bound to a brand, so the dropdown isn't empty.
-            const gatewayBrandId = gatewayBrandIdByGatewayId.get(gatewayId) || Number(g?.brandId) || 0;
-            const matchesBrand = !brandId || !gatewayBrandId || gatewayBrandId === brandId;
-            if (!matchesBrand) return false;
-
-            // A chosen brand shows all of its active gateways; the payment-type tabs
-            // then follow the gateway that is picked.
-            if (brandId) return g?.isActive !== false;
-
-            // Until the mapping loads, don't filter on it - an empty lookup would
-            // otherwise blank the dropdown while the request is in flight.
-            if (!hasGatewayPaymentTypeData) return true;
-
-            return paymentEnabledGatewayIds.has(gatewayId)
-                && g?.isActive !== false
-                && gatewayIdsForActiveTab.has(gatewayId);
+        const brandId = Number(paymentDraft.brandId) || 0;
+        if (!brandId) return [];
+        return (gateways || []).filter((gateway) => {
+            const id = Number(gateway.gatewayId) || 0;
+            const gatewayBrandId = gatewayBrandIdByGatewayId.get(id) || Number(gateway.brandId) || 0;
+            return gatewayBrandId === brandId
+                && (gateway.isActive !== false || id === Number(paymentDraft.gatewayId));
         });
-    }, [
-        gateways,
-        paymentDraft?.brandId,
-        paymentDraft?.gatewayId,
-        gatewayBrandIdByGatewayId,
-        hasGatewayPaymentTypeData,
-        paymentEnabledGatewayIds,
-        gatewayIdsForActiveTab,
-    ]);
+    }, [gateways, paymentDraft.brandId, paymentDraft.gatewayId, gatewayBrandIdByGatewayId]);
 
     // Safety net for a gateway that arrives already set with no brand beside it -
     // an existing payment being edited, or a gateway picked before the lookups
@@ -1242,20 +1130,12 @@ const OrdersTable = () => {
         clearPaymentError('brandId');
     }, [paymentModalOpen, paymentDraft?.gatewayId, paymentDraft?.brandId, resolveGatewayBrandId]);
 
-    // The selected gateway decides the payment type: if the tile in view is not
-    // one the gateway accepts, move to the first one it does and carry the draft's
-    // paymentType with it.
+    // Historical non-card payments may still carry an old gateway.
     useEffect(() => {
-        if (!paymentModalOpen) return;
-        if (!allowedPaymentTabs || allowedPaymentTabs.length === 0) return;
-        if (allowedPaymentTabs.includes(paymentActiveTab)) return;
-
-        const nextTab = PAYMENT_TAB_ORDER.find((tab) => allowedPaymentTabs.includes(tab));
-        if (!nextTab) return;
-
-        setPaymentActiveTab(nextTab);
-        setPaymentDraft((prev) => ({ ...prev, paymentType: paymentTypeFromTab(nextTab) }));
-    }, [paymentModalOpen, allowedPaymentTabs, paymentActiveTab]);
+        if (!paymentModalOpen || paymentActiveTab === 'card') return;
+        setPaymentDraft((prev) => prev.gatewayId || prev.gatewayName ? { ...prev, gatewayId: 0, gatewayName: '' } : prev);
+        clearPaymentError('gatewayId');
+    }, [paymentModalOpen, paymentActiveTab, paymentDraft.gatewayId, paymentDraft.gatewayName]);
 
     // In Add Payment, also narrow the gateway list server-side by the selected
     // brand (the dropdown endpoint supports a BrandId filter), matching how the
@@ -1493,6 +1373,8 @@ const OrdersTable = () => {
     };
 
     const closeRefundModal = () => {
+        refundRequestIdRef.current += 1;
+        setRefundError('');
         setRefundModalOpen(false);
         setRefundDraft(emptyRefund);
         setRefundOriginalPayment(null);
@@ -2091,33 +1973,17 @@ const OrdersTable = () => {
         };
     }, [shareSaleModalOpen]);
 
-    const openAddPaymentModal = (order) => {
-        if (orderCodesLoading) {
-            toast.error('Permissions are still loading, please try again.');
+    const openEditOrder = (order) => {
+        if (permissionsLoading || !canUpdate) {
+            toast.error('You do not have permission to update orders.');
             return;
         }
-        if (!canAddOrderPayment) {
-            toast.error("You don't have permission to add order payments.");
-            return;
-        }
-
-        const totalAmount = Number(order?.totalAmount) || 0;
-        const paidAmount = Number(order?.paidAmount) || 0;
-        const dueAmount = Math.max(0, totalAmount - paidAmount);
-
-        setPaymentModalMode('add');
-        setPaymentActiveTab('card');
-        setPaymentDraft({
-            ...emptyPayment,
-            orderId: Number(order?.orderId) || 0,
-            paymentType: 'Card',
-            amount: dueAmount,
-            gatewayId: Number(order?.gatewayId) || 0,
-            brandId: Number(order?.brandId) || 0,
-            paymentDate: new Date().toISOString(),
+        const orderId = Number(order?.orderId) || 0;
+        if (!orderId) return;
+        const query = new URLSearchParams({ orderId: String(orderId), mode: 'edit' });
+        navigate(createOrderPath + (createOrderPath.includes('?') ? '&' : '?') + query.toString(), {
+            state: { editOrderMode: true, orderData: order }
         });
-        setPaymentErrors({});
-        setPaymentModalOpen(true);
     };
 
     const openEditPaymentModal = async (paymentOrId) => {
@@ -2248,78 +2114,48 @@ const OrdersTable = () => {
     }, [activeEditPaymentId, paymentDetailsById, paymentLoading, paymentModalMode, paymentModalOpen]);
 
     const openRefundModal = async (paymentOrId) => {
-        if (orderCodesLoading) {
-            toast.error('Permissions are still loading, please try again.');
+        if (orderCodesLoading || !canRefundOrderPayment) {
+            toast.error('You do not have permission to refund order payments.');
             return;
         }
-        if (!canRefundOrderPayment) {
-            toast.error("You don't have permission to refund order payments.");
-            return;
-        }
-
-        const id = typeof paymentOrId === 'object' && paymentOrId ? Number(paymentOrId.paymentId) || 0 : Number(paymentOrId) || 0;
+        const id = Number(typeof paymentOrId === 'object' ? paymentOrId?.paymentId : paymentOrId) || 0;
         if (!id) return;
-
+        const requestId = ++refundRequestIdRef.current;
         setRefundModalOpen(true);
         setRefundLoading(true);
-
+        setRefundError('');
+        setRefundOriginalPayment(null);
+        setRefundAvailableAmount(0);
+        setRefundDraft(emptyRefund);
         try {
-            const cached = paymentDetailsById?.[id];
-            const seedPayment = cached || (typeof paymentOrId === 'object' ? paymentOrId : null);
-            let payment = seedPayment;
-
-            if (!payment && expandedOrderId) {
-                const order = (data || []).find((o) => Number(o?.orderId) === Number(expandedOrderId));
-                payment = (order?.payments || []).find((p) => Number(p?.paymentId) === id) || null;
-            }
-
-            // Use table/cached data directly; fetch only when we only have an id.
-            if (!payment) {
-                const fetchedPayment = await paymentService.getPaymentById(id);
-                if (fetchedPayment) {
-                    payment = fetchedPayment;
-                    setPaymentDetailsById((prev) => ({ ...prev, [id]: payment }));
-                }
-            }
-
-            if (!payment) {
-                toast.error('Payment not found');
-                closeRefundModal();
-                return;
-            }
-
-            const fallbackOrderId = Number(payment?.orderId) || Number(expandedOrderId) || 0;
-            const paymentSaleType = String(payment?.saleType ?? payment?.SaleType ?? '').trim().toLowerCase();
-            const isEditingExistingRefund = paymentSaleType.includes('refund');
-            const liveRefundDate = dateForInput(new Date());
-
+            const context = await paymentService.getRefundContext(id);
+            if (requestId !== refundRequestIdRef.current) return;
+            const payment = context.payment;
+            const editing = /refund/i.test(payment.saleType || '');
             setRefundOriginalPayment(payment);
+            setRefundAvailableAmount(context.availableAmount);
+            setPaymentDetailsById((prev) => ({ ...prev, [id]: payment }));
             setRefundDraft({
-                paymentId: Number(payment.paymentId) || id,
-                orderId: Number(payment.orderId) || fallbackOrderId,
-                brandId: Number(payment.brandId) || Number(payment.BrandId) || 0,
-                gatewayId: Number(payment.gatewayId) || Number(payment.GatewayId) || 0,
-                amount: resolvePaymentAmount(payment),
-                paymentDate: isEditingExistingRefund
-                    ? dateForInput(payment.paymentDate || payment.PaymentDate || payment.createdAt || payment.CreatedAt || '')
-                    : liveRefundDate,
-                transactionId: payment.transactionId || payment.TransactionId || '',
-                authCode: payment.authCode || payment.AuthCode || '',
-                isChequeCleared: !!(payment.isChequeCleared ?? payment.IsChequeCleared),
-                isChargeBack: !!(payment.isChargeBack ?? payment.IsChargeBack),
-                isRetrieval: !!(payment.isRetrieval ?? payment.IsRetrieval),
-                isAlert: !!(payment.isAlert ?? payment.IsAlert),
+                ...emptyRefund,
+                paymentId: Number(payment.paymentId), orderId: Number(payment.orderId),
+                amount: editing ? Math.abs(Number(payment.amount) || 0) : context.availableAmount,
+                paymentDate: editing ? dateForInput(payment.paymentDate) : dateForInput(new Date()),
+                transactionId: editing ? payment.transactionId || '' : '',
+                authCode: editing ? payment.authCode || '' : '',
+                isChargeBack: editing && !!payment.isChargeBack,
+                isRetrieval: editing && !!payment.isRetrieval,
+                isAlert: editing && !!payment.isAlert
             });
-        } catch (err) {
-            console.error('Failed to load payment for refund', err);
-            toast.error(getApiErrorMessage(err, 'Failed to load payment'));
-            closeRefundModal();
+        } catch (error) {
+            if (requestId !== refundRequestIdRef.current) return;
+            setRefundError(getApiErrorMessage(error, 'Failed to load the payment and refund history.'));
         } finally {
-            setRefundLoading(false);
+            if (requestId === refundRequestIdRef.current) setRefundLoading(false);
         }
     };
 
     const handleRefundField = (key) => (event) => {
+        setRefundError('');
         const value = event?.target?.type === 'checkbox' ? !!event.target.checked : event?.target?.value;
         setRefundDraft((prev) => ({ ...prev, [key]: value }));
     };
@@ -2517,348 +2353,30 @@ const OrdersTable = () => {
     };
 
     const saveRefund = async () => {
-        if (orderCodesLoading) {
-            toast.error('Permissions are still loading, please try again.');
+        if (refundSaving || refundLoading || !refundOriginalPayment) return;
+        if (orderCodesLoading || !canRefundOrderPayment) {
+            toast.error('You do not have permission to refund order payments.');
             return;
         }
-        if (!canRefundOrderPayment) {
-            toast.error("You don't have permission to refund order payments.");
-            return;
-        }
-
-        const id = Number(refundDraft.paymentId) || 0;
-        if (!id) return;
-
+        setRefundSaving(true);
+        setRefundError('');
         try {
-            setRefundSaving(true);
-            const currentUserId = Number(localStorage.getItem('userId')) || 0;
-            const nowIso = new Date().toISOString();
-
-            const basePayment =
-                (refundOriginalPayment?.paymentId === id ? refundOriginalPayment : null) ||
-                paymentDetailsById?.[id] ||
-                (data || []).flatMap((o) => (Array.isArray(o?.payments) ? o.payments : [])).find((p) => Number(p?.paymentId) === id) ||
-                null;
-            if (!basePayment) {
-                toast.error('Payment not found');
-                return;
-            }
-
-            const parentOrderByOrderId = (data || []).find((o) => Number(o?.orderId) === Number(basePayment?.orderId));
-            const parentOrderByPaymentId = (data || []).find((o) =>
-                Array.isArray(o?.payments) && o.payments.some((p) => Number(p?.paymentId) === id),
-            );
-            const parentOrder = parentOrderByOrderId || parentOrderByPaymentId || null;
-
-            const resolvedOrderId =
-                Number(refundDraft?.orderId) ||
-                Number(basePayment?.orderId) ||
-                Number(refundOriginalPayment?.orderId) ||
-                Number(parentOrder?.orderId) ||
-                0;
-
-            if (!resolvedOrderId) {
-                toast.error('Order ID is missing for refund');
-                return;
-            }
-
-            const brandIdFromPayment = Number(basePayment?.brandId) || Number(basePayment?.BrandId) || 0;
-            const gatewayIdFromPayment = Number(basePayment?.gatewayId) || Number(basePayment?.GatewayId) || 0;
-            const brandIdFromDraft = Number(refundDraft?.brandId) || 0;
-            const gatewayIdFromDraft = Number(refundDraft?.gatewayId) || 0;
-            const brandIdFromOrder = Number(parentOrder?.brandId) || 0;
-            const gatewayIdFromOrder = Number(parentOrder?.gatewayId) || 0;
-
-            const brandNameHint =
-                basePayment?.brandName ||
-                basePayment?.BrandName ||
-                refundOriginalPayment?.brandName ||
-                parentOrder?.brandName ||
-                '';
-            const gatewayNameHint =
-                basePayment?.gatewayName ||
-                basePayment?.GatewayName ||
-                refundOriginalPayment?.gatewayName ||
-                parentOrder?.gatewayName ||
-                '';
-
-            const selectedBrandById = (brands || []).find(
-                (b) => Number(b.brandId) === (brandIdFromPayment || brandIdFromDraft),
-            );
-            const selectedGatewayById = (gateways || []).find(
-                (g) => Number(g.gatewayId) === (gatewayIdFromPayment || gatewayIdFromDraft),
-            );
-
-            const selectedBrandByName =
-                !selectedBrandById && brandNameHint
-                    ? (brands || []).find(
-                        (b) => String(b.brandName || b.name || '').trim().toLowerCase() === String(brandNameHint).trim().toLowerCase(),
-                    )
-                    : null;
-
-            const selectedGatewayByName =
-                !selectedGatewayById && gatewayNameHint
-                    ? (gateways || []).find(
-                        (g) => String(g.gatewayName || g.name || '').trim().toLowerCase() === String(gatewayNameHint).trim().toLowerCase(),
-                    )
-                    : null;
-
-            let resolvedBrandId =
-                brandIdFromPayment ||
-                brandIdFromDraft ||
-                brandIdFromOrder ||
-                Number(selectedBrandByName?.brandId) ||
-                0;
-
-            let resolvedGatewayId =
-                gatewayIdFromPayment ||
-                gatewayIdFromDraft ||
-                gatewayIdFromOrder ||
-                Number(selectedGatewayByName?.gatewayId) ||
-                0;
-
-            let brandName =
-                selectedBrandById?.brandName ||
-                selectedBrandById?.name ||
-                selectedBrandByName?.brandName ||
-                selectedBrandByName?.name ||
-                brandNameHint ||
-                '';
-
-            let gatewayName =
-                selectedGatewayById?.gatewayName ||
-                selectedGatewayById?.name ||
-                selectedGatewayByName?.gatewayName ||
-                selectedGatewayByName?.name ||
-                gatewayNameHint ||
-                '';
-
-            if (!resolvedBrandId || !resolvedGatewayId) {
-                try {
-                    const fullPayment = await paymentService.getPaymentById(id);
-                    if (fullPayment) {
-                        resolvedBrandId = resolvedBrandId || Number(fullPayment?.brandId) || Number(fullPayment?.BrandId) || 0;
-                        resolvedGatewayId = resolvedGatewayId || Number(fullPayment?.gatewayId) || Number(fullPayment?.GatewayId) || 0;
-                        brandName =
-                            brandName ||
-                            fullPayment?.brandName ||
-                            fullPayment?.BrandName ||
-                            '';
-                        gatewayName =
-                            gatewayName ||
-                            fullPayment?.gatewayName ||
-                            fullPayment?.GatewayName ||
-                            '';
-                    }
-                } catch (resolveErr) {
-                    console.error('Failed to resolve brand/gateway for refund:', resolveErr);
-                }
-            }
-
-            let canonicalPayment = null;
-            try {
-                canonicalPayment = await paymentService.getPaymentById(id);
-            } catch (fetchErr) {
-                console.error('Failed to fetch canonical payment for refund payload:', fetchErr);
-            }
-            const schemaSource = {
-                ...(canonicalPayment || {}),
-                ...(basePayment || {}),
-            };
-
-            const resolvedRefundSaleType = String(
-                (saleTypes || []).find((s) => String(s?.name || '').trim().toLowerCase().includes('refund'))?.name || '',
-            ).trim();
-
-            const sourceSaleType = String(
-                basePayment?.saleType ??
-                basePayment?.SaleType ??
-                refundOriginalPayment?.saleType ??
-                refundOriginalPayment?.SaleType ??
-                '',
-            )
-                .trim()
-                .toLowerCase();
-
-            const isEditingExistingRefund = sourceSaleType.includes('refund');
-
-            const buildRefundPayload = () => {
-                const pick = (camel, pascal, fallback = '') => {
-                    const v = schemaSource?.[camel] ?? schemaSource?.[pascal];
-                    return v === undefined || v === null ? fallback : v;
-                };
-                const pickRaw = (camel, pascal, fallback = null) => {
-                    const v = schemaSource?.[camel] ?? schemaSource?.[pascal];
-                    return v === undefined ? fallback : v;
-                };
-
-                const paymentIdFromSource = Number(pick('paymentId', 'PaymentId', 0)) || Number(refundDraft.paymentId) || id;
-                const refundPaymentIdFromSource = Number(pick('refundPaymentId', 'RefundPaymentId', 0)) || paymentIdFromSource || id;
-                const orderIdFromSource = Number(pick('orderId', 'OrderId', 0)) || resolvedOrderId;
-                const paymentTypeFromSource = String(pick('paymentType', 'PaymentType', 'Card') || 'Card');
-
-                const cardTypeFromSource = String(pick('cardType', 'CardType', ''));
-                const cardNumberFromSource = String(pick('cardNumber', 'CardNumber', ''));
-                const cardExpiryDateFromSource = String(pick('cardExpiryDate', 'CardExpiryDate', ''));
-                const cvvFromSource = String(pick('cvv', 'CVV', ''));
-                const nameOnCardFromSource = String(pick('nameOnCard', 'NameOnCard', ''));
-
-                const resolvedTransactionId = String(
-                    refundDraft?.transactionId ??
-                    refundDraft?.TransactionId ??
-                    schemaSource?.transactionId ??
-                    schemaSource?.TransactionId ??
-                    '',
-                );
-                const resolvedAuthCode = String(
-                    refundDraft?.authCode ??
-                    refundDraft?.AuthCode ??
-                    schemaSource?.authCode ??
-                    schemaSource?.AuthCode ??
-                    '',
-                );
-
-                const gatewayIdFromSource = resolvedGatewayId || Number(pick('gatewayId', 'GatewayId', 0)) || 0;
-                const gatewayNameFromSource = String(
-                    gatewayName ||
-                    pick('gatewayName', 'GatewayName', ''),
-                );
-                const brandIdFromSource = resolvedBrandId || Number(pick('brandId', 'BrandId', 0)) || 0;
-                const brandNameFromSource = String(
-                    brandName ||
-                    pick('brandName', 'BrandName', ''),
-                );
-
-                const amountFromDraft = Number(refundDraft.amount);
-                const amountFromSource = Number(pick('amount', 'Amount', 0));
-                const resolvedAmount = Number.isFinite(amountFromDraft) ? amountFromDraft : (Number.isFinite(amountFromSource) ? amountFromSource : 0);
-
-                const paymentDateRaw = pickRaw('paymentDate', 'PaymentDate', null);
-                const createdAtRaw = pickRaw('createdAt', 'CreatedAt', null);
-                const paymentDateFromSource = paymentDateRaw ?? null;
-                const createdAtFromSource = createdAtRaw ?? null;
-
-                const refundDateInput = dateForInput(refundDraft.paymentDate);
-                const sourceDateTime = isEditingExistingRefund
-                    ? String(paymentDateFromSource || createdAtFromSource || '')
-                    : '';
-                const sourceTimeMatch = sourceDateTime.match(/T(\d{2}:\d{2}:\d{2})/);
-                const nowLocal = new Date();
-                const pad2 = (n) => String(n).padStart(2, '0');
-                const fallbackTimePart = `${pad2(nowLocal.getHours())}:${pad2(nowLocal.getMinutes())}:${pad2(nowLocal.getSeconds())}`;
-                const resolvedTimePart = sourceTimeMatch?.[1] || fallbackTimePart;
-                const normalizedRefundPaymentDate = refundDateInput ? `${refundDateInput}T${resolvedTimePart}` : '';
-
-                const resolvedRefundPaymentDate = normalizedRefundPaymentDate || (isEditingExistingRefund ? (paymentDateFromSource || createdAtFromSource || '') : '');
-                const createdByFromSource = Number(pick('createdBy', 'CreatedBy', 0)) || 0;
-                const isDeletedFromSource = !!pick('isDeleted', 'IsDeleted', false);
-                const isVoidFromSource = !!pick('isVoid', 'IsVoid', false);
-
-                const chequeRoutingNoFromSource = Number(pick('chequeRoutingNo', 'ChequeRoutingNo', 0)) || 0;
-                const chequeNoFromSource = Number(pick('chequeNo', 'ChequeNo', 0)) || 0;
-                const chequeTrackingNoFromSource = String(pick('chequeTrackingNo', 'ChequeTrackingNo', ''));
-                const zelleIdFromSource = String(
-                    schemaSource?.zelleId ??
-                    schemaSource?.ZelleId ??
-                    schemaSource?.zelleID ??
-                    schemaSource?.ZelleID ??
-                    '',
-                );
-
-                return {
-                    paymentId: paymentIdFromSource,
-                    refundPaymentId: refundPaymentIdFromSource,
-                    orderId: orderIdFromSource,
-                    paymentType: paymentTypeFromSource,
-                    cardType: cardTypeFromSource,
-                    cardNumber: cardNumberFromSource,
-                    cardExpiryDate: cardExpiryDateFromSource,
-                    cvv: cvvFromSource,
-                    nameOnCard: nameOnCardFromSource,
-                    transactionId: resolvedTransactionId,
-                    authCode: resolvedAuthCode,
-                    gatewayId: gatewayIdFromSource,
-                    gatewayName: gatewayNameFromSource,
-                    brandId: brandIdFromSource,
-                    brandName: brandNameFromSource,
-                    amount: resolvedAmount,
-                    saleType: resolvedRefundSaleType,
-                    isVoid: isVoidFromSource,
-                    isChargeBack: !!refundDraft.isChargeBack,
-                    isRetrieval: !!refundDraft.isRetrieval,
-                    isAlert: !!refundDraft.isAlert,
-                    paymentDate: resolvedRefundPaymentDate,
-                    createdAt: createdAtFromSource || nowIso,
-                    createdBy: createdByFromSource || currentUserId,
-                    updatedAt: nowIso,
-                    updatedBy: currentUserId,
-                    isDeleted: isDeletedFromSource,
-                    isChequeCleared: !!(schemaSource?.isChequeCleared ?? schemaSource?.IsChequeCleared),
-                    chequeRoutingNo: chequeRoutingNoFromSource,
-                    chequeNo: chequeNoFromSource,
-                    chequeTrackingNo: chequeTrackingNoFromSource,
-                    zelleId: zelleIdFromSource,
-                };
-            };
-
-            const upsertPaymentIntoOrder = (orders, orderId, paymentRow) => {
-                if (!Array.isArray(orders) || !orderId || !paymentRow) return orders;
-                const pid = Number(paymentRow.paymentId) || 0;
-                return orders.map((o) => {
-                    if (Number(o?.orderId) !== Number(orderId)) return o;
-                    const currentPayments = Array.isArray(o.payments) ? o.payments : [];
-                    if (!pid) return { ...o, payments: currentPayments };
-
-                    const exists = currentPayments.some((p) => Number(p?.paymentId) === pid);
-                    const nextPayments = exists
-                        ? currentPayments.map((p) => (Number(p?.paymentId) === pid ? { ...p, ...paymentRow } : p))
-                        : [{ ...paymentRow }, ...currentPayments];
-
-                    return { ...o, payments: nextPayments };
-                });
-            };
-
-            const refundPayload = buildRefundPayload();
-            if (!String(refundPayload?.paymentDate || '').trim()) {
-                toast.error('Refund date is required');
-                return;
-            }
-
-            if (isEditingExistingRefund) {
-                const updated = await paymentService.updatePayment(refundPayload);
-                const updatedRow = updated || refundPayload;
-                const updatedId = Number(updatedRow.paymentId) || Number(basePayment.paymentId) || id;
-                if (updatedId > 0) {
-                    setPaymentDetailsById((prev) => ({ ...prev, [updatedId]: updatedRow }));
-                }
-                setData((prev) => upsertPaymentIntoOrder(prev, updatedRow.orderId || resolvedOrderId, updatedRow));
-            } else {
-                // Creating a refund from a non-refund payment should create a new row (POST).
-                const createRefundPayload = {
-                    ...refundPayload,
-                    paymentId: 0,
-                    refundPaymentId: Number(refundPayload.refundPaymentId) || id,
-                    createdAt: nowIso,
-                    createdBy: currentUserId,
-                    updatedAt: nowIso,
-                    updatedBy: currentUserId,
-                };
-
-                const created = await paymentService.createPayment(createRefundPayload);
-                const createdRow = created || createRefundPayload;
-                const createdId = Number(createdRow.paymentId) || 0;
-
-                if (createdId > 0) {
-                    setPaymentDetailsById((prev) => ({ ...prev, [createdId]: createdRow }));
-                }
-                setData((prev) => upsertPaymentIntoOrder(prev, createdRow.orderId || resolvedOrderId, createdRow));
+            const saved = await paymentService.saveRefund({
+                paymentId: Number(refundDraft.paymentId),
+                draft: refundDraft,
+                userId: Number(localStorage.getItem('userId')) || 0,
+                saleType: saleTypes.find((type) => /refund/i.test(type.name || ''))?.name || 'Refund'
+            });
+            if (Number(saved?.paymentId) > 0) {
+                setPaymentDetailsById((prev) => ({ ...prev, [saved.paymentId]: saved }));
             }
             toast.success('Refund saved');
             closeRefundModal();
             await Promise.all([fetchOrders(), fetchOrderSummary()]);
-        } catch (err) {
-            console.error('Failed to save refund', err);
-            toast.error(getApiErrorMessage(err, 'Failed to save refund'));
+        } catch (error) {
+            const message = getApiErrorMessage(error, 'Failed to save the refund.');
+            setRefundError(message);
+            toast.error(message);
         } finally {
             setRefundSaving(false);
         }
@@ -3325,16 +2843,17 @@ const OrdersTable = () => {
                 header: 'Brand',
                 cell: ({ row }) => {
                     const order = row.original;
+                    const gatewayName = getOrderGatewayName(order);
                     return (
                         <div className="flex flex-col text-sm text-gray-800">
                             <div className="flex items-center gap-2 font-medium text-gray-900">
                                 <CorporateFareIcon sx={{ fontSize: '14px' }} />
                                 <span className="truncate">{order.brandName || '-'}</span>
                             </div>
-                            <div className="flex items-center gap-2 text-xs text-gray-600">
+                            {gatewayName && <div className="flex items-center gap-2 text-xs text-gray-600">
                                 <LocalGroceryStoreIcon sx={{ fontSize: '14px' }} />
-                                <span className="truncate">{order.gatewayName || '-'}</span>
-                            </div>
+                                <span className="truncate">{gatewayName}</span>
+                            </div>}
                         </div>
                     );
                 },
@@ -3541,13 +3060,14 @@ const OrdersTable = () => {
 
                     return (
                         <div className="flex items-center gap-2 justify-center">
-                            {canAddOrderPayment && (
+                            {canUpdate && (
                                 <ActionIconButton
-                                    label="Add payment"
-                                    className="w-8 h-8 text-emerald-700 hover:bg-gray-100"
-                                    onClick={() => openAddPaymentModal(order)}
+                                    label="Edit order"
+                                    variant="edit"
+                                    className="w-8 h-8"
+                                    onClick={() => openEditOrder(order)}
                                 >
-                                    <Plus size={16} />
+                                    <Edit size={16} />
                                 </ActionIconButton>
                             )}
                             {canDelete && (
@@ -3567,7 +3087,7 @@ const OrdersTable = () => {
                 meta: { headerClassName: 'text-center ', cellClassName: 'text-start' },
             },
         ],
-        [expandedOrderId, canViewOrderPayments, canAddOrderPayment, getUserFullName, handleOpenSharePaymentFromOrder]
+        [expandedOrderId, canViewOrderPayments, canUpdate, canDelete, permissionsLoading, createOrderPath, navigate, getUserFullName, handleOpenSharePaymentFromOrder]
     );
 
     const columnCount = columns.length;
@@ -3860,7 +3380,9 @@ const OrdersTable = () => {
                                                 </td>
                                                 <td className="px-4 py-3 align-middle text-center border-r border-gray-200 last:border-r-0">
                                                     <div className="text-sm font-semibold text-gray-900">{payment.brandName || '-'}</div>
-                                                    <div className="text-xs text-gray-600">{payment.gatewayName || '-'}</div>
+                                                    {isCardPayment(payment.paymentType) && payment.gatewayName && (
+                                                        <div className="text-xs text-gray-600">{payment.gatewayName}</div>
+                                                    )}
                                                 </td>
                                                 <td className="px-4 py-3 align-middle text-center border-r border-gray-200 last:border-r-0">
                                                     {(() => {
@@ -4375,7 +3897,7 @@ const OrdersTable = () => {
 
                                                 <div className="px-4 pt-3 pb-4">
                                                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-4 text-sm sm:text-base rounded-2xl bg-slate-50 p-2 border border-slate-200">
-                                                        {PAYMENT_TABS.filter((tab) => isPaymentTabAllowed(tab.key)).map(({ key, label, icon: TabIcon, tone }) => {
+                                                        {PAYMENT_TABS.map(({ key, label, icon: TabIcon, tone }) => {
                                                             const active = paymentActiveTab === key;
                                                             return (
                                                                 <button
@@ -4397,11 +3919,6 @@ const OrdersTable = () => {
                                                         })}
                                                     </div>
 
-                                                    {allowedPaymentTabs && allowedPaymentTabs.length === 0 ? (
-                                                        <p className="-mt-2 mb-4 text-xs font-medium text-amber-600">
-                                                            No active payment types are configured for the selected gateway.
-                                                        </p>
-                                                    ) : null}
                                                 </div>
                                             </div>
 
@@ -4450,10 +3967,11 @@ const OrdersTable = () => {
                                                         </Select>
                                                         {paymentErrors.brandId ? <p className="mt-1 text-xs text-red-600">{paymentErrors.brandId}</p> : null}
                                                     </div>
-                                                    <div>
+                                                    {paymentActiveTab === 'card' && (<div>
                                                         <label className={labelClass}>Gateway</label>
                                                         <Select
                                                             value={paymentDraft.gatewayId ? String(paymentDraft.gatewayId) : ''}
+                                                            disabled={!Number(paymentDraft.brandId)}
                                                             onValueChange={(value) => {
                                                                 const nextGatewayId = value ? Number(value) : 0;
                                                                 // Picking a gateway with no brand chosen fills the brand
@@ -4470,7 +3988,7 @@ const OrdersTable = () => {
                                                             }}
                                                         >
                                                             <SelectTrigger className={fieldClass(selectTriggerClass, !!paymentErrors.gatewayId)}>
-                                                                <SelectValue placeholder="Select Gateway" />
+                                                                <SelectValue placeholder={Number(paymentDraft.brandId) ? 'Select Gateway' : 'Select a brand first'} />
                                                             </SelectTrigger>
                                                             <SelectContent className="max-h-72">
                                                                 {(filteredGateways || []).length > 0 ? (
@@ -4485,7 +4003,7 @@ const OrdersTable = () => {
                                                             </SelectContent>
                                                         </Select>
                                                         {paymentErrors.gatewayId ? <p className="mt-1 text-xs text-red-600">{paymentErrors.gatewayId}</p> : null}
-                                                    </div>
+                                                    </div>)}
 
                                                     <div>
                                                         <label className={labelClass}>Amount</label>
@@ -4774,6 +4292,7 @@ const OrdersTable = () => {
                                 </div>
 
                                 <div className="p-6 overflow-y-auto">
+                                    {refundError && <div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{refundError}</div>}
                                     {refundLoading ? (
                                         <div className="text-sm text-gray-600">Loading payment...</div>
                                     ) : (
@@ -4805,10 +4324,13 @@ const OrdersTable = () => {
                                                         <input
                                                             type="number"
                                                             step="0.01"
+                                                            min="0.01"
+                                                            max={refundAvailableAmount}
                                                             className={inputClass}
                                                             value={refundDraft.amount ?? 0}
                                                             onChange={handleRefundField('amount')}
                                                         />
+                                                        <p className="mt-1 text-xs text-gray-500">Available to refund: {currency(refundAvailableAmount)}</p>
                                                     </div>
                                                     <div>
                                                         <label className={labelClass}>Refund Date</label>
@@ -4876,7 +4398,7 @@ const OrdersTable = () => {
                                     <LiquidGlassButton
                                         type="button"
                                         onClick={saveRefund}
-                                        disabled={refundSaving || refundLoading}
+                                        disabled={refundSaving || refundLoading || !refundOriginalPayment || refundAvailableAmount <= 0}
                                         className="!h-10 !px-6 text-center"
                                     >
                                         {refundSaving ? 'Saving...' : 'Save Refund'}

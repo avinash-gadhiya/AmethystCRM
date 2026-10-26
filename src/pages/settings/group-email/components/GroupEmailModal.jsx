@@ -118,11 +118,12 @@ const GroupEmailModal = ({
     }
 
     setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
+    return errors;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
 
     if (isEditing && !canUpdate) {
       toast.error('You do not have permission to update group emails.');
@@ -133,8 +134,9 @@ const GroupEmailModal = ({
       return;
     }
 
-    if (!validate()) {
-      const firstError = Object.values(validationErrors)[0] || 'Please complete all required fields.';
+    const errors = validate();
+    if (Object.keys(errors).length > 0) {
+      const firstError = Object.values(errors)[0];
       toast.error(firstError);
       return;
     }

@@ -1,5 +1,7 @@
 import axios from 'axios';
 import activityNotificationService from './activityNotificationService';
+import { clearStoredPermissionMenus, LEGACY_TOKEN_KEYS } from '@/lib/browserStorage';
+import { getCurrentLoginIpv4 } from './clientIpService';
 
 const API_BASE_URL = (import.meta.env.VITE_APP_API_URL || 'https://demoapi.enstasol.com/api').replace(/\/$/, '');
 export const AUTH_SESSION_CHANGED_EVENT = 'auth-session-changed';
@@ -52,18 +54,13 @@ const normalizePermissionCodes = (value) => {
 };
 
 const clearPermissionMenuCache = () => {
-  try {
-    Object.keys(localStorage)
-      .filter((key) => key.startsWith('crm_permission_menus:') || key === 'crm_permission_menus')
-      .forEach((key) => localStorage.removeItem(key));
-  } catch {
-    // Storage may be unavailable in restricted browser contexts.
-  }
+  clearStoredPermissionMenus();
 };
 
 export const authService = {
   async login(userName, password) {
     try {
+      const loginIp = await getCurrentLoginIpv4(true);
       const response = await fetch(`${API_BASE_URL}/Login`, {
         method: 'POST',
         headers: {
@@ -73,7 +70,7 @@ export const authService = {
         body: JSON.stringify({
           userName: userName.trim(),
           password: password,
-          loginIp: ''
+          loginIp
         })
       });
 
@@ -149,32 +146,20 @@ export const authService = {
         tokenExpirationTime: payload.tokenExpirationTime || resData.tokenExpirationTime || null,
         permissionCodes: normalizePermissionCodes(payload.permissionCodes ?? payload.permissionCode),
         isBlockedBy2FA: payload.isBlockedBy2FA || false,
-        isAssignPersonalPermission: payload.isAssignPersonalPermission || false,
-        userToken: finalToken
+        isAssignPersonalPermission: payload.isAssignPersonalPermission || false
       };
 
       clearPermissionMenuCache();
 
-      // 3. Persist tokens and user details into localStorage
+      // Persist one token and a credential-free user profile.
       localStorage.setItem('token', finalToken);
-      localStorage.setItem('userToken', finalToken);
-      localStorage.setItem('api_token', finalToken);
-      localStorage.setItem('accessToken', finalToken);
-      localStorage.setItem('authToken', finalToken);
+      LEGACY_TOKEN_KEYS.forEach((key) => localStorage.removeItem(key));
       localStorage.setItem('userId', String(storedUser.userId));
       localStorage.setItem('roleId', String(storedUser.roleId));
       // salesRoles, permissionService and RolesPage read the role from this key.
       localStorage.setItem('roleName', storedUser.roleName);
       localStorage.setItem('user', JSON.stringify(storedUser));
-      localStorage.setItem('authData', JSON.stringify(resData));
-
-      if (storedUser.permissionCodes.length > 0) {
-        localStorage.setItem('permissionCodes', JSON.stringify(storedUser.permissionCodes));
-        localStorage.setItem('permissions', JSON.stringify(storedUser.permissionCodes));
-      } else {
-        localStorage.removeItem('permissionCodes');
-        localStorage.removeItem('permissions');
-      }
+      ['authData', 'permissionCodes', 'permissions'].forEach((key) => localStorage.removeItem(key));
 
       activityNotificationService.record('login', storedUser);
 
@@ -198,18 +183,12 @@ export const authService = {
 
   /**
    * Retrieve the stored authorization API token from localStorage
-   * Prioritizes userToken from CRM API
+   * The canonical token is migrated from legacy keys before app startup.
    * @returns {string | null}
    */
   getToken() {
     try {
-      return (
-        localStorage.getItem('userToken') ||
-        localStorage.getItem('token') ||
-        localStorage.getItem('api_token') ||
-        localStorage.getItem('accessToken') ||
-        localStorage.getItem('authToken')
-      );
+      return localStorage.getItem('token');
     } catch {
       return null;
     }
@@ -286,10 +265,7 @@ export const authService = {
         activityNotificationService.record('logout', currentUser);
       }
       localStorage.removeItem('token');
-      localStorage.removeItem('userToken');
-      localStorage.removeItem('api_token');
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('authToken');
+      LEGACY_TOKEN_KEYS.forEach((key) => localStorage.removeItem(key));
       localStorage.removeItem('userId');
       localStorage.removeItem('roleId');
       localStorage.removeItem('roleName');
@@ -312,6 +288,8 @@ export const authService = {
     const token = this.getToken();
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    } else {
+      delete axios.defaults.headers.common['Authorization'];
     }
   }
 };

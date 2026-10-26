@@ -47,7 +47,7 @@ axios.interceptors.response.use(
 );
 
 export const getAuthHeaders = () => {
-  const token = localStorage.getItem('token') || localStorage.getItem('userToken') || '';
+  const token = authService.getToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 

@@ -1,98 +1,82 @@
 const IPV4_REGEX = /^(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)$/;
-const STORAGE_KEY = 'crm.currentLoginIpv4';
-const CANDIDATE_STORAGE_KEYS = [
-  STORAGE_KEY,
-  'currentLoginIpv4',
-  'userIpv4',
-  'userIp',
-  'ipAddress',
-  'clientIp',
-];
-
+export const USER_IP_STORAGE_KEY = 'userIp';
+const LEGACY_IP_KEYS = ['crm.currentLoginIpv4', 'currentLoginIpv4', 'userIpv4', 'ipAddress', 'clientIp', 'client_ip', 'loginIp'];
 let cachedIpv4 = '';
 let inFlightPromise = null;
+let lastAttemptAt = 0;
 
 const normalizeIpv4 = (value) => {
-  const raw = String(value || '').trim();
-  if (!raw) return '';
-  const cleaned = raw.replace(/[^0-9.]/g, '');
-  return IPV4_REGEX.test(cleaned) ? cleaned : '';
-};
-
-const readStoredIpv4 = () => {
-  if (typeof window === 'undefined') return '';
-
-  for (const key of CANDIDATE_STORAGE_KEYS) {
-    const value = normalizeIpv4(window.localStorage.getItem(key));
-    if (value) return value;
-  }
-
-  return '';
+  const ip = String(value || '').trim();
+  return IPV4_REGEX.test(ip) ? ip : '';
 };
 
 const persistIpv4 = (ipv4) => {
-  if (!ipv4 || typeof window === 'undefined') return;
-  window.localStorage.setItem(STORAGE_KEY, ipv4);
+  try {
+    if (typeof window === 'undefined') return;
+    if (ipv4) window.localStorage.setItem(USER_IP_STORAGE_KEY, ipv4);
+    else window.localStorage.removeItem(USER_IP_STORAGE_KEY);
+    LEGACY_IP_KEYS.forEach((key) => window.localStorage.removeItem(key));
+  } catch {
+    // IP detection and login still work when browser storage is disabled.
+  }
+};
+
+export const getStoredUserIp = () => {
+  try {
+    if (typeof window === 'undefined') return cachedIpv4;
+    for (const key of [USER_IP_STORAGE_KEY, ...LEGACY_IP_KEYS]) {
+      const ip = normalizeIpv4(window.localStorage.getItem(key));
+      if (ip) {
+        cachedIpv4 = ip;
+        persistIpv4(ip);
+        return ip;
+      }
+    }
+  } catch {
+    // Fall back to this tab's in-memory value.
+  }
+  return cachedIpv4;
 };
 
 const fetchIpv4FromProviders = async () => {
-  const providers = [
-    async () => {
-      const response = await fetch('https://api.ipify.org?format=json');
-      if (!response.ok) return '';
-      const data = await response.json();
-      return normalizeIpv4(data?.ip);
-    },
-    async () => {
-      const response = await fetch('https://ipv4.icanhazip.com');
-      if (!response.ok) return '';
-      const text = await response.text();
-      return normalizeIpv4(text);
-    },
-  ];
-
-  for (const provider of providers) {
+  for (const [url, json] of [
+    ['https://api.ipify.org?format=json', true],
+    ['https://ipv4.icanhazip.com', false]
+  ]) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
     try {
-      const ip = await provider();
+      const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+      if (!response.ok) continue;
+      const ip = normalizeIpv4(json ? (await response.json())?.ip : await response.text());
       if (ip) return ip;
     } catch {
-      // Try next provider.
+      // Try the next provider after a failed or timed-out request.
+    } finally {
+      clearTimeout(timeout);
     }
   }
-
   return '';
 };
 
 export const getCurrentLoginIpv4 = async (forceRefresh = false) => {
+  if (inFlightPromise) return inFlightPromise;
   if (!forceRefresh) {
-    if (cachedIpv4) return cachedIpv4;
-
-    const stored = readStoredIpv4();
-    if (stored) {
-      cachedIpv4 = stored;
-      return stored;
-    }
+    const ip = cachedIpv4 || getStoredUserIp();
+    if (ip) return ip;
+    if (lastAttemptAt && Date.now() - lastAttemptAt < 30000) return '';
   }
-
-  if (!forceRefresh && inFlightPromise) {
-    return inFlightPromise;
-  }
-
+  lastAttemptAt = Date.now();
   inFlightPromise = fetchIpv4FromProviders()
     .then((ip) => {
-      cachedIpv4 = ip || '';
-      persistIpv4(cachedIpv4);
-      return cachedIpv4;
+      cachedIpv4 = ip;
+      persistIpv4(ip);
+      return ip;
     })
     .finally(() => {
       inFlightPromise = null;
     });
-
   return inFlightPromise;
 };
 
-export default {
-  getCurrentLoginIpv4,
-};
-
-
+export default { getCurrentLoginIpv4, getStoredUserIp };

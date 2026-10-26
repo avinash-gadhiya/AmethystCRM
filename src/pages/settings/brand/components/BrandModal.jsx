@@ -411,7 +411,7 @@ const BrandModal = ({ open, brand = null, onClose, onSuccess }) => {
                       required
                       value={formData.brandName}
                       onChange={(e) => handleChange('brandName', e.target.value)}
-                      placeholder="e.g. DashboardKit CRM"
+                      placeholder="e.g. "
                       disabled={saving}
                       className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0f1322] text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500 transition-all"
                       autoFocus
