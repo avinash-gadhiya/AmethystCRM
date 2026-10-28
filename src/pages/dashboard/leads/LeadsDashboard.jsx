@@ -1,3 +1,4 @@
+import '@/styles/liquid-glass-surfaces.css';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Chart from 'react-apexcharts';
 import { BarChart3, TrendingUp, Users } from 'lucide-react';
@@ -106,7 +107,7 @@ export default function LeadsDashboard() {
   };
 
   return (
-    <div>
+    <div className="dashboard-glass p-3 sm:p-4">
       <div className="mb-4">
         <h3 className="mb-1 fw-bold">Leads Dashboard</h3>
         <p className="text-muted mb-0">

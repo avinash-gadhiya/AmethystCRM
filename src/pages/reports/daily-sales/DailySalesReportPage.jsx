@@ -58,6 +58,7 @@ export default function DailySalesReportPage() {
         if (signal.aborted || requestId !== requestIdRef.current || requestError?.code === 'ERR_CANCELED') return;
 
         const message = getApiErrorMessage(requestError, 'Unable to load the daily sales report. Please try again.');
+        setReport(EMPTY_REPORT);
         setError(message);
         toast.error(message);
       } finally {
@@ -101,6 +102,10 @@ export default function DailySalesReportPage() {
 
   const applyCustomRange = (fromDate, toDate) => {
     if (!fromDate || !toDate) return;
+    if (fromDate > toDate) {
+      toast.error('The start date must be on or before the end date.');
+      return;
+    }
     setActivePreset('custom');
     setRange({ fromDate, toDate });
   };
@@ -127,7 +132,7 @@ export default function DailySalesReportPage() {
         title="Daily Sales Report"
         description={`${formatDailySalesDateRange(range)} · ${selectedLocationName || 'All Locations'}`}
       >
-        <LiquidGlassButton onClick={exportCsv} disabled={loading || !sortedRows.length} className="w-full sm:w-auto">
+        <LiquidGlassButton onClick={exportCsv} disabled={loading || !!error || !sortedRows.length} className="w-full sm:w-auto">
           <Download size={16} />
           Export CSV
         </LiquidGlassButton>
@@ -142,19 +147,19 @@ export default function DailySalesReportPage() {
 
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 xl:justify-end">
             <div className="w-full sm:w-[170px]">
-            <Select value={activePreset} onValueChange={applyPreset}>
-              <SelectTrigger className={TOOLBAR_SELECT_TRIGGER_CLASS} aria-label="Report period">
-                <SelectValue placeholder="Report period" />
-              </SelectTrigger>
-              <SelectContent position="popper" sideOffset={4} className="min-w-[var(--radix-select-trigger-width)]">
-                {activePreset === 'custom' && <SelectItem value="custom">Custom range</SelectItem>}
-                {DAILY_SALES_QUICK_FILTERS.map((filter) => (
-                  <SelectItem key={filter.id} value={filter.id}>
-                    {filter.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <Select value={activePreset} onValueChange={applyPreset}>
+                <SelectTrigger className={TOOLBAR_SELECT_TRIGGER_CLASS} aria-label="Report period">
+                  <SelectValue placeholder="Report period" />
+                </SelectTrigger>
+                <SelectContent position="popper" sideOffset={4} className="min-w-[var(--radix-select-trigger-width)]">
+                  {activePreset === 'custom' && <SelectItem value="custom">Custom range</SelectItem>}
+                  {DAILY_SALES_QUICK_FILTERS.map((filter) => (
+                    <SelectItem key={filter.id} value={filter.id}>
+                      {filter.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="w-full sm:w-[310px]">
@@ -170,19 +175,19 @@ export default function DailySalesReportPage() {
             </div>
 
             <div className="min-w-0 flex-1 sm:w-[190px] sm:flex-none">
-            <Select value={selectedLocationId || 'all'} onValueChange={(value) => setSelectedLocationId(value === 'all' ? '' : value)}>
-              <SelectTrigger className={TOOLBAR_SELECT_TRIGGER_CLASS} aria-label="Location">
-                <SelectValue placeholder="All Locations" />
-              </SelectTrigger>
-              <SelectContent position="popper" sideOffset={4} className="min-w-[var(--radix-select-trigger-width)] max-h-72">
-                <SelectItem value="all">All Locations</SelectItem>
-                {locationOptions.map((location) => (
-                  <SelectItem key={location.locationId} value={String(location.locationId)}>
-                    {location.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <Select value={selectedLocationId || 'all'} onValueChange={(value) => setSelectedLocationId(value === 'all' ? '' : value)}>
+                <SelectTrigger className={TOOLBAR_SELECT_TRIGGER_CLASS} aria-label="Location">
+                  <SelectValue placeholder="All Locations" />
+                </SelectTrigger>
+                <SelectContent position="popper" sideOffset={4} className="min-w-[var(--radix-select-trigger-width)] max-h-72">
+                  <SelectItem value="all">All Locations</SelectItem>
+                  {locationOptions.map((location) => (
+                    <SelectItem key={location.locationId} value={String(location.locationId)}>
+                      {location.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <TableRefreshButton

@@ -1,0 +1,127 @@
+﻿/* Lens shading adapted from the FreeFrontend liquid glass lens reference.
+   Effects stay behind selectable report text and are scoped to the summary. */
+.daily-sales-glass {
+  isolation: isolate;
+  border: 1px solid rgba(124, 58, 237, 0.08);
+  background: radial-gradient(ellipse at 25% 0%, #f5f2fc 0%, #e9e8f0 65%, #e3e3ed 100%);
+}
+
+:is(.daily-sales-glass__card, .dashboard-glass .glass-surface, .dashboard-glass .stat-card, .dashboard-glass .card) {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px double rgba(51, 51, 51, 0.08);
+  background: rgba(255, 255, 255, 0.12);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  box-shadow:
+    inset 2px -2px 1px -1px rgba(255, 255, 255, 0.9),
+    inset -2px 2px 1px -1px rgba(255, 255, 255, 0.9),
+    inset 6px -6px 1px -6px rgba(255, 255, 255, 0.55),
+    inset -6px 6px 1px -6px rgba(255, 255, 255, 0.55),
+    inset 0 0 2px rgba(30, 20, 50, 0.3),
+    0 4px 8px rgba(40, 25, 65, 0.09);
+  transition:
+    background-color 200ms ease,
+    box-shadow 200ms ease;
+}
+
+.daily-sales-glass__card::before,
+.daily-sales-glass__card::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+  border-radius: inherit;
+}
+
+.daily-sales-glass__card::before {
+  inset: 9px 8px -5px;
+  border: 1px solid rgba(35, 25, 55, 0.35);
+  filter: blur(8px);
+}
+
+.daily-sales-glass__card::after {
+  inset: 0;
+  background: linear-gradient(45deg, rgba(255, 255, 255, 0.85), transparent 18%, transparent 82%, rgba(255, 255, 255, 0.85));
+  filter: blur(7px);
+}
+
+.daily-sales-glass__card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.daily-sales-glass__card > .daily-sales-glass__rim {
+  position: absolute;
+  inset: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 14px;
+  filter: blur(0.5px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.daily-sales-glass__icon {
+  color: #f5f3ff;
+  background: #6d4caa;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.35),
+    0 2px 5px rgba(61, 35, 105, 0.2);
+}
+
+:is(.daily-sales-glass__card, .dashboard-glass .glass-surface, .dashboard-glass .stat-card, .dashboard-glass .card):hover {
+  background-color: rgba(255, 255, 255, 0.25);
+}
+
+.dark .daily-sales-glass {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: radial-gradient(ellipse at 25% 0%, #29243d, #181b2a 75%);
+}
+
+.dark :is(.daily-sales-glass__card, .dashboard-glass .glass-surface, .dashboard-glass .stat-card, .dashboard-glass .card) {
+  background: rgba(255, 255, 255, 0.035);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow:
+    inset 1px -1px 1px rgba(255, 255, 255, 0.16),
+    inset -1px 1px 1px rgba(255, 255, 255, 0.18),
+    inset 0 0 2px rgba(0, 0, 0, 0.6),
+    0 4px 8px rgba(0, 0, 0, 0.18);
+}
+
+.dark .daily-sales-glass__card::after {
+  opacity: 0.15;
+}
+.dark .daily-sales-glass__card > .daily-sales-glass__rim {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.dark :is(.daily-sales-glass__card, .dashboard-glass .glass-surface, .dashboard-glass .stat-card, .dashboard-glass .card):hover {
+  background-color: rgba(255, 255, 255, 0.07);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.daily-sales-glass__card, .dashboard-glass .glass-surface, .dashboard-glass .stat-card, .dashboard-glass .card) {
+    transition: none;
+  }
+}
+
+/* Dashboard opt-in surfaces preserve their layout and dropdown overflow. */
+.dashboard-glass.dashboard-glass {
+  background: radial-gradient(ellipse at 25% 0%, #f5f2fc, #e9e8f0 65%, #e3e3ed);
+  border-radius: 16px;
+}
+.dark .dashboard-glass.dashboard-glass {
+  background: radial-gradient(ellipse at 25% 0%, #29243d, #181b2a 75%);
+}
+.dashboard-glass :is(.glass-surface, .stat-card, .card) {
+  overflow: visible;
+  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.38), transparent 20%, transparent 80%, rgba(255, 255, 255, 0.35));
+}
+.dark .dashboard-glass :is(.glass-surface, .stat-card, .card) {
+  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.06), transparent 20%, transparent 80%, rgba(255, 255, 255, 0.05));
+}
+/* Retain explicit clipping for tables, charts and decorative elements. */
+.dashboard-glass :is(.glass-surface, .card).overflow-hidden {
+  overflow: hidden;
+}

@@ -1,3 +1,4 @@
+import '@/styles/liquid-glass-surfaces.css';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
@@ -246,9 +247,9 @@ export default function ServiceDashboard() {
   }, [userId, users]);
 
   return (
-    <div className="space-y-5 pb-10">
+    <div className="dashboard-glass space-y-5 p-3 pb-10 sm:p-4">
       {/* 1. TOP HEADER & BREADCRUMB SECTION */}
-      <div className="relative overflow-hidden flex flex-col lg:flex-row lg:items-center justify-between gap-5 bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
+      <div className="glass-surface relative overflow-hidden flex flex-col lg:flex-row lg:items-center justify-between gap-5 bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
         <div className="pointer-events-none absolute -right-16 -top-20 h-52 w-52 rounded-full bg-indigo-100/60 blur-3xl dark:bg-indigo-950/30" />
         <div className="relative flex items-start sm:items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-sky-400 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25 ring-4 ring-indigo-50 dark:ring-indigo-950/40 flex-shrink-0">
@@ -299,7 +300,7 @@ export default function ServiceDashboard() {
       </div>
 
       {/* 2. FILTER & RANGE CONTROLS CARD */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden">
+      <div className="glass-surface bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden">
         {/* Quick Date Presets Bar */}
         <div className="px-4 sm:px-6 py-3 bg-slate-50/70 dark:bg-slate-800/40 border-b border-slate-200/60 dark:border-slate-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -453,7 +454,7 @@ export default function ServiceDashboard() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* CARD 1: NEW TICKETS */}
-          <div className="relative group overflow-hidden rounded-2xl border border-blue-200/80 dark:border-blue-900/40 bg-gradient-to-br from-white via-blue-50/20 to-indigo-50/40 dark:from-slate-900 dark:via-blue-950/20 dark:to-slate-900 p-6 shadow-sm hover:shadow-md transition-all duration-200">
+          <div className="glass-surface relative group overflow-hidden rounded-2xl border border-blue-200/80 dark:border-blue-900/40 bg-gradient-to-br from-white via-blue-50/20 to-indigo-50/40 dark:from-slate-900 dark:via-blue-950/20 dark:to-slate-900 p-6 shadow-sm hover:shadow-md transition-all duration-200">
             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl pointer-events-none -mr-10 -mt-10" />
             <div className="flex items-start justify-between">
               <div>
@@ -489,7 +490,7 @@ export default function ServiceDashboard() {
           </div>
 
           {/* CARD 2: IN PROGRESS */}
-          <div className="relative group overflow-hidden rounded-2xl border border-amber-200/80 dark:border-amber-900/40 bg-gradient-to-br from-white via-amber-50/20 to-orange-50/40 dark:from-slate-900 dark:via-amber-950/20 dark:to-slate-900 p-6 shadow-sm hover:shadow-md transition-all duration-200">
+          <div className="glass-surface relative group overflow-hidden rounded-2xl border border-amber-200/80 dark:border-amber-900/40 bg-gradient-to-br from-white via-amber-50/20 to-orange-50/40 dark:from-slate-900 dark:via-amber-950/20 dark:to-slate-900 p-6 shadow-sm hover:shadow-md transition-all duration-200">
             <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none -mr-10 -mt-10" />
             <div className="flex items-start justify-between">
               <div>
@@ -525,7 +526,7 @@ export default function ServiceDashboard() {
           </div>
 
           {/* CARD 3: CLOSED / RESOLVED */}
-          <div className="relative group overflow-hidden rounded-2xl border border-emerald-200/80 dark:border-emerald-900/40 bg-gradient-to-br from-white via-emerald-50/20 to-teal-50/40 dark:from-slate-900 dark:via-emerald-950/20 dark:to-slate-900 p-6 shadow-sm hover:shadow-md transition-all duration-200">
+          <div className="glass-surface relative group overflow-hidden rounded-2xl border border-emerald-200/80 dark:border-emerald-900/40 bg-gradient-to-br from-white via-emerald-50/20 to-teal-50/40 dark:from-slate-900 dark:via-emerald-950/20 dark:to-slate-900 p-6 shadow-sm hover:shadow-md transition-all duration-200">
             <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none -mr-10 -mt-10" />
             <div className="flex items-start justify-between">
               <div>
@@ -614,7 +615,7 @@ export default function ServiceDashboard() {
       </div>
 
       {/* 4. CUSTOMER MIX SECTION */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden p-6">
+      <div className="glass-surface bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden p-6">
         <div className="flex flex-wrap items-center justify-between gap-2 pb-5 border-b border-slate-100 dark:border-slate-800 mb-6">
           <div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -687,7 +688,7 @@ export default function ServiceDashboard() {
 
       {/* 5. TICKETS DATA TABLE SECTION */}
       <section
-        className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden"
+        className="glass-surface bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden"
         aria-labelledby="service-ticket-table-title"
       >
         {/* Table Top Controls: Status Tabs & Search Bar */}

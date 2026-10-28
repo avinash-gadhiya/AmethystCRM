@@ -30,7 +30,7 @@ const COLUMNS = {
 
 export function StatCard({ label, value, caption, icon: Icon, tone = 'primary' }) {
   return (
-    <article className="flex min-h-[132px] min-w-0 flex-col rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-950 sm:p-5">
+    <article className="stat-card flex min-h-[132px] min-w-0 flex-col rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-950 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <span className="min-w-0 break-words text-[11px] font-bold uppercase leading-snug tracking-[.08em] text-slate-500 dark:text-slate-400">
           {label}

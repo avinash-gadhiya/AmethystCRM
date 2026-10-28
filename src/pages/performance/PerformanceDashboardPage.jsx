@@ -1,3 +1,4 @@
+import '@/styles/liquid-glass-surfaces.css';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Highcharts from 'highcharts';
 import HighchartsReact from 'highcharts-react-official';
@@ -130,7 +131,7 @@ function TierBadge({ tier }) {
 
 function EmptyState({ profiles = false }) {
   return (
-    <div className="flex min-h-[260px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white/60 px-5 text-center dark:border-slate-800 dark:bg-slate-950/50">
+    <div className="glass-surface flex min-h-[260px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white/60 px-5 text-center dark:border-slate-800 dark:bg-slate-950/50">
       <Users className="mb-3 h-10 w-10 text-slate-300 dark:text-slate-700" />
       <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
         {profiles ? 'No profiles available for selected filters.' : 'No data available for selected date range.'}
@@ -142,7 +143,7 @@ function EmptyState({ profiles = false }) {
 
 function ProfileSkeletonCard() {
   return (
-    <div className="dashboard-skeleton-wave overflow-hidden rounded-2xl border border-slate-200/70 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950">
+    <div className="glass-surface dashboard-skeleton-wave overflow-hidden rounded-2xl border border-slate-200/70 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950">
       <div className="flex items-center gap-3">
         <div className="skeleton-circle h-12 w-12" />
         <div className="flex-1 space-y-2">
@@ -389,8 +390,8 @@ export default function PerformanceDashboardPage() {
   const rplOptions = useMemo(() => makeBarOptions('revenuePerLead', averages.rpl), [averages.rpl, makeBarOptions]);
 
   return (
-    <div className="min-h-full bg-gradient-to-br from-slate-50 via-white to-violet-50/40 p-3 dark:from-slate-950 dark:via-slate-950 dark:to-violet-950/10 sm:p-5 lg:p-6">
-      <section className="mx-auto max-w-[1800px] overflow-visible rounded-2xl border border-slate-200/70 bg-white/55 p-3 shadow-sm backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/60 sm:p-5 lg:p-6">
+    <div className="dashboard-glass min-h-full bg-gradient-to-br from-slate-50 via-white to-violet-50/40 p-3 dark:from-slate-950 dark:via-slate-950 dark:to-violet-950/10 sm:p-5 lg:p-6">
+      <section className="glass-surface mx-auto max-w-[1800px] overflow-visible rounded-2xl border border-slate-200/70 bg-white/55 p-3 shadow-sm backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/60 sm:p-5 lg:p-6">
         <div className="relative z-50 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div>
             <div className="flex items-center gap-2">
@@ -404,7 +405,7 @@ export default function PerformanceDashboardPage() {
             </p>
           </div>
 
-          <div className="flex w-full flex-col gap-2 rounded-2xl border border-white/80 bg-white/75 p-2 shadow-sm backdrop-blur-xl dark:border-slate-700/60 dark:bg-slate-900/60 xl:w-auto">
+          <div className="glass-surface flex w-full flex-col gap-2 rounded-2xl border border-white/80 bg-white/75 p-2 shadow-sm backdrop-blur-xl dark:border-slate-700/60 dark:bg-slate-900/60 xl:w-auto">
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 xl:flex">
               <Select value={quickFilter} onValueChange={handleQuickFilter}>
                 <SelectTrigger className="h-10 min-w-[150px] rounded-xl border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
@@ -494,7 +495,7 @@ export default function PerformanceDashboardPage() {
             ? Array.from({ length: 4 }).map((_, index) => (
                 <div
                   key={index}
-                  className="dashboard-skeleton-wave rounded-2xl border border-slate-200/70 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-950"
+                  className="glass-surface dashboard-skeleton-wave rounded-2xl border border-slate-200/70 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-950"
                 >
                   <div className="skeleton-block h-3 w-24" />
                   <div className="skeleton-block mt-3 h-7 w-14" />
@@ -505,7 +506,7 @@ export default function PerformanceDashboardPage() {
                 return (
                   <div
                     key={tier}
-                    className="rounded-2xl border border-slate-200/70 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-950"
+                    className="glass-surface rounded-2xl border border-slate-200/70 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-950"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className={`text-xs font-bold ${meta.text}`}>{tier}</span>
@@ -550,7 +551,7 @@ export default function PerformanceDashboardPage() {
                   ))}
                 </div>
               )}
-              <div className="hidden overflow-hidden rounded-2xl border border-slate-200/70 bg-white/90 dark:border-slate-800 dark:bg-slate-950 md:block">
+              <div className="glass-surface hidden overflow-hidden rounded-2xl border border-slate-200/70 bg-white/90 dark:border-slate-800 dark:bg-slate-950 md:block">
                 <div className="max-h-[720px] overflow-auto">
                   <table className="min-w-[1560px] w-full border-separate border-spacing-0 text-left text-xs">
                     <thead className="sticky top-0 z-30 bg-slate-50/95 text-[10px] uppercase tracking-wider text-slate-500 backdrop-blur dark:bg-slate-900/95 dark:text-slate-400">
@@ -731,7 +732,7 @@ function Cell({ children, className = '' }) {
 
 function MobileRankingCard({ row }) {
   return (
-    <article className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+    <article className="glass-surface rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="flex items-start gap-3">
         <RankMark rank={row.rank} />
         <div className="min-w-0 flex-1">
@@ -773,7 +774,7 @@ function Metric({ label, value }) {
 function ChartPanel({ title, subtitle, children, className = '' }) {
   return (
     <div
-      className={`min-w-0 rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950 sm:p-5 ${className}`}
+      className={`glass-surface min-w-0 rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950 sm:p-5 ${className}`}
     >
       <div className="mb-4">
         <h2 className="text-sm font-bold text-slate-900 dark:text-white">{title}</h2>
@@ -787,7 +788,7 @@ function ChartPanel({ title, subtitle, children, className = '' }) {
 function ProfileCard({ row }) {
   const meta = TIER_META[row.tier];
   return (
-    <article className="rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950">
+    <article className="glass-surface rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950">
       <div className="flex items-start gap-3">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 text-sm font-extrabold text-white shadow-sm">
           {initials(row.name)}
