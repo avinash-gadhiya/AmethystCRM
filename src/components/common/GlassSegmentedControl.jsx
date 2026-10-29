@@ -110,7 +110,7 @@ const GlassSegmentedControl = ({
         const isActive = index === thumbIndex && activeIndex >= 0;
         return (
           <button
-            key={option.label}
+            key={option.value}
             ref={(el) => {
               optionRefs.current[index] = el;
             }}

@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { Check, SearchX } from 'lucide-react';
+import MiniCalendarInput from '@/components/common/MiniCalendarInput';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export function GatewayButton({ children, icon: Icon, variant = 'secondary', className = '', type = 'button', ...props }) {
@@ -17,7 +18,9 @@ export function GatewayInput({ label, className = '', ...props }) {
   return (
     <div className={`gateway-field ${className}`}>
       {label && <label htmlFor={id}>{label}</label>}
-      <input {...props} id={id} className="gateway-input" />
+      {props.type === 'date' || props.type === 'datetime-local'
+        ? <MiniCalendarInput {...props} id={id} aria-label={label} className="gateway-input" />
+        : <input {...props} id={id} className="gateway-input" />}
     </div>
   );
 }

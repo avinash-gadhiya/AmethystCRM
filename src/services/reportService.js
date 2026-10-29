@@ -12,6 +12,16 @@ const buildQuery = (params = {}) => {
   return query.toString();
 };
 
+// Reports use both direct lists and named collection envelopes.
+export const reportRows = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (payload == null) return [];
+  for (const key of ['data', 'Data', 'items', 'Items', 'rows', 'Rows', 'results', 'Results', 'users', 'Users']) {
+    if (payload[key] !== undefined && payload[key] !== payload) return reportRows(payload[key]);
+  }
+  throw new Error('The report returned an unexpected response. Please try again.');
+};
+
 const requestReport = async (endpoint, params = {}, signal, resource = 'Report') => {
   const token = authService.getToken();
   if (!token) throw new Error('Your session has expired. Please sign in again.');
@@ -25,25 +35,32 @@ const requestReport = async (endpoint, params = {}, signal, resource = 'Report')
     signal
   });
 
-  if (response.status === 401) handleSessionExpired();
+  if (response.status === 401) handleSessionExpired(token);
+  if (response.status === 204) return { data: [], totalCount: 0 };
   let payload;
   try {
     payload = await response.json();
   } catch {
-    throw new Error(`${endpoint} returned an invalid response (${response.status}).`);
+    const error = new Error(response.status === 403
+      ? 'You do not have permission to view this report.'
+      : `Unable to load the report (${response.status}). Please try again.`);
+    error.statusCode = response.status;
+    throw error;
   }
 
-  if (!response.ok || payload?.success === false) {
+  if (!response.ok || payload?.success === false || payload?.Success === false) {
     const validationMessage = payload?.errors ? Object.values(payload.errors).flat().join(', ') : '';
-    const error = new Error(payload?.message || validationMessage || `${endpoint} failed (${response.status}).`);
+    const error = new Error(payload?.message || payload?.Message || validationMessage || `${endpoint} failed (${response.status}).`);
     error.statusCode = Number(payload?.statusCode) || response.status;
     error.endpoint = endpoint;
     throw error;
   }
 
+  const data = payload?.data !== undefined ? payload.data : payload?.Data !== undefined ? payload.Data : payload;
+  if (data !== null && typeof data !== 'object') throw new Error('The report returned an unexpected response. Please try again.');
   return {
-    data: payload?.data !== undefined ? payload.data : payload,
-    totalCount: Number(payload?.totalCount) || 0
+    data: data ?? [],
+    totalCount: Number(payload?.totalCount ?? payload?.TotalCount ?? data?.totalCount ?? data?.TotalCount) || 0
   };
 };
 

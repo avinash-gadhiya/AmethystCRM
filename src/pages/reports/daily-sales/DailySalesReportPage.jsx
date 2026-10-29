@@ -127,7 +127,7 @@ export default function DailySalesReportPage() {
   const selectedLocationName = locationOptions.find((location) => String(location.locationId) === String(selectedLocationId))?.name;
 
   return (
-    <div className="space-y-5">
+    <div className="dashboard-glass daily-sales-report space-y-5 p-3 sm:p-5 lg:p-6">
       <PageHeader
         title="Daily Sales Report"
         description={`${formatDailySalesDateRange(range)} · ${selectedLocationName || 'All Locations'}`}

@@ -5,7 +5,6 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock3,
-  Filter,
   Inbox,
   LifeBuoy,
   RefreshCw,
@@ -23,6 +22,8 @@ import userService from 'services/userService';
 import AnchorPagination from '@/components/common/AnchorPagination';
 import LiquidGlassSurface from '@/components/common/LiquidGlassSurface';
 import LiquidGlassDatePicker from '@/components/common/LiquidGlassDatePicker';
+import GlassSegmentedControl from '@/components/common/GlassSegmentedControl';
+import './service-ticket-tabs.css';
 import { getMonthToDateRange, isValidDateRange, toInputDate } from 'utils/dateUtils';
 import { asArray, findNumber, integer, textValue } from '../dashboardData';
 
@@ -72,11 +73,9 @@ const formatCreatedDate = (rawDate) => {
 
 export default function ServiceDashboard() {
   const initialRange = useMemo(() => getMonthToDateRange(), []);
-  const [draftRange, setDraftRange] = useState(initialRange);
   const [datePreset, setDatePreset] = useState('monthToDate');
   const [range, setRange] = useState(initialRange);
   const [userId, setUserId] = useState('');
-  const [draftUserId, setDraftUserId] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'new' | 'progress' | 'closed'
   const [refreshKey, setRefreshKey] = useState(0);
@@ -187,15 +186,15 @@ export default function ServiceDashboard() {
     setCurrentPage((page) => Math.min(page, totalPages));
   }, [totalPages]);
 
-  const handleApply = (event) => {
-    if (event) event.preventDefault();
-    if (!isValidDateRange(draftRange)) {
+  const handleDateChange = (fromDate, toDate) => {
+    const nextRange = { fromDate, toDate };
+    if (!isValidDateRange(nextRange)) {
       setError('Please select a valid date range (From Date must be earlier or equal to To Date).');
       return;
     }
     setError('');
-    setRange(draftRange);
-    setUserId(draftUserId);
+    setRange(nextRange);
+    setDatePreset('custom');
   };
 
   const handlePresetSelect = (presetKey) => {
@@ -224,20 +223,8 @@ export default function ServiceDashboard() {
       newRange = { fromDate: toInputDate(past), toDate: toInputDate(today) };
     }
 
-    setDraftRange(newRange);
+    setRange(newRange);
     setError('');
-  };
-
-  const handleResetFilters = () => {
-    const initial = getMonthToDateRange();
-    setDraftRange(initial);
-    setDatePreset('monthToDate');
-    setError('');
-    setRange(initial);
-    setDraftUserId('');
-    setUserId('');
-    setSearch('');
-    setStatusFilter('all');
   };
 
   const selectedUserName = useMemo(() => {
@@ -282,9 +269,8 @@ export default function ServiceDashboard() {
       </LiquidGlassSurface>
 
       <LiquidGlassSurface allowOverflow className="relative z-40 rounded-2xl p-4 sm:p-5">
-        <form
-          onSubmit={handleApply}
-          className="grid grid-cols-1 items-end gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(180px,1fr)_minmax(150px,0.7fr)_minmax(300px,1.4fr)_auto]"
+        <div
+          className="grid grid-cols-1 items-end gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(180px,1fr)_minmax(150px,0.7fr)_minmax(300px,1.4fr)]"
         >
           <div className="min-w-0">
             <label htmlFor="assigned-user-select" className="mb-1.5 block text-xs font-semibold text-slate-500 dark:text-slate-400">
@@ -292,8 +278,8 @@ export default function ServiceDashboard() {
             </label>
             <select
               id="assigned-user-select"
-              value={draftUserId}
-              onChange={(event) => setDraftUserId(event.target.value)}
+              value={userId}
+              onChange={(event) => setUserId(event.target.value)}
               className="h-10 w-full rounded-xl border border-slate-200 bg-white/70 px-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
             >
               <option value="">All agents</option>
@@ -325,41 +311,19 @@ export default function ServiceDashboard() {
               <option value="custom">Custom range</option>
             </select>
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 sm:col-span-2 xl:col-span-1">
             <span className="mb-1.5 block text-xs font-semibold text-slate-500 dark:text-slate-400">Date range</span>
             <LiquidGlassDatePicker
               className="w-full min-w-0"
-              initialFromDate={draftRange.fromDate}
-              initialToDate={draftRange.toDate}
+              initialFromDate={range.fromDate}
+              initialToDate={range.toDate}
               calendarMode
               stretch
               quickDateTriggerClassName="h-10 rounded-xl border border-slate-200 bg-white/70 px-3 dark:border-slate-700 dark:bg-slate-900"
-              onChange={(fromDate, toDate) => {
-                setDraftRange({ fromDate, toDate });
-                setDatePreset('custom');
-              }}
+              onChange={handleDateChange}
             />
           </div>
-          <div className="flex h-10 items-stretch gap-2">
-            <button
-              type="submit"
-              disabled={loading}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 text-sm font-semibold text-white transition hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-50"
-            >
-              {loading ? <RefreshCw size={15} className="animate-spin" /> : <Filter size={15} />}
-              Apply
-            </button>
-            <button
-              type="button"
-              onClick={handleResetFilters}
-              title="Reset filters"
-              aria-label="Reset filters"
-              className="inline-flex w-10 items-center justify-center rounded-xl border border-slate-200 bg-white/60 text-slate-500 transition hover:text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:text-white"
-            >
-              <X size={18} />
-            </button>
-          </div>
-        </form>
+        </div>
       </LiquidGlassSurface>
 
       {/* Error Alert */}
@@ -650,39 +614,25 @@ export default function ServiceDashboard() {
           </div>
 
           {/* Status Filter Tabs */}
-          <div className="flex w-full items-center gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1.5 dark:bg-slate-800/80">
-            {[
-              { id: 'all', label: 'All Tickets', count: tickets.length },
-              { id: 'new', label: 'New', count: counts.new },
-              { id: 'progress', label: 'In Progress', count: counts.progress },
-              { id: 'closed', label: 'Closed', count: counts.closed }
-            ].map((tab) => {
-              const isActive = statusFilter === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setStatusFilter(tab.id)}
-                  className={`shrink-0 inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                    isActive
-                      ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                  }`}
-                >
+          <GlassSegmentedControl
+            className="service-ticket-tabs"
+            ariaLabel="Filter service tickets by status"
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={[
+              { id: 'all', label: 'All Tickets', count: tickets.length, icon: Ticket },
+              { id: 'new', label: 'New', count: counts.new, icon: Inbox },
+              { id: 'progress', label: 'In Progress', count: counts.progress, icon: Clock3 },
+              { id: 'closed', label: 'Closed', count: counts.closed, icon: CheckCircle2 }
+            ].map((tab) => ({
+              value: tab.id,
+              label: <>
+                  <tab.icon size={17} aria-hidden="true" />
                   <span>{tab.label}</span>
-                  <span
-                    className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                      isActive
-                        ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300'
-                        : 'bg-slate-200/80 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
-                    }`}
-                  >
-                    {tab.count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                  <span className="service-ticket-tabs__count">{tab.count}</span>
+                </>
+            }))}
+          />
         </div>
 
         {/* Table Content */}

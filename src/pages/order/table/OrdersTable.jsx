@@ -1,3 +1,4 @@
+import MiniCalendarInput from '@/components/common/MiniCalendarInput';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown, ChevronRight, CreditCard, ShoppingBag, Ban, Edit, Trash2, Package, CircleDollarSign, Gift, CheckCircle2, Plus,Undo2, Eraser, Landmark, ScrollText, Wallet, Zap } from 'lucide-react';
@@ -4018,7 +4019,7 @@ const OrdersTable = () => {
                                                     </div>
                                                     <div>
                                                         <label className={labelClass}>Payment Date</label>
-                                                        <input
+                                                        <MiniCalendarInput
                                                             type="date"
                                                             className={fieldClass(inputClass, !!paymentErrors.paymentDate)}
                                                             value={dateForInput(paymentDraft.paymentDate)}
@@ -4334,7 +4335,7 @@ const OrdersTable = () => {
                                                     </div>
                                                     <div>
                                                         <label className={labelClass}>Refund Date</label>
-                                                        <input
+                                                        <MiniCalendarInput
                                                             type="date"
                                                             className={inputClass}
                                                             value={dateForInput(refundDraft.paymentDate)}

@@ -12,7 +12,8 @@ import DeleteConfirmModal from '@/components/common/DeleteConfirmModal';
 import LiquidGlassButton from '@/components/common/LiquidGlassButton';
 import ListToolbar from '@/components/common/ListToolbar';
 import { DetailFields, IconLines, IdentityCell, StatusPill } from '@/components/common/TableCells';
-import { PageHeader, TableCard } from '@/components/common/page-card';
+import { TableCard } from '@/components/common/page-card';
+import GlassRecordsHeader from '@/components/common/GlassRecordsHeader';
 import { resolveConfiguredPagePermissions } from '@/utils/configuredPagePermissions';
 
 const PAGE_SIZES = [10, 25, 50];
@@ -334,8 +335,8 @@ export default function CustomersPage() {
   ];
 
   return (
-    <div className="orders-table-page">
-      <PageHeader title="Customers" description="Manage CRM customers and account activity">
+    <div className="orders-table-page crm-records-page">
+      <GlassRecordsHeader icon={UsersRound} eyebrow="CUSTOMER RELATIONSHIPS" title="Customers" description="Manage CRM customers and account activity">
         <div className="flex flex-wrap gap-2">
           <LiquidGlassButton variant="secondary" onClick={openViewLogs}>
             <History size={16} /> View Logs
@@ -351,39 +352,41 @@ export default function CustomersPage() {
             </LiquidGlassButton>
           )}
         </div>
-      </PageHeader>
+      </GlassRecordsHeader>
 
-      <TableCard>
-        <ListToolbar
-          shown={customers.length}
-          total={totalCount}
-          itemName="Customers"
-          searchFields={SEARCH_FIELDS}
-          searchField={searchField}
-          onSearchFieldChange={(value) => {
-            setSearchField(value);
-            setPage(1);
-          }}
-          searchValue={searchInput}
-          onSearchChange={setSearchInput}
-          onSearchClear={() => setSearchInput('')}
-          onSearchSubmit={applySearch}
-          searchPlaceholder="Search customers..."
-          fromDate={fromDate}
-          toDate={toDate}
-          onDateChange={(from, to) => {
-            setFromDate(from || '');
-            setToDate(to || from || '');
-            setPage(1);
-          }}
-          onDateClear={() => {
-            setFromDate('');
-            setToDate('');
-            setPage(1);
-          }}
-          onRefresh={() => setRefreshKey((value) => value + 1)}
-          loading={loading}
-        />
+      <TableCard className="crm-records-card">
+        <div className="crm-records-toolbar">
+          <ListToolbar
+            shown={customers.length}
+            total={totalCount}
+            itemName="Customers"
+            searchFields={SEARCH_FIELDS}
+            searchField={searchField}
+            onSearchFieldChange={(value) => {
+              setSearchField(value);
+              setPage(1);
+            }}
+            searchValue={searchInput}
+            onSearchChange={setSearchInput}
+            onSearchClear={() => setSearchInput('')}
+            onSearchSubmit={applySearch}
+            searchPlaceholder="Search customers..."
+            fromDate={fromDate}
+            toDate={toDate}
+            onDateChange={(from, to) => {
+              setFromDate(from || '');
+              setToDate(to || from || '');
+              setPage(1);
+            }}
+            onDateClear={() => {
+              setFromDate('');
+              setToDate('');
+              setPage(1);
+            }}
+            onRefresh={() => setRefreshKey((value) => value + 1)}
+            loading={loading}
+          />
+        </div>
 
         {error && (
           <div className="mx-3 mt-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
@@ -393,6 +396,7 @@ export default function CustomersPage() {
 
         <div className="grid">
           <CommonTable
+            containerClassName="crm-records-table"
             columns={columns}
             data={customers}
             isLoading={loading}
@@ -433,7 +437,7 @@ export default function CustomersPage() {
         }}
       />
 
-      <Modal show={showDetails} onHide={() => setShowDetails(false)} size="xl">
+      <Modal className="crm-records-dialog" show={showDetails} onHide={() => setShowDetails(false)} size="xl">
         <Modal.Header
           closeButton
           icon={UserRound}
@@ -484,7 +488,7 @@ export default function CustomersPage() {
         </Modal.Body>
       </Modal>
 
-      <Modal show={showViews} onHide={() => setShowViews(false)} size="lg">
+      <Modal className="crm-records-dialog" show={showViews} onHide={() => setShowViews(false)} size="lg">
         <Modal.Header closeButton icon={History} description="Who opened customer records, and when.">
           <Modal.Title>Customer View History</Modal.Title>
         </Modal.Header>

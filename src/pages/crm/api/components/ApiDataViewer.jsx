@@ -1,3 +1,4 @@
+import MiniCalendarInput from '@/components/common/MiniCalendarInput';
 import PropTypes from 'prop-types';
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Braces, Download, Eye, Table2 } from 'lucide-react';
@@ -285,7 +286,7 @@ export default function ApiDataViewer({ operation, title }) {
           />
           <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
             From
-            <input
+            <MiniCalendarInput
               type="date"
               value={range.from}
               max={range.to || undefined}
@@ -298,7 +299,7 @@ export default function ApiDataViewer({ operation, title }) {
           </label>
           <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
             To
-            <input
+            <MiniCalendarInput
               type="date"
               value={range.to}
               min={range.from || undefined}

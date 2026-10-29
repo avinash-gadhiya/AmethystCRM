@@ -1,0 +1,24 @@
+# The supplied /Permission response grants role 12 access to page 14.
+# Permission 48 has a trailing space in both its name and code.
+# The frontend accepts this grant; exact backend claim matching may reject it.
+# Set apiBaseUrl (including /api) and token in your HTTP client's environment.
+# Use an account authorized to update page permissions. No role grants change.
+
+### Correct the existing Renewal View permission, preserving its ID and grants
+PUT {{apiBaseUrl}}/PagePermission
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "pagePermissionId": 48,
+  "pageId": 14,
+  "permissionName": "View Renewal Report",
+  "permissionCode": "View_Renewal_Report",
+  "permissionDescription": "",
+  "permissionOrder": 0,
+  "isActive": true
+}
+
+# After a successful update, sign out and sign in to obtain fresh token claims.
+# Then retry GET /Report/RenewalReport with the new token.

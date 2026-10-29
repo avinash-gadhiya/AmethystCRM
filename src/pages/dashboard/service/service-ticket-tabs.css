@@ -1,0 +1,70 @@
+.service-ticket-tabs {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 5px;
+  overflow-x: auto;
+  padding: 5px;
+  border: 1px solid rgba(120, 113, 150, .16);
+  border-radius: 15px;
+  background: rgba(139, 117, 173, .055);
+}
+
+.service-ticket-tabs .glass-segmented__thumb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--seg-w, 0px);
+  height: var(--seg-h, 0px);
+  transform: translate3d(var(--seg-x, 0px), var(--seg-y, 0px), 0);
+  box-sizing: border-box;
+  border: 1px solid rgba(120, 113, 150, .16);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, .65);
+  box-shadow: 0 2px 5px rgba(45, 25, 75, .06), inset 0 1px 0 rgba(255, 255, 255, .6);
+  pointer-events: none;
+}
+
+.service-ticket-tabs[data-ready="true"] .glass-segmented__thumb {
+  transition: transform 340ms cubic-bezier(.22, 1, .36, 1), width 340ms cubic-bezier(.22, 1, .36, 1), height 340ms cubic-bezier(.22, 1, .36, 1);
+}
+
+.service-ticket-tabs .glass-segmented__option {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  flex: 1 0 145px;
+  justify-content: center;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: #71809a;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 180ms ease;
+}
+
+.service-ticket-tabs .glass-segmented__option[aria-checked="true"] { color: #7144c3; }
+.service-ticket-tabs .glass-segmented__option:hover { color: #7144c3; background: rgba(255, 255, 255, .15); }
+.service-ticket-tabs .glass-segmented__option:focus-visible { outline: 2px solid #818cf8; outline-offset: -2px; }
+.service-ticket-tabs__count { padding: 2px 6px; border-radius: 999px; background: #e2e8f0; color: #475569; font-size: 10px; font-weight: 700; transition: color 180ms ease, background-color 180ms ease; }
+.service-ticket-tabs [aria-checked="true"] .service-ticket-tabs__count { background: #eef2ff; color: #4338ca; }
+.dark .service-ticket-tabs { background: rgba(139, 117, 173, .055); border-color: rgba(184, 174, 218, .15); }
+.dark .service-ticket-tabs .glass-segmented__thumb { background: rgba(30, 33, 51, .8); border-color: rgba(184, 174, 218, .15); }
+.dark .service-ticket-tabs .glass-segmented__option { color: #94a3b8; }
+.dark .service-ticket-tabs .glass-segmented__option[aria-checked="true"] { color: #b49aef; }
+.dark .service-ticket-tabs__count { background: #334155; color: #94a3b8; }
+.dark .service-ticket-tabs [aria-checked="true"] .service-ticket-tabs__count { background: rgba(30, 27, 75, .6); color: #c7d2fe; }
+
+@media (prefers-reduced-motion: reduce) {
+  .service-ticket-tabs[data-ready="true"] .glass-segmented__thumb,
+  .service-ticket-tabs .glass-segmented__option,
+  .service-ticket-tabs__count { transition: none; }
+}

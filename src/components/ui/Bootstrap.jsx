@@ -6,6 +6,7 @@
 import { createContext, forwardRef, useContext } from 'react';
 
 import { ModalBodyArea, ModalFooterBar, ModalHeaderBar, ModalShell } from '@/components/common/AppModal';
+import MiniCalendarInput from '@/components/common/MiniCalendarInput';
 
 // --- Row / Col (12-Column Responsive Grid) ---
 export const Row = ({ children, className = '', ...props }) => (
@@ -135,6 +136,9 @@ Form.Control = forwardRef(({ as: Tag = 'input', className = '', type = 'text', s
   const szClass = sz === 'sm' ? 'py-1.5 text-xs' : '';
   if (Tag === 'textarea') {
     return <textarea ref={ref} className={`form-control neu-input ${szClass} ${className}`} {...props} />;
+  }
+  if (Tag === 'input' && (type === 'date' || type === 'datetime-local')) {
+    return <MiniCalendarInput ref={ref} type={type} className={`form-control neu-input ${szClass} ${className}`} {...props} />;
   }
   return <input ref={ref} type={type} className={`form-control neu-input ${szClass} ${className}`} {...props} />;
 });

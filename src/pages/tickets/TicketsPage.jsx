@@ -10,7 +10,8 @@ import CommonTable from '@/components/common/CommonTable';
 import LiquidGlassButton from '@/components/common/LiquidGlassButton';
 import ListToolbar from '@/components/common/ListToolbar';
 import { DetailFields, IconLines, IdentityCell, StatusPill } from '@/components/common/TableCells';
-import { PageHeader, TableCard } from '@/components/common/page-card';
+import { TableCard } from '@/components/common/page-card';
+import GlassRecordsHeader from '@/components/common/GlassRecordsHeader';
 import { resolveConfiguredPagePermissions } from '@/utils/configuredPagePermissions';
 
 const PAGE_SIZES = [10, 25, 50];
@@ -347,46 +348,48 @@ export default function TicketsPage() {
   ];
 
   return (
-    <div className="orders-table-page">
-      <PageHeader title="Tickets" description="Track customer service tickets and activity">
+    <div className="orders-table-page crm-records-page">
+      <GlassRecordsHeader icon={Ticket} eyebrow="SERVICE DESK" title="Tickets" description="Track customer service tickets and activity">
         {permissions.canAdd && (
           <LiquidGlassButton onClick={openCreate}>
             <Plus size={16} /> New Ticket
           </LiquidGlassButton>
         )}
-      </PageHeader>
+      </GlassRecordsHeader>
 
-      <TableCard>
-        <ListToolbar
-          shown={tickets.length}
-          total={totalCount}
-          itemName="Tickets"
-          searchFields={SEARCH_FIELDS}
-          searchField={searchField}
-          onSearchFieldChange={(value) => {
-            setSearchField(value);
-            setPage(1);
-          }}
-          searchValue={searchText}
-          onSearchChange={setSearchText}
-          onSearchClear={() => setSearchText('')}
-          onSearchSubmit={applySearch}
-          searchPlaceholder="Search tickets..."
-          fromDate={fromDate}
-          toDate={toDate}
-          onDateChange={(from, to) => {
-            setFromDate(from || '');
-            setToDate(to || from || '');
-            setPage(1);
-          }}
-          onDateClear={() => {
-            setFromDate('');
-            setToDate('');
-            setPage(1);
-          }}
-          onRefresh={() => setRefreshKey((value) => value + 1)}
-          loading={loading}
-        />
+      <TableCard className="crm-records-card">
+        <div className="crm-records-toolbar">
+          <ListToolbar
+            shown={tickets.length}
+            total={totalCount}
+            itemName="Tickets"
+            searchFields={SEARCH_FIELDS}
+            searchField={searchField}
+            onSearchFieldChange={(value) => {
+              setSearchField(value);
+              setPage(1);
+            }}
+            searchValue={searchText}
+            onSearchChange={setSearchText}
+            onSearchClear={() => setSearchText('')}
+            onSearchSubmit={applySearch}
+            searchPlaceholder="Search tickets..."
+            fromDate={fromDate}
+            toDate={toDate}
+            onDateChange={(from, to) => {
+              setFromDate(from || '');
+              setToDate(to || from || '');
+              setPage(1);
+            }}
+            onDateClear={() => {
+              setFromDate('');
+              setToDate('');
+              setPage(1);
+            }}
+            onRefresh={() => setRefreshKey((value) => value + 1)}
+            loading={loading}
+          />
+        </div>
 
         {error && (
           <div className="mx-3 mt-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
@@ -396,6 +399,7 @@ export default function TicketsPage() {
 
         <div className="grid">
           <CommonTable
+            containerClassName="crm-records-table"
             columns={columns}
             data={tickets}
             isLoading={loading}
@@ -417,7 +421,7 @@ export default function TicketsPage() {
         </div>
       </TableCard>
 
-      <Modal show={showEditor} onHide={() => !saving && setShowEditor(false)} size="lg">
+      <Modal className="crm-records-dialog" show={showEditor} onHide={() => !saving && setShowEditor(false)} size="lg">
         <form onSubmit={saveTicket}>
           <Modal.Header closeButton icon={Ticket} description="Provide ticket details below.">
             <Modal.Title>{formData.ticketId ? `Edit Ticket #${formData.ticketId}` : 'Create Ticket'}</Modal.Title>
@@ -491,7 +495,7 @@ export default function TicketsPage() {
         </form>
       </Modal>
 
-      <Modal show={showDetails} onHide={() => setShowDetails(false)} size="xl">
+      <Modal className="crm-records-dialog" show={showDetails} onHide={() => setShowDetails(false)} size="xl">
         <Modal.Header closeButton icon={Ticket} description={selectedTicket?.subject || 'Ticket details'}>
           <Modal.Title>Ticket #{selectedTicket?.ticketId}</Modal.Title>
         </Modal.Header>

@@ -1,0 +1,228 @@
+.mini-calendar-popover {
+  z-index: 11000;
+  width: 300px;
+  max-width: calc(100vw - 24px);
+  max-height: var(--radix-popover-content-available-height, calc(100dvh - 24px));
+  overflow-y: auto;
+  padding: 12px;
+  border: 1px solid rgba(127, 105, 164, 0.2);
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(252, 250, 255, 0.98), rgba(237, 247, 247, 0.97));
+  color: #25304d;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 12px 30px rgba(48, 28, 78, 0.16);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+}
+.mini-calendar-popover button {
+  font-family: inherit;
+  cursor: pointer;
+}
+.mini-calendar-popover button:disabled {
+  cursor: not-allowed;
+  opacity: 0.3;
+}
+.mini-calendar-popover button:focus-visible {
+  outline: 2px solid #8b70d6;
+  outline-offset: -2px;
+}
+.mini-calendar__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.mini-calendar__heading strong {
+  font-size: 12px;
+}
+.mini-calendar__heading button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: inherit;
+}
+.mini-calendar__week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+}
+.mini-calendar__week > span {
+  display: grid;
+  place-items: center;
+  height: 28px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #8791a7;
+}
+.mini-calendar__week button {
+  position: relative;
+  height: 32px;
+  border: 0;
+  border-radius: 9px;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 11px;
+  font-weight: 600;
+}
+.mini-calendar__week button[data-other-month='true'] {
+  color: #a3adc1;
+}
+.mini-calendar__week button[data-in-range='true'] {
+  background: #eee8fb;
+  color: #7144c3;
+  border-radius: 3px;
+}
+.mini-calendar__week button:hover:not(:disabled),
+.mini-calendar__heading button:hover {
+  background: #ece6f8;
+}
+.mini-calendar__week button[aria-selected='true'] {
+  background: #7952bf;
+  color: #fff;
+  box-shadow: 0 2px 5px rgba(109, 76, 170, 0.2);
+}
+.mini-calendar__week button[aria-current='date']::after {
+  position: absolute;
+  content: '';
+  bottom: 3px;
+  left: calc(50% - 2px);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.mini-calendar__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(127, 105, 164, 0.13);
+}
+.mini-calendar__footer button {
+  border: 0;
+  border-radius: 9px;
+  padding: 7px 11px;
+  background: transparent;
+  color: inherit;
+  font-size: 11px;
+  font-weight: 600;
+}
+.mini-calendar__footer .mini-calendar__apply {
+  background: #7952bf;
+  color: #fff;
+}
+.mini-calendar__hint {
+  margin-top: 8px;
+  color: #71809a;
+  font-size: 11px;
+}
+.mini-calendar__presets {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(127, 105, 164, 0.13);
+}
+.mini-calendar__presets button {
+  padding: 7px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(139, 112, 214, 0.07);
+  color: inherit;
+  font-size: 11px;
+  text-align: left;
+}
+.mini-calendar__presets button[aria-pressed='true'] {
+  background: #7952bf;
+  color: #fff;
+}
+.mini-calendar-input {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+  width: 100%;
+  align-items: center;
+}
+.mini-calendar-input__field {
+  width: 100%;
+  min-width: 0;
+  padding-right: 34px !important;
+}
+.mini-calendar-input__field::-webkit-calendar-picker-indicator {
+  display: none;
+}
+.mini-calendar-input__trigger {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #71809a;
+  cursor: pointer;
+}
+.mini-calendar-input__trigger:focus-visible {
+  outline: 2px solid #8b70d6;
+}
+.mini-calendar-input__trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+.mini-calendar__time {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  font-size: 12px;
+}
+.mini-calendar__time input {
+  max-width: 155px;
+  border: 1px solid rgba(127, 105, 164, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.5);
+  color: inherit;
+  padding: 6px;
+}
+.dark .mini-calendar-popover {
+  background: linear-gradient(135deg, rgba(42, 36, 61, 0.98), rgba(25, 32, 42, 0.98));
+  color: #e2e8f0;
+  border-color: rgba(191, 180, 230, 0.18);
+}
+.dark .mini-calendar__week button[data-other-month='true'] {
+  color: #64748b;
+}
+.dark .mini-calendar__week button[data-in-range='true'] {
+  background: rgba(139, 112, 214, 0.2);
+  color: #c7b3f0;
+}
+.dark .mini-calendar__week button:hover:not(:disabled),
+.dark .mini-calendar__heading button:hover {
+  background: rgba(139, 112, 214, 0.22);
+}
+.dark .mini-calendar__week button[aria-selected='true'] {
+  background: #7952bf;
+  color: #fff;
+}
+.dark .mini-calendar__time input {
+  background: rgba(255, 255, 255, 0.05);
+}

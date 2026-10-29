@@ -1,0 +1,114 @@
+.report-glass {
+  --report-ink: #25304d;
+  --report-muted: #64748b;
+  --report-surface: rgba(255, 255, 255, .64);
+  --report-edge: rgba(255, 255, 255, .9);
+  padding: 24px;
+  border: 1px solid var(--insights-page-border);
+  border-radius: 24px;
+  background: var(--insights-page-background);
+  color: var(--report-ink);
+}
+
+.report-glass .report-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.report-glass .report-eyebrow {
+  color: #75619f;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .15em;
+}
+
+.report-glass h1 { margin: 6px 0; font-size: clamp(22px, 2vw, 28px); font-weight: 700; color: var(--report-ink); }
+.report-glass .report-heading p { margin: 0; font-size: 13px; color: var(--report-muted); }
+.report-glass .report-period-chip { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border: 1px solid var(--report-edge); border-radius: 99px; background: var(--report-surface); font-size: 12px; color: var(--report-muted); }
+
+.report-glass :is(.report-toolbar-card, .report-table-card, .stat-card) {
+  border: 1px solid var(--report-edge) !important;
+  border-radius: 20px !important;
+  background: var(--report-surface) !important;
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .8), 0 8px 28px rgba(53, 44, 91, .06) !important;
+}
+
+.report-glass .report-toolbar-body { padding: 16px 18px !important; }
+.report-glass .report-toolbar-card { position: relative; z-index: 20; }
+.report-glass .report-calendar-control { width: 320px; max-width: 100%; flex-shrink: 0; }
+.report-glass .report-calendar-control > button { min-height: 40px; }
+.report-glass .report-calendar-control [role="dialog"] { z-index: 50; }
+.report-glass .report-toolbar-controls { flex-wrap: wrap; gap: 10px; }
+.report-glass .report-compact-form { border-color: rgba(139, 122, 204, .14); }
+.report-glass .report-toolbar-top { padding-bottom: 12px; }
+.report-glass .report-result-chip { background: rgba(238, 234, 255, .65); border-color: rgba(136, 113, 201, .14); }
+.report-glass .report-toolbar-search { height: 42px; min-width: 180px; background: rgba(255, 255, 255, .6); border-color: rgba(128, 137, 172, .25); }
+.report-glass .report-toolbar-search input { width: 100%; border-radius: 0; outline: none; }
+.report-glass .report-toolbar-controls > select { height: 42px; }
+.report-glass :is(.form-select, .form-control) { color: var(--report-ink); background-color: rgba(255, 255, 255, .65); border: 1px solid rgba(128, 137, 172, .25); border-radius: 10px; }
+.report-glass select option { color: #25304d; background: #fff; }
+.report-glass :is(.report-round-btn, .report-square-btn, .report-date-range-btn) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  gap: 8px;
+  min-height: 40px;
+  min-width: 40px;
+  padding: 8px;
+  border: 1px solid rgba(128, 137, 172, .2);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, .5);
+  color: var(--report-ink);
+  cursor: pointer;
+}
+.report-glass button:hover:not(:disabled) { background-color: rgba(224, 216, 250, .7); }
+.report-glass button:disabled { opacity: .45; cursor: not-allowed; }
+.report-glass :is(button, input, select):focus-visible,
+.report-glass .report-toolbar-search:focus-within { outline: 2px solid #8b70d6; outline-offset: 3px; }
+.report-glass .report-custom-dates { flex-wrap: wrap; gap: 10px; padding-top: 14px; }
+.report-glass .report-custom-dates input { width: auto; min-width: 150px; }
+.report-glass .report-table-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 20px 20px 0; }
+.report-glass .report-table-heading h2 { margin: 0; font-size: 15px; font-weight: 700; color: var(--report-ink); }
+.report-glass .report-table-heading span { color: var(--report-muted); font-size: 12px; }
+.report-glass .neu-table-wrapper { border: 1px solid rgba(128, 137, 172, .16); border-radius: 12px; overflow: hidden; background: transparent; }
+.report-glass table { width: 100%; background: transparent; }
+.report-glass table :is(th, td) { padding: 15px 18px; border-bottom: 1px solid rgba(128, 137, 172, .12); background: transparent; }
+.report-glass table th { background: rgba(229, 225, 244, .45); color: var(--report-muted); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.report-glass table tbody tr:hover { background: rgba(255, 255, 255, .45); }
+.report-glass .report-empty-icon { display: block; margin: 0 auto 12px; }
+.report-glass .card-footer { border-top: 1px solid rgba(128, 137, 172, .12) !important; }
+.report-glass .alert { margin-bottom: 16px; }
+
+.dark .report-glass {
+  --report-ink: #e2e8f0;
+  --report-muted: #a5afc4;
+  --report-surface: rgba(30, 32, 53, .72);
+  --report-edge: rgba(191, 180, 230, .13);
+  background: var(--insights-page-background);
+}
+.dark .report-glass :is(.report-toolbar-card, .report-table-card, .stat-card) { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 8px 28px rgba(0, 0, 0, .12) !important; }
+.dark .report-glass :is(.form-select, .form-control, .report-toolbar-search, .report-round-btn, .report-square-btn, .report-date-range-btn) { background-color: rgba(30, 32, 53, .7); color: var(--report-ink); }
+.dark .report-glass :is(.report-result-chip, table th) { background: rgba(139, 112, 214, .13); }
+.dark .report-glass .report-result-chip strong { color: var(--report-ink); }
+.dark .report-glass table tbody tr:hover { background: rgba(139, 112, 214, .08); }
+
+@media (max-width: 767px) {
+  .report-glass { padding: 14px; border-radius: 18px; }
+  .report-glass .report-toolbar-body { padding: 12px !important; }
+  .report-glass .report-toolbar-search { flex-basis: 100%; order: -1; }
+  .report-glass .report-toolbar-controls > select { flex: 1 1 130px; width: 130px; }
+  .report-glass .report-custom-dates input { flex: 1 1 140px; min-width: 0; }
+  .report-glass .report-date-range-btn { flex: 1; font-size: 12px; }
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .report-glass { --report-surface: #f7f7fc; }
+  .dark .report-glass { --report-surface: #25283b; }
+}

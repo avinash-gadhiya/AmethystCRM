@@ -3,8 +3,6 @@ import { Alert, Badge, Button, Card, Form, Spinner, Table } from 'components/ui/
 import {
   BarChart3,
   Calendar,
-  ChevronLeft,
-  ChevronRight,
   Download,
   MousePointerClick,
   RefreshCw,
@@ -14,10 +12,12 @@ import {
 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
-import reportService from 'services/reportService';
+import reportService, { reportRows as readReportRows } from 'services/reportService';
 import userService from 'services/userService';
 import AnchorPagination from '@/components/common/AnchorPagination';
 import StatCardGrid from '@/components/common/StatCards';
+import LiquidGlassDatePicker from '@/components/common/LiquidGlassDatePicker';
+import './report-center.css';
 
 const PAGE_SIZES = [10, 25, 50];
 const SERVER_PAGED_REPORTS = new Set(['sales', 'service', 'renewal']);
@@ -170,17 +170,19 @@ const reportFromPath = (pathname) => {
 };
 
 const normalizeUserLeads = (payload) => {
-  const users = Array.isArray(payload?.users) ? payload.users : [];
+  const users = readReportRows(payload);
   return users
     .map((item, index) => ({
       ...item,
       userName:
         getValue(item, 'userName') ||
         getValue(item, 'name') ||
+        getValue(item, 'fullName') ||
         `${getValue(item, 'firstName') || ''} ${getValue(item, 'lastName') || ''}`.trim() ||
         `User ${getValue(item, 'userId') || index + 1}`,
       leadsPicked: safeNumber(
         getValue(item, 'leadsPicked') ??
+          getValue(item, 'leadPicked') ??
           getValue(item, 'leadCount') ??
           getValue(item, 'totalLeads') ??
           getValue(item, 'total') ??
@@ -264,7 +266,12 @@ const formatValue = (value, type) => {
 
 export default function ReportCenter() {
   const location = useLocation();
-  const [activeReport, setActiveReport] = useState(() => reportFromPath(location.pathname));
+  return <ReportView key={location.pathname} />;
+}
+
+function ReportView() {
+  const location = useLocation();
+  const activeReport = reportFromPath(location.pathname);
   const [draftFilters, setDraftFilters] = useState(initialFilters);
   const [filters, setFilters] = useState(initialFilters);
   const [rows, setRows] = useState([]);
@@ -278,34 +285,42 @@ export default function ReportCenter() {
   const [restricted, setRestricted] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [datePreset, setDatePreset] = useState('this-month');
-  const [showCustomDates, setShowCustomDates] = useState(false);
   const [userOptions, setUserOptions] = useState([]);
   const [groupOptions, setGroupOptions] = useState([]);
+  const [lookupError, setLookupError] = useState('');
 
   const config = REPORTS[activeReport];
 
   useEffect(() => {
-    setActiveReport(reportFromPath(location.pathname));
-    setRows([]);
-    setSearchText('');
-    setAppliedSearch('');
-    setTotalCount(0);
-    setRestricted(false);
-    setPage(1);
-  }, [location.pathname]);
-
-  useEffect(() => {
+    if (activeReport !== 'disposition' && activeReport !== 'userLeads') return;
     const controller = new AbortController();
-    Promise.allSettled([
-      userService.getUserDropDown({ PageSize: 250 }, controller.signal),
-      reportService.getGroupDropdown(controller.signal)
-    ]).then(([usersResult, groupsResult]) => {
+    setLookupError('');
+    const request = activeReport === 'disposition'
+      ? userService.getUserDropDown({ PageSize: 250 }, controller.signal)
+      : reportService.getGroupDropdown(controller.signal);
+    request.then((response) => {
       if (controller.signal.aborted) return;
-      setUserOptions(usersResult.status === 'fulfilled' ? usersResult.value : []);
-      setGroupOptions(groupsResult.status === 'fulfilled' ? groupsResult.value.data || [] : []);
+      const data = response?.data ?? response;
+      const options = readReportRows(data);
+      if (activeReport === 'disposition') setUserOptions(options);
+      else setGroupOptions(options);
+    }).catch(() => {
+      if (!controller.signal.aborted) setLookupError('Filter options could not be loaded. You can still view all records or refresh the report to retry.');
     });
     return () => controller.abort();
-  }, []);
+  }, [activeReport, refreshKey]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setAppliedSearch(searchText.trim());
+      setPage(1);
+    }, 350);
+    return () => window.clearTimeout(timeout);
+  }, [searchText]);
+
+  const requestPage = SERVER_PAGED_REPORTS.has(activeReport) ? page : 1;
+  const requestPageSize = SERVER_PAGED_REPORTS.has(activeReport) ? pageSize : 10;
+  const requestSearch = SERVER_PAGED_REPORTS.has(activeReport) ? appliedSearch : '';
 
   const loadReport = useCallback(
     async (signal) => {
@@ -316,9 +331,9 @@ export default function ReportCenter() {
         const response = await reportService[config.loader](
           {
             ...filters,
-            page,
-            pageSize,
-            search: SERVER_PAGED_REPORTS.has(activeReport) ? appliedSearch : ''
+            page: requestPage,
+            pageSize: requestPageSize,
+            search: requestSearch
           },
           signal
         );
@@ -326,16 +341,13 @@ export default function ReportCenter() {
           activeReport === 'performance'
             ? normalizePerformance(response.data || {})
             : activeReport === 'userLeads'
-              ? normalizeUserLeads(response.data || {})
-            : Array.isArray(response.data)
-              ? response.data
-              : Array.isArray(response.data?.items)
-                ? response.data.items
-                : [];
+              ? normalizeUserLeads(response.data)
+              : readReportRows(response.data);
+        if (signal.aborted) return;
         setRows(reportRows);
         setTotalCount(Number(response.totalCount) || reportRows.length);
       } catch (requestError) {
-        if (requestError.name === 'AbortError') return;
+        if (signal.aborted || requestError.name === 'AbortError') return;
         setRows([]);
         setTotalCount(0);
         if (requestError.statusCode === 403 || /permission|access/i.test(requestError.message || '')) {
@@ -348,7 +360,7 @@ export default function ReportCenter() {
         if (!signal.aborted) setLoading(false);
       }
     },
-    [activeReport, appliedSearch, config, filters, page, pageSize]
+    [activeReport, requestSearch, config, filters, requestPage, requestPageSize]
   );
 
   useEffect(() => {
@@ -372,8 +384,8 @@ export default function ReportCenter() {
     : filteredRows.slice((page - 1) * pageSize, page * pageSize);
 
   useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
+    if (!loading && page > totalPages) setPage(totalPages);
+  }, [page, totalPages, loading]);
 
   const summary = useMemo(() => {
     const amountKey = activeReport === 'performance' ? 'salesAmount' : 'amount';
@@ -436,17 +448,24 @@ export default function ReportCenter() {
 
   const applyFilters = (event) => {
     if (event && event.preventDefault) event.preventDefault();
-    if (draftFilters.fromDate && draftFilters.toDate && draftFilters.fromDate > draftFilters.toDate) {
-      setError('From date cannot be later than to date.');
+    setPage(1);
+    setAppliedSearch(searchText.trim());
+  };
+
+  const applyCustomDates = (fromDate, toDate) => {
+    if (!fromDate || !toDate || fromDate > toDate) {
+      setError('Choose a valid start and end date.');
       return;
     }
     setError('');
     setPage(1);
-    setAppliedSearch(searchText.trim());
-    setFilters({ ...draftFilters });
+    setFilters((current) => ({ ...current, fromDate, toDate }));
+    setDraftFilters((current) => ({ ...current, fromDate, toDate }));
+    setDatePreset('custom');
   };
 
   const applyPreset = (preset) => {
+    setError('');
     const today = new Date();
     let fromDate = new Date();
     let toDate = new Date();
@@ -455,13 +474,13 @@ export default function ReportCenter() {
       fromDate = today;
       toDate = today;
     } else if (preset === 'last-7') {
-      fromDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+      fromDate.setDate(today.getDate() - 6);
       toDate = today;
     } else if (preset === 'this-month') {
       fromDate = new Date(today.getFullYear(), today.getMonth(), 1);
       toDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     } else if (preset === 'last-30') {
-      fromDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+      fromDate.setDate(today.getDate() - 29);
       toDate = today;
     }
 
@@ -473,13 +492,12 @@ export default function ReportCenter() {
     setDraftFilters(nextFilters);
     setFilters(nextFilters);
     setDatePreset(preset);
-    setShowCustomDates(false);
     setPage(1);
   };
 
   const shiftDateRange = (direction) => {
-    const currentFrom = new Date(`${draftFilters.fromDate}T00:00:00`);
-    const currentTo = new Date(`${draftFilters.toDate}T00:00:00`);
+    const currentFrom = new Date(`${filters.fromDate}T00:00:00`);
+    const currentTo = new Date(`${filters.toDate}T00:00:00`);
     if (Number.isNaN(currentFrom.getTime()) || Number.isNaN(currentTo.getTime())) return;
 
     let nextFrom;
@@ -496,18 +514,19 @@ export default function ReportCenter() {
     }
 
     const nextFilters = {
-      ...draftFilters,
+      ...filters,
       fromDate: toInputDate(nextFrom),
       toDate: toInputDate(nextTo)
     };
     setDraftFilters(nextFilters);
     setFilters(nextFilters);
+    setError('');
     setPage(1);
   };
 
   const updateAndApplyFilter = (field, value) => {
-    const nextFilters = { ...draftFilters, [field]: value };
-    setDraftFilters(nextFilters);
+    const nextFilters = { ...filters, [field]: value };
+    setDraftFilters((current) => ({ ...current, [field]: value }));
     setFilters(nextFilters);
     setPage(1);
   };
@@ -541,19 +560,27 @@ export default function ReportCenter() {
   ];
 
   return (
-    <div className="crm-report-view">
+    <div className="crm-report-view report-glass">
+      <div className="report-heading">
+        <div>
+          <span className="report-eyebrow">REPORTS & INSIGHTS</span>
+          <h1>{config.label}{/report/i.test(config.label) ? '' : ' Report'}</h1>
+          <p>Explore your team's activity with a clear view of the numbers.</p>
+        </div>
+        <span className="report-period-chip"><Calendar size={15} />{formatRangeDate(filters.fromDate)} – {formatRangeDate(filters.toDate)}</span>
+      </div>
       <Card className="report-toolbar-card border-0 mb-4">
         <Card.Body className="report-toolbar-body">
           <div className="report-toolbar-top">
             <span className="report-result-chip">
               <span className="report-result-dot" />
-              <strong>{effectiveTotal.toLocaleString()}</strong> of {effectiveTotal.toLocaleString()} results
+              <strong>{loading ? 'Loading…' : effectiveTotal.toLocaleString()}</strong> {!loading && 'records'}
             </span>
             <div className="report-toolbar-actions">
-              <button type="button" className="report-square-btn" onClick={exportCsv} disabled={!filteredRows.length} title="Download CSV">
+              <button type="button" className="report-square-btn" onClick={exportCsv} disabled={loading || !filteredRows.length} title="Download CSV" aria-label="Download CSV">
                 <Download size={18} />
               </button>
-              <button type="button" className="report-round-btn" onClick={() => setRefreshKey((value) => value + 1)} disabled={loading} title="Refresh report">
+              <button type="button" className="report-round-btn" onClick={() => setRefreshKey((value) => value + 1)} disabled={loading} title="Refresh report" aria-label="Refresh report">
                 <RefreshCw size={18} className={loading ? 'spin' : ''} />
               </button>
             </div>
@@ -602,37 +629,26 @@ export default function ReportCenter() {
               </div>
 
               <Form.Select className="report-period-select" value={datePreset} onChange={(event) => applyPreset(event.target.value)} aria-label="Date period">
+                <option value="custom" disabled>Custom dates</option>
                 {DATE_PRESETS.map((preset) => <option key={preset.id} value={preset.id}>{preset.label}</option>)}
               </Form.Select>
 
-              <button type="button" className="report-round-btn" onClick={() => setShowCustomDates((value) => !value)} title="Choose custom dates">
-                <Calendar size={18} />
-              </button>
-              <button type="button" className="report-round-btn" onClick={() => shiftDateRange(-1)} title="Previous period">
-                <ChevronLeft size={19} />
-              </button>
-              <button type="button" className="report-date-range-btn" onClick={() => setShowCustomDates((value) => !value)}>
-                <Calendar size={17} />
-                <span>{formatRangeDate(draftFilters.fromDate)} - {formatRangeDate(draftFilters.toDate)}</span>
-              </button>
-              <button type="button" className="report-round-btn" onClick={() => shiftDateRange(1)} title="Next period">
-                <ChevronRight size={19} />
-              </button>
+              <LiquidGlassDatePicker
+                className="report-calendar-control"
+                initialFromDate={filters.fromDate}
+                initialToDate={filters.toDate}
+                calendarMode
+                glass
+                onStep={shiftDateRange}
+                onChange={applyCustomDates}
+              />
             </div>
-
-            {showCustomDates && (
-              <div className="report-custom-dates">
-                <Form.Control type="date" value={draftFilters.fromDate} onChange={(event) => setDraftFilters((current) => ({ ...current, fromDate: event.target.value }))} />
-                <span>to</span>
-                <Form.Control type="date" value={draftFilters.toDate} onChange={(event) => setDraftFilters((current) => ({ ...current, toDate: event.target.value }))} />
-                <Button type="submit" size="sm" disabled={loading}>{loading ? <Spinner size="sm" /> : 'Apply dates'}</Button>
-              </div>
-            )}
           </Form>
         </Card.Body>
       </Card>
 
-      {error && <Alert variant="danger">{error}</Alert>}
+      {lookupError && <Alert variant="warning">{lookupError}</Alert>}
+      {error && <Alert variant="danger">{error} <Button size="sm" onClick={() => setRefreshKey((value) => value + 1)}>Retry</Button></Alert>}
 
       {restricted && (
         <Alert variant="warning" className="report-access-alert">
@@ -642,6 +658,7 @@ export default function ReportCenter() {
       )}
 
       <StatCardGrid
+        loading={loading}
         className="mb-4"
         columns={3}
         items={[
@@ -651,7 +668,8 @@ export default function ReportCenter() {
             label: 'Total Records',
             value: effectiveTotal.toLocaleString(),
             tone: 'indigo',
-            caption: 'Rows returned for current period'
+            caption: 'Rows returned for current period',
+            glass: true
           },
           {
             key: 'primary',
@@ -659,7 +677,8 @@ export default function ReportCenter() {
             label: summary.primaryLabel,
             value: summary.primary,
             tone: 'emerald',
-            caption: activeReport === 'tickets' ? 'Resolved service tickets' : isLeadReport ? 'Live lead activity' : 'Financial total'
+            caption: activeReport === 'tickets' ? 'Resolved service tickets' : isLeadReport ? 'Lead activity for this period' : 'Total for this page',
+            glass: true
           },
           {
             key: 'secondary',
@@ -667,12 +686,14 @@ export default function ReportCenter() {
             label: summary.secondaryLabel,
             value: summary.secondary,
             tone: 'amber',
-            caption: activeReport === 'tickets' ? 'In progress & new tickets' : isLeadReport ? 'Current report period' : 'Active tracking items'
+            caption: activeReport === 'tickets' ? 'In progress & new tickets' : isLeadReport ? 'Current report period' : 'Active items on this page',
+            glass: true
           }
         ]}
       />
 
-      <Card className="neu-card border-0">
+      <Card className="neu-card report-table-card border-0" aria-busy={loading}>
+        <div className="report-table-heading"><h2>Report details</h2><span>{loading ? 'Updating records…' : `${effectiveTotal.toLocaleString()} records · ${SERVER_PAGED_REPORTS.has(activeReport) ? 'Export includes this page' : 'Export includes filtered records'}`}</span></div>
         <Card.Body className="p-3">
           <div className="neu-table-wrapper">
             <div className="table-responsive">
@@ -724,9 +745,9 @@ export default function ReportCenter() {
                     <tr>
                       <td colSpan={config.columns.length} className="text-center text-muted py-5">
                         <div className="py-4">
-                          <BarChart3 size={32} className="text-muted mb-2 opacity-50" />
-                          <div className="fw-medium text-dark">No records found</div>
-                          <div className="small text-muted">Try adjusting your date range or search filter.</div>
+                          <BarChart3 size={32} className="report-empty-icon text-muted mb-2 opacity-50" />
+                          <div className="fw-medium text-dark">{error ? 'Report unavailable' : restricted ? 'Access restricted' : 'No records found'}</div>
+                          <div className="small text-muted">{error ? 'Use Retry above to load this report again.' : restricted ? 'Contact your administrator for report access.' : 'Try adjusting your date range or search filter.'}</div>
                         </div>
                       </td>
                     </tr>
@@ -744,6 +765,7 @@ export default function ReportCenter() {
           <div className="d-flex align-items-center gap-2">
             <span className="small text-muted">Per page:</span>
             <Form.Select
+              aria-label="Records per page"
               size="sm"
               value={pageSize}
               onChange={(event) => {

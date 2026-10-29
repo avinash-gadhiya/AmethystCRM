@@ -1,5 +1,16 @@
 ﻿/* Lens shading adapted from the FreeFrontend liquid glass lens reference.
    Effects stay behind selectable report text and are scoped to the summary. */
+:root {
+  --insights-page-background: radial-gradient(ellipse at 5% 0%, #e7e0fa, transparent 55%),
+    radial-gradient(ellipse at 100% 35%, #dbefee, transparent 50%), #eff1f8;
+  --insights-page-border: rgba(139, 122, 204, .12);
+}
+
+.dark {
+  --insights-page-background: radial-gradient(ellipse at top left, #302641, transparent 65%), #191e2d;
+  --insights-page-border: rgba(191, 180, 230, .13);
+}
+
 .daily-sales-glass {
   isolation: isolate;
   border: 1px solid rgba(124, 58, 237, 0.08);
@@ -108,11 +119,18 @@
 
 /* Dashboard opt-in surfaces preserve their layout and dropdown overflow. */
 .dashboard-glass.dashboard-glass {
-  background: radial-gradient(ellipse at 25% 0%, #f5f2fc, #e9e8f0 65%, #e3e3ed);
-  border-radius: 16px;
+  background: var(--insights-page-background);
+  border: 1px solid var(--insights-page-border);
+  border-radius: 24px;
 }
 .dark .dashboard-glass.dashboard-glass {
-  background: radial-gradient(ellipse at 25% 0%, #29243d, #181b2a 75%);
+  background: var(--insights-page-background);
+}
+
+/* Keep the daily summary on the same background as the rest of its page. */
+.daily-sales-report .daily-sales-glass {
+  background: transparent;
+  border-color: transparent;
 }
 .dashboard-glass :is(.glass-surface, .stat-card, .card) {
   overflow: visible;

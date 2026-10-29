@@ -339,9 +339,10 @@ export const userService = {
   },
 
   // GET /api/User/UserDropDown
-  async getUserDropDown(params = {}) {
+  async getUserDropDown(params = {}, signal) {
     const API_URL = getApiBaseUrl();
     const response = await axios.get(`${API_URL}/User/UserDropDown`, {
+      signal,
       headers: getAuthHeaders(),
       params: {
         isActive: params.isActive ?? true,

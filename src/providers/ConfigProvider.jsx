@@ -30,13 +30,11 @@ function ConfigProvider({ children }) {
       case actionType.COLLAPSE_OPEN: {
         const id = action.menu?.id;
         if (!id) return stateData;
-        const currentTriggers = Array.isArray(stateData.isTrigger) ? stateData.isTrigger : [];
-        const currentOpen = Array.isArray(stateData.isOpen) ? stateData.isOpen : [];
-        if (currentTriggers.includes(id)) return stateData;
+        if (stateData.isTrigger?.length === 1 && stateData.isTrigger[0] === id) return stateData;
         return {
           ...stateData,
-          isTrigger: [...currentTriggers, id],
-          isOpen: currentOpen.includes(id) ? currentOpen : [...currentOpen, id]
+          isTrigger: [id],
+          isOpen: [id]
         };
       }
 
@@ -44,17 +42,12 @@ function ConfigProvider({ children }) {
         const id = action.menu?.id;
         if (!id) return stateData;
         const currentTriggers = Array.isArray(stateData.isTrigger) ? stateData.isTrigger : [];
-        const currentOpen = Array.isArray(stateData.isOpen) ? stateData.isOpen : [];
         const isCurrentlyOpen = currentTriggers.includes(id);
 
         return {
           ...stateData,
-          isTrigger: isCurrentlyOpen
-            ? currentTriggers.filter((item) => item !== id)
-            : [...currentTriggers, id],
-          isOpen: isCurrentlyOpen
-            ? currentOpen.filter((item) => item !== id)
-            : [...currentOpen, id]
+          isTrigger: isCurrentlyOpen ? [] : [id],
+          isOpen: isCurrentlyOpen ? [] : [id]
         };
       }
       default:

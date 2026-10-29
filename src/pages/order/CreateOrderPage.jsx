@@ -1,3 +1,4 @@
+import MiniCalendarInput from '@/components/common/MiniCalendarInput';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ModalPortal, PageHeader } from '@/components/common/page-card';
 import { Search, Plus, Minus, Trash2, CreditCard, ChevronDown, X, Package, BadgePercent, ClipboardList, CalendarClock, Eraser, ArrowLeft, Landmark, FileCheck2, Zap, WalletCards } from 'lucide-react';
@@ -4351,7 +4352,7 @@ const CreateOrderPage = () => {
                           </div>
                           <div>
                             <label className={labelClass}>Cheque Date<RequiredMark /></label>
-                            <input
+                            <MiniCalendarInput
                               type="date"
                               value={paymentDateForInput}
                               onChange={(e) => {
@@ -4477,7 +4478,7 @@ const CreateOrderPage = () => {
                           </div>
                           <div className="md:col-span-2">
                             <label className={labelClass}>Payment Date<RequiredMark /></label>
-                            <input
+                            <MiniCalendarInput
                               type="date"
                               value={paymentDateForInput}
                               onChange={(e) => {
@@ -4571,7 +4572,7 @@ const CreateOrderPage = () => {
                           </div>
                           <div className="md:col-span-2">
                             <label className={labelClass}>Payment Date<RequiredMark /></label>
-                            <input
+                            <MiniCalendarInput
                               type="date"
                               value={paymentDateForInput}
                               onChange={(e) => {
