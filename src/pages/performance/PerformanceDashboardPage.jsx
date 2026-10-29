@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 
 import LiquidGlassDatePicker from '@/components/common/LiquidGlassDatePicker';
+import LiquidGlassSurface from '@/components/common/LiquidGlassSurface';
 import StatCardGrid from '@/components/common/StatCards';
 import TableRefreshButton from '@/components/common/TableRefreshButton';
 import { ChartSkeleton, TableSkeletonRows } from '@/components/common/skeleton-loader';
@@ -405,13 +406,13 @@ export default function PerformanceDashboardPage() {
             </p>
           </div>
 
-          <div className="glass-surface flex w-full flex-col gap-2 rounded-2xl border border-white/80 bg-white/75 p-2 shadow-sm backdrop-blur-xl dark:border-slate-700/60 dark:bg-slate-900/60 xl:w-auto">
+          <LiquidGlassSurface allowOverflow className="liquid-glass-filter-panel flex w-full flex-col gap-2 rounded-2xl p-2.5 xl:w-auto">
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 xl:flex">
               <Select value={quickFilter} onValueChange={handleQuickFilter}>
-                <SelectTrigger className="h-10 min-w-[150px] rounded-xl border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+                <SelectTrigger aria-label="Date preset" className="liquid-glass-control h-10 w-full min-w-[150px] rounded-xl">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+                <SelectContent className="liquid-glass-menu">
                   {quickFilter === 'Custom' && <SelectItem value="Custom">Custom range</SelectItem>}
                   {QUICK_FILTERS.map((filter) => (
                     <SelectItem key={filter} value={filter}>
@@ -421,10 +422,10 @@ export default function PerformanceDashboardPage() {
                 </SelectContent>
               </Select>
               <Select value={tierFilter} onValueChange={setTierFilter}>
-                <SelectTrigger className="h-10 min-w-[130px] rounded-xl border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+                <SelectTrigger aria-label="Performance tier" className="liquid-glass-control h-10 w-full min-w-[130px] rounded-xl">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+                <SelectContent className="liquid-glass-menu">
                   {TIER_FILTERS.map(([value, label]) => (
                     <SelectItem key={value} value={value}>
                       {label}
@@ -433,10 +434,10 @@ export default function PerformanceDashboardPage() {
                 </SelectContent>
               </Select>
               <Select value={locationFilter} onValueChange={setLocationFilter}>
-                <SelectTrigger className="h-10 min-w-[160px] rounded-xl border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+                <SelectTrigger aria-label="Location" className="liquid-glass-control h-10 w-full min-w-[160px] rounded-xl">
                   <SelectValue placeholder="All locations" />
                 </SelectTrigger>
-                <SelectContent className="border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+                <SelectContent className="liquid-glass-menu">
                   <SelectItem value="all">All locations</SelectItem>
                   {locations.map((location) => (
                     <SelectItem key={location} value={location}>
@@ -452,10 +453,14 @@ export default function PerformanceDashboardPage() {
                 initialFromDate={fromDate}
                 initialToDate={toDate}
                 emptyLabel="All dates"
+                calendarMode
+                glass
+                quickDateTriggerClassName="h-9 rounded-xl px-3 text-slate-700 dark:text-slate-200"
                 onChange={handleDateChange}
                 stretch
               />
               <TableRefreshButton
+                className="liquid-glass-control liquid-glass-control--icon"
                 title="Refresh performance dashboard"
                 onClick={() => setRefreshKey((value) => value + 1)}
                 disabled={loading}
@@ -464,14 +469,14 @@ export default function PerformanceDashboardPage() {
               <button
                 type="button"
                 onClick={resetFilters}
-                className="liquid-glass-icon-btn shrink-0"
+                className="liquid-glass-icon-btn liquid-glass-control liquid-glass-control--icon shrink-0"
                 title="Reset filters"
                 aria-label="Reset filters"
               >
                 <RotateCcw className="h-4 w-4" />
               </button>
             </div>
-          </div>
+          </LiquidGlassSurface>
         </div>
 
         {error && (
@@ -488,7 +493,7 @@ export default function PerformanceDashboardPage() {
           </div>
         )}
 
-        <StatCardGrid className="mt-5" items={summaryCards} loading={loading} columns={4} />
+        <StatCardGrid className="mt-5" items={summaryCards.map((card) => ({ ...card, glass: true }))} loading={loading} columns={4} />
 
         <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
           {loading
@@ -506,8 +511,9 @@ export default function PerformanceDashboardPage() {
                 return (
                   <div
                     key={tier}
-                    className="glass-surface rounded-2xl border border-slate-200/70 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-950"
+                    className="glass-surface daily-sales-glass__card rounded-2xl border border-slate-200/70 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-950"
                   >
+                    <span className="daily-sales-glass__rim" aria-hidden="true" />
                     <div className="flex items-center justify-between gap-2">
                       <span className={`text-xs font-bold ${meta.text}`}>{tier}</span>
                       <span className="text-xl font-bold text-slate-900 dark:text-white">{count}</span>
@@ -732,7 +738,8 @@ function Cell({ children, className = '' }) {
 
 function MobileRankingCard({ row }) {
   return (
-    <article className="glass-surface rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+    <article className="glass-surface daily-sales-glass__card rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+      <span className="daily-sales-glass__rim" aria-hidden="true" />
       <div className="flex items-start gap-3">
         <RankMark rank={row.rank} />
         <div className="min-w-0 flex-1">
@@ -774,8 +781,9 @@ function Metric({ label, value }) {
 function ChartPanel({ title, subtitle, children, className = '' }) {
   return (
     <div
-      className={`glass-surface min-w-0 rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950 sm:p-5 ${className}`}
+      className={`glass-surface daily-sales-glass__card min-w-0 rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950 sm:p-5 ${className}`}
     >
+      <span className="daily-sales-glass__rim" aria-hidden="true" />
       <div className="mb-4">
         <h2 className="text-sm font-bold text-slate-900 dark:text-white">{title}</h2>
         <p className="mt-0.5 text-xs text-slate-400">{subtitle}</p>
@@ -788,7 +796,8 @@ function ChartPanel({ title, subtitle, children, className = '' }) {
 function ProfileCard({ row }) {
   const meta = TIER_META[row.tier];
   return (
-    <article className="glass-surface rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950">
+    <article className="glass-surface daily-sales-glass__card rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950">
+      <span className="daily-sales-glass__rim" aria-hidden="true" />
       <div className="flex items-start gap-3">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 text-sm font-extrabold text-white shadow-sm">
           {initials(row.name)}

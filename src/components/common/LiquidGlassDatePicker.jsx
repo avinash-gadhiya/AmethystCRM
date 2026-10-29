@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
+import '@/styles/liquid-glass-surfaces.css';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const WEEK_DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -53,11 +54,13 @@ export function LiquidGlassDatePicker({
   quickDatePlaceholder = 'Quick ranges',
   quickDateTriggerClassName = '',
   calendarMode = false,
+  glass = false,
   showClearButton = false,
   onChange,
   onClear,
-  stretch = false,
+  stretch = false
 }) {
+  const iconButtonClassName = `inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 shadow-sm transition-colors shrink-0 ${glass ? 'liquid-glass-control liquid-glass-control--icon' : ''}`;
   const [fromDate, setFromDate] = useState(initialFromDate);
   const [toDate, setToDate] = useState(initialToDate);
   const [isOpen, setIsOpen] = useState(false);
@@ -91,7 +94,7 @@ export function LiquidGlassDatePicker({
 
     // Determine span in months
     const yearDiff = end.getFullYear() - start.getFullYear();
-    const monthDiff = (yearDiff * 12) + (end.getMonth() - start.getMonth());
+    const monthDiff = yearDiff * 12 + (end.getMonth() - start.getMonth());
 
     if (monthDiff === 0) {
       // Step by 1 month
@@ -106,8 +109,8 @@ export function LiquidGlassDatePicker({
       // Step by span in days
       const days = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
       const shift = days * direction;
-      const newStart = new Date(start.getTime() + (shift * 24 * 60 * 60 * 1000));
-      const newEnd = new Date(end.getTime() + (shift * 24 * 60 * 60 * 1000));
+      const newStart = new Date(start.getTime() + shift * 24 * 60 * 60 * 1000);
+      const newEnd = new Date(end.getTime() + shift * 24 * 60 * 60 * 1000);
       const fromStr = toYmd(newStart);
       const toStr = toYmd(newEnd);
       setFromDate(fromStr);
@@ -170,16 +173,17 @@ export function LiquidGlassDatePicker({
 
   const formatDateLabel = () => {
     if (!fromDate && !toDate) return emptyLabel;
+    if (fromDate && !toDate) return formatDisplayDate(fromDate);
     if (fromDate === toDate) return formatDisplayDate(fromDate);
     return `${formatDisplayDate(fromDate)} - ${formatDisplayDate(toDate)}`;
   };
 
   return (
-    <div ref={containerRef} className={`relative inline-flex items-center gap-1.5 ${className}`}>
+    <div ref={containerRef} className={`liquid-glass-date-picker relative inline-flex items-center gap-1.5 ${className}`}>
       {/* Prev period button */}
       <button
         type="button"
-        className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 shadow-sm transition-colors shrink-0"
+        className={iconButtonClassName}
         onClick={() => handleStepClick(-1)}
         title="Previous period"
         aria-label="Previous period"
@@ -191,12 +195,17 @@ export function LiquidGlassDatePicker({
       <button
         type="button"
         onClick={togglePicker}
-        className={`inline-flex min-w-0 max-w-full flex-1 items-center justify-between gap-2 shadow-sm transition-colors ${
+        aria-label="Choose date range"
+        aria-haspopup="dialog"
+        aria-expanded={isOpen}
+        className={`inline-flex min-w-0 max-w-full flex-1 items-center justify-between gap-2 shadow-sm transition-colors ${glass ? 'liquid-glass-control' : ''} ${
           quickDateTriggerClassName || 'h-8 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-slate-700 hover:bg-slate-50'
         } ${stretch ? 'justify-start' : 'justify-center sm:flex-none'}`}
       >
         <CalendarIcon className="h-4 w-4 shrink-0 text-slate-500" />
-        <span className={`truncate text-xs font-semibold text-slate-800 ${stretch ? 'flex-1 text-left' : 'sm:max-w-[190px]'}`}>
+        <span
+          className={`truncate text-xs font-semibold text-slate-800 dark:text-slate-100 ${stretch ? 'flex-1 text-left' : 'sm:max-w-[190px]'}`}
+        >
           {formatDateLabel()}
         </span>
         <svg
@@ -216,32 +225,24 @@ export function LiquidGlassDatePicker({
       </button>
 
       {/* Next period button */}
-      <button
-        type="button"
-        className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 shadow-sm transition-colors shrink-0"
-        onClick={() => handleStepClick(1)}
-        title="Next period"
-        aria-label="Next period"
-      >
+      <button type="button" className={iconButtonClassName} onClick={() => handleStepClick(1)} title="Next period" aria-label="Next period">
         <ChevronRight className="h-4 w-4" />
       </button>
 
       {/* Clear button if enabled */}
       {showClearButton && (
-        <button
-          type="button"
-          className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 shadow-sm transition-colors shrink-0"
-          onClick={onClear}
-          title="Reset dates"
-          aria-label="Reset dates"
-        >
+        <button type="button" className={iconButtonClassName} onClick={onClear} title="Reset dates" aria-label="Reset dates">
           <RotateCcw className="h-4 w-4" />
         </button>
       )}
 
       {/* Date Picker Popover */}
       {isOpen && calendarMode && (
-        <div className="absolute right-0 top-full z-50 mt-1.5 w-[19rem] rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+        <div
+          role="dialog"
+          aria-label="Date range"
+          className={`absolute right-0 top-full z-50 mt-1.5 w-[min(19rem,calc(100vw-2rem))] max-w-full rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl dark:border-slate-700 dark:bg-slate-900 ${glass ? 'liquid-glass-menu' : ''}`}
+        >
           <div className="mb-2 flex items-center justify-between">
             <button
               type="button"
@@ -304,7 +305,9 @@ export function LiquidGlassDatePicker({
 
           <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
             <span className="min-w-0 truncate text-[10px] font-medium text-slate-500 dark:text-slate-400">
-              {fromDate ? `${formatDisplayDate(fromDate)}${toDate ? ` - ${formatDisplayDate(toDate)}` : ' - Select end date'}` : 'Select start date'}
+              {fromDate
+                ? `${formatDisplayDate(fromDate)}${toDate ? ` - ${formatDisplayDate(toDate)}` : ' - Select end date'}`
+                : 'Select start date'}
             </span>
             <div className="flex shrink-0 items-center gap-1.5">
               <button
@@ -328,7 +331,11 @@ export function LiquidGlassDatePicker({
       )}
 
       {isOpen && !calendarMode && (
-        <div className="absolute right-0 top-full z-50 mt-1.5 w-72 rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
+        <div
+          role="dialog"
+          aria-label="Date range"
+          className={`absolute right-0 top-full z-50 mt-1.5 w-72 rounded-xl border border-slate-200 bg-white p-4 shadow-xl ${glass ? 'liquid-glass-menu' : ''}`}
+        >
           {showQuickDateDropdown && quickDateOptions.length > 0 && (
             <div className={showQuickDateCustomOption ? 'mb-4 border-b border-slate-100 pb-4' : ''}>
               <div className="mb-2 text-xs font-semibold text-slate-800">{quickDatePlaceholder}</div>
@@ -361,39 +368,39 @@ export function LiquidGlassDatePicker({
             <>
               <div className="mb-3 text-xs font-semibold text-slate-800">Custom Date Range</div>
               <form onSubmit={handleApply} className="space-y-3">
-            <div>
-              <label className="block text-[11px] font-medium text-slate-500 mb-1">From Date</label>
-              <input
-                type="date"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                className="w-full h-8 rounded-lg border border-slate-300 bg-white px-2.5 text-xs text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] font-medium text-slate-500 mb-1">To Date</label>
-              <input
-                type="date"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                className="w-full h-8 rounded-lg border border-slate-300 bg-white px-2.5 text-xs text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
-              />
-            </div>
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white shadow-sm transition-colors"
-              >
-                Apply
-              </button>
-            </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-500 mb-1">From Date</label>
+                  <input
+                    type="date"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                    className="w-full h-8 rounded-lg border border-slate-300 bg-white px-2.5 text-xs text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-500 mb-1">To Date</label>
+                  <input
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                    className="w-full h-8 rounded-lg border border-slate-300 bg-white px-2.5 text-xs text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                  />
+                </div>
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setIsOpen(false)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white shadow-sm transition-colors"
+                  >
+                    Apply
+                  </button>
+                </div>
               </form>
             </>
           )}

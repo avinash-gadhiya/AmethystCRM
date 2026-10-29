@@ -4,6 +4,7 @@ import { Toaster } from 'sonner';
 // project imports
 import SessionExpiryHandler from 'auth/SessionExpiryHandler';
 import router from 'routing';
+import Loader from 'components/loaders/Loader';
 
 // -----------------------|| APP ||-----------------------//
 
@@ -12,7 +13,7 @@ export default function App() {
     <>
       <Toaster richColors position="top-right" />
       <SessionExpiryHandler />
-      <RouterProvider router={router} future={{ v7_startTransition: true }} />
+      <RouterProvider router={router} fallbackElement={<Loader />} future={{ v7_startTransition: true }} />
     </>
   );
 }

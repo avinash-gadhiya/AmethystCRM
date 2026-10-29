@@ -5,6 +5,7 @@ import permissionService from 'services/permissionService';
 import AdminLayout from 'layouts/AdminLayout';
 import GuestLayout from 'layouts/GuestLayout';
 import { ProtectedRoute, GuestRoute, RootRedirect } from 'auth/ProtectedRoute';
+import RouteErrorPage from './RouteErrorPage';
 
 const DashboardPage = lazy(() => import('../pages/dashboard/DashboardPage'));
 const DashboardSales = lazy(() => import('../pages/dashboard/DashSales/index'));
@@ -106,6 +107,7 @@ const Sample = lazy(() => import('../pages/sample'));
 
 const MainRoutes = {
   path: '/',
+  errorElement: <RouteErrorPage />,
   children: [
     {
       index: true,

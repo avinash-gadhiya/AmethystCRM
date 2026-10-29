@@ -1,10 +1,19 @@
 import PropTypes from 'prop-types';
 
 import { Card, Spinner } from 'components/ui/Bootstrap';
+import LiquidGlassSurface from '@/components/common/LiquidGlassSurface';
 
-export default function DashboardPanel({ title, children, loading = false, empty = false, emptyMessage = 'No data found.', action }) {
+export default function DashboardPanel({
+  title,
+  children,
+  loading = false,
+  empty = false,
+  emptyMessage = 'No data found.',
+  action,
+  glass = false
+}) {
   return (
-    <Card className="border-0 shadow-sm h-100">
+    <LiquidGlassSurface as={Card} glass={glass} className="border-0 shadow-sm h-100">
       <Card.Header className="bg-transparent d-flex align-items-center justify-content-between gap-3 py-3">
         <h5 className="mb-0 fw-semibold">{title}</h5>
         {action}
@@ -22,7 +31,7 @@ export default function DashboardPanel({ title, children, loading = false, empty
           children
         )}
       </Card.Body>
-    </Card>
+    </LiquidGlassSurface>
   );
 }
 
@@ -32,6 +41,6 @@ DashboardPanel.propTypes = {
   loading: PropTypes.bool,
   empty: PropTypes.bool,
   emptyMessage: PropTypes.string,
-  action: PropTypes.node
+  action: PropTypes.node,
+  glass: PropTypes.bool
 };
-

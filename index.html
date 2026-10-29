@@ -19,6 +19,8 @@
     />
     <meta name="author" content="DashboardKit" />
     <meta name="theme-color" content="#4f46e5" />
+    <link rel="stylesheet" href="/startup.css" />
+    <script src="/startup.js" defer></script>
     <!-- Favicon & Manifest -->
     <link rel="icon" href="/favicon.ico" />
 
@@ -27,7 +29,17 @@
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <div id="root">
+      <div id="app-startup" hidden>
+        <div class="app-loading" role="alert">
+          <div class="app-loading__card">
+            <p class="app-loading__title">The website could not load</p>
+            <p class="app-loading__description">Check your connection and reload to try again.</p>
+            <button type="button" class="app-loading__button" data-app-reload>Reload page</button>
+          </div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

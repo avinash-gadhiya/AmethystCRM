@@ -2,7 +2,6 @@ import '@/styles/liquid-glass-surfaces.css';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
-  Calendar,
   CalendarDays,
   CheckCircle2,
   Clock3,
@@ -11,10 +10,8 @@ import {
   LifeBuoy,
   RefreshCw,
   Search,
-  SlidersHorizontal,
   Ticket,
   TrendingUp,
-  User,
   UserCheck,
   UserPlus,
   Users,
@@ -24,6 +21,8 @@ import {
 import dashboardService from 'services/dashboardService';
 import userService from 'services/userService';
 import AnchorPagination from '@/components/common/AnchorPagination';
+import LiquidGlassSurface from '@/components/common/LiquidGlassSurface';
+import LiquidGlassDatePicker from '@/components/common/LiquidGlassDatePicker';
 import { getMonthToDateRange, isValidDateRange, toInputDate } from 'utils/dateUtils';
 import { asArray, findNumber, integer, textValue } from '../dashboardData';
 
@@ -74,6 +73,7 @@ const formatCreatedDate = (rawDate) => {
 export default function ServiceDashboard() {
   const initialRange = useMemo(() => getMonthToDateRange(), []);
   const [draftRange, setDraftRange] = useState(initialRange);
+  const [datePreset, setDatePreset] = useState('monthToDate');
   const [range, setRange] = useState(initialRange);
   const [userId, setUserId] = useState('');
   const [draftUserId, setDraftUserId] = useState('');
@@ -199,6 +199,8 @@ export default function ServiceDashboard() {
   };
 
   const handlePresetSelect = (presetKey) => {
+    setDatePreset(presetKey);
+    if (presetKey === 'custom') return;
     const today = new Date();
     let newRange = { fromDate: toInputDate(today), toDate: toInputDate(today) };
 
@@ -218,18 +220,19 @@ export default function ServiceDashboard() {
       newRange = getMonthToDateRange();
     } else if (presetKey === 'last30Days') {
       const past = new Date(today);
-      past.setDate(today.getDate() - 30);
+      past.setDate(today.getDate() - 29);
       newRange = { fromDate: toInputDate(past), toDate: toInputDate(today) };
     }
 
     setDraftRange(newRange);
-    setRange(newRange);
-    setUserId(draftUserId);
+    setError('');
   };
 
   const handleResetFilters = () => {
     const initial = getMonthToDateRange();
     setDraftRange(initial);
+    setDatePreset('monthToDate');
+    setError('');
     setRange(initial);
     setDraftUserId('');
     setUserId('');
@@ -240,7 +243,7 @@ export default function ServiceDashboard() {
   const selectedUserName = useMemo(() => {
     if (!userId) return null;
     const match = users.find((u) => {
-      const id = u.userId || u.id || u.value;
+      const id = u.userId ?? u.id ?? u.value;
       return String(id) === String(userId);
     });
     return match ? textValue(match, ['fullName', 'userName', 'name', 'text', 'label'], 'Assigned User') : null;
@@ -249,37 +252,16 @@ export default function ServiceDashboard() {
   return (
     <div className="dashboard-glass space-y-5 p-3 pb-10 sm:p-4">
       {/* 1. TOP HEADER & BREADCRUMB SECTION */}
-      <div className="glass-surface relative overflow-hidden flex flex-col lg:flex-row lg:items-center justify-between gap-5 bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
-        <div className="pointer-events-none absolute -right-16 -top-20 h-52 w-52 rounded-full bg-indigo-100/60 blur-3xl dark:bg-indigo-950/30" />
+      <LiquidGlassSurface className="glass-surface relative overflow-hidden flex flex-col lg:flex-row lg:items-center justify-between gap-5 bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
         <div className="relative flex items-start sm:items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-sky-400 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25 ring-4 ring-indigo-50 dark:ring-indigo-950/40 flex-shrink-0">
-            <LifeBuoy className="w-6 h-6 animate-pulse" />
+            <LifeBuoy className="w-6 h-6" />
           </div>
           <div>
-            <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Service Manager Dashboard</h1>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/40">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                Live Status
-              </span>
-            </div>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 flex flex-wrap items-center gap-2">
-              <span>
-                Ticket overview for{' '}
-                <span className="font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
-                  {range.fromDate}
-                </span>{' '}
-                to{' '}
-                <span className="font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
-                  {range.toDate}
-                </span>
-              </span>
-              {selectedUserName && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200/60 dark:bg-indigo-950/40 dark:text-indigo-300">
-                  <User size={12} />
-                  Agent: {selectedUserName}
-                </span>
-              )}
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Service Manager Dashboard</h1>
+            <p className="mt-1 mb-0 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+              {formatCreatedDate(range.fromDate + 'T00:00:00')} - {formatCreatedDate(range.toDate + 'T00:00:00')}
+              {selectedUserName && <span> | {selectedUserName}</span>}
             </p>
           </div>
         </div>
@@ -297,138 +279,88 @@ export default function ServiceDashboard() {
             <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
           </button>
         </div>
-      </div>
+      </LiquidGlassSurface>
 
-      {/* 2. FILTER & RANGE CONTROLS CARD */}
-      <div className="glass-surface bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden">
-        {/* Quick Date Presets Bar */}
-        <div className="px-4 sm:px-6 py-3 bg-slate-50/70 dark:bg-slate-800/40 border-b border-slate-200/60 dark:border-slate-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            <SlidersHorizontal size={14} className="text-indigo-500" />
-            <span>Quick Range Presets:</span>
+      <LiquidGlassSurface allowOverflow className="relative z-40 rounded-2xl p-4 sm:p-5">
+        <form
+          onSubmit={handleApply}
+          className="grid grid-cols-1 items-end gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(180px,1fr)_minmax(150px,0.7fr)_minmax(300px,1.4fr)_auto]"
+        >
+          <div className="min-w-0">
+            <label htmlFor="assigned-user-select" className="mb-1.5 block text-xs font-semibold text-slate-500 dark:text-slate-400">
+              Agent
+            </label>
+            <select
+              id="assigned-user-select"
+              value={draftUserId}
+              onChange={(event) => setDraftUserId(event.target.value)}
+              className="h-10 w-full rounded-xl border border-slate-200 bg-white/70 px-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            >
+              <option value="">All agents</option>
+              {users.map((user, index) => {
+                const id = user.userId ?? user.id ?? user.value ?? index;
+                return (
+                  <option key={id} value={id}>
+                    {textValue(user, ['fullName', 'userName', 'name', 'text', 'label'], 'User ' + (index + 1))}
+                  </option>
+                );
+              })}
+            </select>
           </div>
-          <div className="flex w-full sm:w-auto items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-            {[
-              { id: 'today', label: 'Today' },
-              { id: 'yesterday', label: 'Yesterday' },
-              { id: 'thisWeek', label: 'This Week' },
-              { id: 'monthToDate', label: 'Month to Date' },
-              { id: 'last30Days', label: 'Last 30 Days' }
-            ].map((preset) => (
-              <button
-                key={preset.id}
-                type="button"
-                onClick={() => handlePresetSelect(preset.id)}
-                className="shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-300 transition-colors"
-              >
-                {preset.label}
-              </button>
-            ))}
+          <div className="min-w-0">
+            <label htmlFor="service-date-preset" className="mb-1.5 block text-xs font-semibold text-slate-500 dark:text-slate-400">
+              Period
+            </label>
+            <select
+              id="service-date-preset"
+              value={datePreset}
+              onChange={(event) => handlePresetSelect(event.target.value)}
+              className="h-10 w-full rounded-xl border border-slate-200 bg-white/70 px-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            >
+              <option value="today">Today</option>
+              <option value="yesterday">Yesterday</option>
+              <option value="thisWeek">This week</option>
+              <option value="monthToDate">Month to date</option>
+              <option value="last30Days">Last 30 days</option>
+              <option value="custom">Custom range</option>
+            </select>
           </div>
-        </div>
-
-        {/* Filter Inputs Form */}
-        <form onSubmit={handleApply} className="p-4 sm:p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 items-end">
-            {/* User Dropdown */}
-            <div className="lg:col-span-4">
-              <label
-                htmlFor="assigned-user-select"
-                className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5"
-              >
-                Assigned Agent / User
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                  <User size={16} />
-                </div>
-                <select
-                  id="assigned-user-select"
-                  value={draftUserId}
-                  onChange={(e) => setDraftUserId(e.target.value)}
-                  className="w-full pl-9 pr-8 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/60 text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
-                >
-                  <option value="">All Users (Entire Team)</option>
-                  {users.map((user, index) => {
-                    const id = user.userId || user.id || user.value || index;
-                    return (
-                      <option key={id} value={id}>
-                        {textValue(user, ['fullName', 'userName', 'name', 'text', 'label'], `User ${index + 1}`)}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-            </div>
-
-            {/* From Date */}
-            <div className="lg:col-span-3">
-              <label
-                htmlFor="dashboard-from-date"
-                className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5"
-              >
-                From Date
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                  <Calendar size={16} />
-                </div>
-                <input
-                  id="dashboard-from-date"
-                  type="date"
-                  value={draftRange.fromDate}
-                  max={draftRange.toDate}
-                  onChange={(e) => setDraftRange((prev) => ({ ...prev, fromDate: e.target.value }))}
-                  className="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/60 text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                />
-              </div>
-            </div>
-
-            {/* To Date */}
-            <div className="lg:col-span-3">
-              <label
-                htmlFor="dashboard-to-date"
-                className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5"
-              >
-                To Date
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                  <Calendar size={16} />
-                </div>
-                <input
-                  id="dashboard-to-date"
-                  type="date"
-                  value={draftRange.toDate}
-                  min={draftRange.fromDate}
-                  onChange={(e) => setDraftRange((prev) => ({ ...prev, toDate: e.target.value }))}
-                  className="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/60 text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                />
-              </div>
-            </div>
-
-            {/* Submit & Reset Buttons */}
-            <div className="lg:col-span-2 flex items-center gap-2">
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white shadow-md shadow-indigo-600/20 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
-              >
-                {loading ? <RefreshCw size={15} className="animate-spin" /> : <Filter size={15} />}
-                <span>Apply</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                title="Reset filters to default"
-                className="inline-flex items-center justify-center p-2 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
+          <div className="min-w-0">
+            <span className="mb-1.5 block text-xs font-semibold text-slate-500 dark:text-slate-400">Date range</span>
+            <LiquidGlassDatePicker
+              className="w-full min-w-0"
+              initialFromDate={draftRange.fromDate}
+              initialToDate={draftRange.toDate}
+              calendarMode
+              stretch
+              quickDateTriggerClassName="h-10 rounded-xl border border-slate-200 bg-white/70 px-3 dark:border-slate-700 dark:bg-slate-900"
+              onChange={(fromDate, toDate) => {
+                setDraftRange({ fromDate, toDate });
+                setDatePreset('custom');
+              }}
+            />
+          </div>
+          <div className="flex h-10 items-stretch gap-2">
+            <button
+              type="submit"
+              disabled={loading}
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 text-sm font-semibold text-white transition hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-50"
+            >
+              {loading ? <RefreshCw size={15} className="animate-spin" /> : <Filter size={15} />}
+              Apply
+            </button>
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              title="Reset filters"
+              aria-label="Reset filters"
+              className="inline-flex w-10 items-center justify-center rounded-xl border border-slate-200 bg-white/60 text-slate-500 transition hover:text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:text-white"
+            >
+              <X size={18} />
+            </button>
           </div>
         </form>
-      </div>
+      </LiquidGlassSurface>
 
       {/* Error Alert */}
       {error && (
@@ -444,7 +376,6 @@ export default function ServiceDashboard() {
           <div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <span>Ticket Summary</span>
-              <span className="text-xs font-normal text-slate-500 dark:text-slate-400">(Live counts for selected window)</span>
             </h2>
           </div>
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/70 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800/50">
@@ -454,16 +385,14 @@ export default function ServiceDashboard() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* CARD 1: NEW TICKETS */}
-          <div className="glass-surface relative group overflow-hidden rounded-2xl border border-blue-200/80 dark:border-blue-900/40 bg-gradient-to-br from-white via-blue-50/20 to-indigo-50/40 dark:from-slate-900 dark:via-blue-950/20 dark:to-slate-900 p-6 shadow-sm hover:shadow-md transition-all duration-200">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl pointer-events-none -mr-10 -mt-10" />
+          <LiquidGlassSurface className="glass-surface relative group overflow-hidden rounded-2xl border border-blue-200/80 dark:border-blue-900/40 bg-gradient-to-br from-white via-blue-50/20 to-indigo-50/40 dark:from-slate-900 dark:via-blue-950/20 dark:to-slate-900 p-6 shadow-sm hover:shadow-md transition-all duration-200">
             <div className="flex items-start justify-between">
               <div>
                 <span className="inline-block text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400 mb-1">
                   New Tickets
                 </span>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Waiting to be picked up</p>
               </div>
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/25 ring-2 ring-blue-100 dark:ring-blue-900/40">
+              <div className="daily-sales-glass__icon w-11 h-11 rounded-full flex items-center justify-center">
                 <Ticket className="w-5 h-5" />
               </div>
             </div>
@@ -487,19 +416,17 @@ export default function ServiceDashboard() {
                 style={{ width: `${Math.min(100, Math.max(0, pctNew))}%` }}
               />
             </div>
-          </div>
+          </LiquidGlassSurface>
 
           {/* CARD 2: IN PROGRESS */}
-          <div className="glass-surface relative group overflow-hidden rounded-2xl border border-amber-200/80 dark:border-amber-900/40 bg-gradient-to-br from-white via-amber-50/20 to-orange-50/40 dark:from-slate-900 dark:via-amber-950/20 dark:to-slate-900 p-6 shadow-sm hover:shadow-md transition-all duration-200">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none -mr-10 -mt-10" />
+          <LiquidGlassSurface className="glass-surface relative group overflow-hidden rounded-2xl border border-amber-200/80 dark:border-amber-900/40 bg-gradient-to-br from-white via-amber-50/20 to-orange-50/40 dark:from-slate-900 dark:via-amber-950/20 dark:to-slate-900 p-6 shadow-sm hover:shadow-md transition-all duration-200">
             <div className="flex items-start justify-between">
               <div>
                 <span className="inline-block text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-1">
                   In Progress
                 </span>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Currently being worked</p>
               </div>
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-600 flex items-center justify-center text-white shadow-md shadow-amber-500/25 ring-2 ring-amber-100 dark:ring-amber-900/40">
+              <div className="daily-sales-glass__icon w-11 h-11 rounded-full flex items-center justify-center">
                 <Clock3 className="w-5 h-5" />
               </div>
             </div>
@@ -523,19 +450,17 @@ export default function ServiceDashboard() {
                 style={{ width: `${Math.min(100, Math.max(0, pctProgress))}%` }}
               />
             </div>
-          </div>
+          </LiquidGlassSurface>
 
           {/* CARD 3: CLOSED / RESOLVED */}
-          <div className="glass-surface relative group overflow-hidden rounded-2xl border border-emerald-200/80 dark:border-emerald-900/40 bg-gradient-to-br from-white via-emerald-50/20 to-teal-50/40 dark:from-slate-900 dark:via-emerald-950/20 dark:to-slate-900 p-6 shadow-sm hover:shadow-md transition-all duration-200">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none -mr-10 -mt-10" />
+          <LiquidGlassSurface className="glass-surface relative group overflow-hidden rounded-2xl border border-emerald-200/80 dark:border-emerald-900/40 bg-gradient-to-br from-white via-emerald-50/20 to-teal-50/40 dark:from-slate-900 dark:via-emerald-950/20 dark:to-slate-900 p-6 shadow-sm hover:shadow-md transition-all duration-200">
             <div className="flex items-start justify-between">
               <div>
                 <span className="inline-block text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 mb-1">
                   Closed / Completed
                 </span>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Finished in this window</p>
               </div>
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-md shadow-emerald-500/25 ring-2 ring-emerald-100 dark:ring-emerald-900/40">
+              <div className="daily-sales-glass__icon w-11 h-11 rounded-full flex items-center justify-center">
                 <CheckCircle2 className="w-5 h-5" />
               </div>
             </div>
@@ -559,12 +484,12 @@ export default function ServiceDashboard() {
                 style={{ width: `${Math.min(100, Math.max(0, pctClosed))}%` }}
               />
             </div>
-          </div>
+          </LiquidGlassSurface>
         </div>
 
         {/* COMPOSITE DISTRIBUTION BAR */}
         {total > 0 && (
-          <div className="p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <LiquidGlassSurface className="p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
               <TrendingUp size={14} className="text-indigo-500" />
               <span>Status Distribution Pipeline:</span>
@@ -610,19 +535,18 @@ export default function ServiceDashboard() {
                 </span>
               </div>
             </div>
-          </div>
+          </LiquidGlassSurface>
         )}
       </div>
 
       {/* 4. CUSTOMER MIX SECTION */}
-      <div className="glass-surface bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden p-6">
+      <LiquidGlassSurface className="glass-surface bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden p-6">
         <div className="flex flex-wrap items-center justify-between gap-2 pb-5 border-b border-slate-100 dark:border-slate-800 mb-6">
           <div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <Users className="w-5 h-5 text-indigo-500" />
               <span>Customer Breakdown</span>
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Comparison of first-time vs returning customer inquiries</p>
           </div>
           <span className="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
             {integer.format(totalCustomers)} Total Customers
@@ -631,14 +555,13 @@ export default function ServiceDashboard() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* New Customers */}
-          <div className="flex items-center justify-between p-5 rounded-xl border border-indigo-100 dark:border-indigo-950/60 bg-gradient-to-r from-indigo-50/40 to-transparent dark:from-indigo-950/20 dark:to-transparent">
+          <LiquidGlassSurface className="flex items-center justify-between p-5 rounded-xl border border-indigo-100 dark:border-indigo-950/60 bg-gradient-to-r from-indigo-50/40 to-transparent dark:from-indigo-950/20 dark:to-transparent">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/20">
+              <div className="daily-sales-glass__icon w-12 h-12 rounded-full flex items-center justify-center">
                 <UserPlus className="w-6 h-6" />
               </div>
               <div>
                 <span className="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-400">New Customers</span>
-                <p className="text-xs text-slate-500 dark:text-slate-400">First time raising a ticket</p>
                 <div className="mt-1">
                   <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">{pctNewCustomers}% of total inquiries</span>
                 </div>
@@ -648,17 +571,16 @@ export default function ServiceDashboard() {
               <div className="text-3xl font-black text-slate-900 dark:text-white">{integer.format(counts.newCustomers)}</div>
               <span className="text-xs text-slate-400">accounts</span>
             </div>
-          </div>
+          </LiquidGlassSurface>
 
           {/* Existing Customers */}
-          <div className="flex items-center justify-between p-5 rounded-xl border border-sky-100 dark:border-sky-950/60 bg-gradient-to-r from-sky-50/40 to-transparent dark:from-sky-950/20 dark:to-transparent">
+          <LiquidGlassSurface className="flex items-center justify-between p-5 rounded-xl border border-sky-100 dark:border-sky-950/60 bg-gradient-to-r from-sky-50/40 to-transparent dark:from-sky-950/20 dark:to-transparent">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-sky-600 text-white flex items-center justify-center shadow-md shadow-sky-600/20">
+              <div className="daily-sales-glass__icon w-12 h-12 rounded-full flex items-center justify-center">
                 <UserCheck className="w-6 h-6" />
               </div>
               <div>
                 <span className="text-xs font-bold uppercase tracking-wider text-sky-700 dark:text-sky-400">Existing Customers</span>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Have raised tickets before</p>
                 <div className="mt-1">
                   <span className="text-xs font-semibold text-sky-600 dark:text-sky-400">{pctExistingCustomers}% of total inquiries</span>
                 </div>
@@ -668,7 +590,7 @@ export default function ServiceDashboard() {
               <div className="text-3xl font-black text-slate-900 dark:text-white">{integer.format(counts.existingCustomers)}</div>
               <span className="text-xs text-slate-400">accounts</span>
             </div>
-          </div>
+          </LiquidGlassSurface>
         </div>
 
         {/* Customer Mix Proportion Track */}
@@ -684,10 +606,11 @@ export default function ServiceDashboard() {
             </div>
           </div>
         )}
-      </div>
+      </LiquidGlassSurface>
 
       {/* 5. TICKETS DATA TABLE SECTION */}
-      <section
+      <LiquidGlassSurface
+        as="section"
         className="glass-surface bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden"
         aria-labelledby="service-ticket-table-title"
       >
@@ -698,9 +621,6 @@ export default function ServiceDashboard() {
               <h2 id="service-ticket-table-title" className="text-base font-bold text-slate-900 dark:text-white">
                 Service tickets
               </h2>
-              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                Review tickets for the selected date range and assigned agent.
-              </p>
             </div>
 
             {/* Search Box */}
@@ -965,7 +885,7 @@ export default function ServiceDashboard() {
             />
           )}
         </div>
-      </section>
+      </LiquidGlassSurface>
     </div>
   );
 }

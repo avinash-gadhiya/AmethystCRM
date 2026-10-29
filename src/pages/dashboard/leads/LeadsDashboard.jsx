@@ -1,12 +1,13 @@
 import '@/styles/liquid-glass-surfaces.css';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Chart from 'react-apexcharts';
-import { BarChart3, TrendingUp, Users } from 'lucide-react';
+import { BarChart3, RefreshCw, TrendingUp, Users } from 'lucide-react';
 
 import DashboardPanel from '../components/DashboardPanel';
 import DashboardRangeToolbar from '../components/DashboardRangeToolbar';
 import StatCardGrid from '@/components/common/StatCards';
-import { Alert, Badge, Card, Col, Form, Spinner, Table } from 'components/ui/Bootstrap';
+import LiquidGlassSurface from '@/components/common/LiquidGlassSurface';
+import { Alert, Badge, Card, Spinner, Table } from 'components/ui/Bootstrap';
 import dashboardService from 'services/dashboardService';
 import { getMonthToDateRange, isValidDateRange } from 'utils/dateUtils';
 import { asArray, currency, integer, numberValue, textValue } from '../dashboardData';
@@ -18,6 +19,7 @@ export default function LeadsDashboard() {
   const [draftRange, setDraftRange] = useState(initialRange);
   const [range, setRange] = useState(initialRange);
   const [group, setGroup] = useState('');
+  const [draftGroup, setDraftGroup] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -53,8 +55,10 @@ export default function LeadsDashboard() {
   }, [load, refreshKey]);
 
   const groups = useMemo(
-    () => [...new Set(data.group.map((item) => textValue(item, ['groupName', 'group', 'name'], '')).filter(Boolean))],
-    [data.group]
+    () => [
+      ...new Set([group, draftGroup, ...data.group.map((item) => textValue(item, ['groupName', 'group', 'name'], ''))].filter(Boolean))
+    ],
+    [data.group, group, draftGroup]
   );
   const filteredGroups = group ? data.group.filter((item) => textValue(item, ['groupName', 'group', 'name'], '') === group) : data.group;
   const totalLeads = [...filteredGroups, ...data.people].reduce(
@@ -92,9 +96,9 @@ export default function LeadsDashboard() {
   }, [filteredGroups]);
 
   const statCards = [
-    { label: 'Total leads', value: integer.format(totalLeads), caption: `${groups.length} active groups`, icon: Users, tone: 'indigo' },
-    { label: 'Sales people', value: data.people.length, caption: 'Included in this date range', icon: BarChart3, tone: 'emerald' },
-    { label: 'Financial rows', value: data.users.length, caption: 'User-wise summary records', icon: TrendingUp, tone: 'amber' }
+    { label: 'Total leads', value: integer.format(totalLeads), icon: Users, tone: 'indigo' },
+    { label: 'Salespeople', value: data.people.length, icon: BarChart3, tone: 'emerald' },
+    { label: 'Users', value: data.users.length, icon: TrendingUp, tone: 'amber' }
   ];
 
   const applyRange = (event) => {
@@ -103,36 +107,68 @@ export default function LeadsDashboard() {
       setError('Select a valid date range.');
       return;
     }
+    setError('');
     setRange(draftRange);
+    setGroup(draftGroup);
   };
+
+  const resetFilters = () => {
+    const nextRange = getMonthToDateRange();
+    setDraftRange(nextRange);
+    setRange(nextRange);
+    setDraftGroup('');
+    setGroup('');
+    setError('');
+  };
+
+  const formatRangeDate = (value) =>
+    new Date(`${value}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
   return (
     <div className="dashboard-glass p-3 sm:p-4">
-      <div className="mb-4">
-        <h3 className="mb-1 fw-bold">Leads Dashboard</h3>
-        <p className="text-muted mb-0">
-          Group-wise leads for {range.fromDate} to {range.toDate}
-        </p>
-      </div>
+      <LiquidGlassSurface className="mb-4 flex flex-col justify-between gap-4 rounded-2xl p-5 sm:flex-row sm:items-center sm:p-6">
+        <div className="flex items-center gap-4">
+          <div className="daily-sales-glass__icon flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl">
+            <Users className="h-6 w-6" aria-hidden="true" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-2xl">Leads Dashboard</h1>
+            <p className="mb-0 mt-1 text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
+              {formatRangeDate(range.fromDate)} - {formatRangeDate(range.toDate)}
+              {group && <span> | {group}</span>}
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setRefreshKey((value) => value + 1)}
+          disabled={loading}
+          className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-slate-200 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-white disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 sm:self-auto"
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
+          {loading ? 'Refreshing...' : 'Refresh'}
+        </button>
+      </LiquidGlassSurface>
 
-      <DashboardRangeToolbar
-        range={draftRange}
-        onRangeChange={setDraftRange}
-        onApply={applyRange}
-        onRefresh={() => setRefreshKey((value) => value + 1)}
-        loading={loading}
-      >
-        <Col sm={6} lg={3} xl={2}>
-          <Form.Label htmlFor="lead-group">Group</Form.Label>
-          <Form.Select id="lead-group" value={group} onChange={(event) => setGroup(event.target.value)}>
+      <DashboardRangeToolbar range={draftRange} onRangeChange={setDraftRange} onApply={applyRange} onReset={resetFilters} loading={loading}>
+        <div className="min-w-0">
+          <label htmlFor="lead-group" className="mb-1.5 block text-xs font-semibold text-slate-500 dark:text-slate-400">
+            Group
+          </label>
+          <select
+            id="lead-group"
+            value={draftGroup}
+            onChange={(event) => setDraftGroup(event.target.value)}
+            className="h-10 w-full rounded-xl border border-slate-200 bg-white/70 px-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+          >
             <option value="">All groups</option>
             {groups.map((name) => (
               <option key={name} value={name}>
                 {name}
               </option>
             ))}
-          </Form.Select>
-        </Col>
+          </select>
+        </div>
       </DashboardRangeToolbar>
 
       {error && (
@@ -141,11 +177,12 @@ export default function LeadsDashboard() {
         </Alert>
       )}
 
-      <StatCardGrid className="mb-4" items={statCards} loading={loading} columns={3} />
+      <StatCardGrid className="mb-4" items={statCards.map((card) => ({ ...card, glass: true }))} loading={loading} columns={3} />
 
       <div className="mb-4">
         <DashboardPanel
-          title="Group Wise Leads"
+          glass
+          title="Leads by group"
           loading={loading}
           empty={!chart.series.length}
           emptyMessage="No lead activity found for this date range."
@@ -154,11 +191,10 @@ export default function LeadsDashboard() {
         </DashboardPanel>
       </div>
 
-      <Card className="border-0 shadow-sm">
+      <LiquidGlassSurface as={Card} className="border-0 shadow-sm">
         <Card.Header className="bg-transparent d-flex align-items-center justify-content-between py-3">
           <div>
-            <h5 className="mb-1 fw-semibold">User-wise Financial Summary</h5>
-            <span className="small text-muted">Leads and sales per agent</span>
+            <h5 className="mb-0 fw-semibold">Financial summary</h5>
           </div>
           <Badge bg="primary">{data.users.length} users</Badge>
         </Card.Header>
@@ -205,7 +241,7 @@ export default function LeadsDashboard() {
             </tbody>
           </Table>
         </div>
-      </Card>
+      </LiquidGlassSurface>
     </div>
   );
 }

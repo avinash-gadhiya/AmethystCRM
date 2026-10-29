@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 
 import { DashboardStatCardSkeleton } from './skeleton-loader';
+import LiquidGlassSurface from './LiquidGlassSurface';
 
 // Gradient for the icon tile. Bootstrap-style names are aliases so existing `tone` props keep working.
 const TONES = {
@@ -28,16 +29,16 @@ const COLUMNS = {
   6: 'grid-cols-1 min-[430px]:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6'
 };
 
-export function StatCard({ label, value, caption, icon: Icon, tone = 'primary' }) {
+export function StatCard({ label, value, caption, icon: Icon, tone = 'primary', glass = false }) {
   return (
-    <article className="stat-card flex min-h-[132px] min-w-0 flex-col rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-950 sm:p-5">
+    <LiquidGlassSurface as="article" glass={glass} className="stat-card flex min-h-[132px] min-w-0 flex-col rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-950 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <span className="min-w-0 break-words text-[11px] font-bold uppercase leading-snug tracking-[.08em] text-slate-500 dark:text-slate-400">
           {label}
         </span>
         {Icon && (
           <span
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${TONES[tone] || TONES.primary} text-white shadow-sm`}
+            className={`flex h-9 w-9 shrink-0 items-center justify-center ${glass ? 'daily-sales-glass__icon rounded-full' : `rounded-xl bg-gradient-to-br ${TONES[tone] || TONES.primary} text-white shadow-sm`}`}
           >
             <Icon className="h-4 w-4" aria-hidden="true" />
           </span>
@@ -47,7 +48,7 @@ export function StatCard({ label, value, caption, icon: Icon, tone = 'primary' }
         <div className="break-words text-2xl font-bold leading-tight tabular-nums text-slate-900 dark:text-white">{value}</div>
         {caption && <p className="mb-0 mt-1 text-xs text-slate-400 dark:text-slate-500">{caption}</p>}
       </div>
-    </article>
+    </LiquidGlassSurface>
   );
 }
 
@@ -56,6 +57,7 @@ StatCard.propTypes = {
   value: PropTypes.node,
   caption: PropTypes.node,
   icon: PropTypes.elementType,
+  glass: PropTypes.bool,
   tone: PropTypes.oneOf(Object.keys(TONES))
 };
 

@@ -125,3 +125,100 @@
 .dashboard-glass :is(.glass-surface, .card).overflow-hidden {
   overflow: hidden;
 }
+
+/* Keep the snapshot lens layers clipped when reused on dashboard cards. */
+.dashboard-glass .daily-sales-glass__card {
+  overflow: hidden;
+  background-image: none;
+}
+
+/* Date popovers need to extend beyond their filter card. */
+.dashboard-glass .daily-sales-glass__card.liquid-glass-surface--overflow {
+  overflow: visible;
+}
+
+.liquid-glass-surface--overflow::before,
+.liquid-glass-surface--overflow::after {
+  clip-path: inset(0 round 18px);
+}
+
+/* Opt-in glass controls share the dashboard's lens highlights. */
+.liquid-glass-control.liquid-glass-control {
+  border: 1px solid rgba(115, 94, 153, 0.13);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.12) 45%, rgba(255, 255, 255, 0.28));
+  color: #334155;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow:
+    inset 1px 1px 1px rgba(255, 255, 255, 0.95),
+    inset -1px -1px 1px rgba(255, 255, 255, 0.7),
+    inset 0 0 0 3px rgba(255, 255, 255, 0.12),
+    0 2px 5px rgba(56, 35, 88, 0.06);
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+.liquid-glass-control.liquid-glass-control:hover:not(:disabled),
+.liquid-glass-control[data-state='open'] {
+  background-color: rgba(255, 255, 255, 0.35);
+  border-color: rgba(131, 88, 199, 0.3);
+  color: #6d4caa;
+}
+.liquid-glass-control.liquid-glass-control:focus-visible {
+  outline: 2px solid rgba(131, 88, 199, 0.65);
+  outline-offset: 2px;
+}
+.liquid-glass-control--icon.liquid-glass-control--icon {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  flex-shrink: 0;
+  border-radius: 11px;
+}
+.liquid-glass-menu.liquid-glass-menu {
+  border: 1px solid rgba(127, 105, 164, 0.16);
+  background: linear-gradient(135deg, rgba(252, 250, 255, 0.96), rgba(241, 238, 248, 0.88));
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  box-shadow:
+    inset 1px 1px 1px rgba(255, 255, 255, 0.95),
+    inset -1px -1px 1px rgba(255, 255, 255, 0.7),
+    0 12px 30px rgba(48, 28, 78, 0.14);
+}
+.dashboard-glass .liquid-glass-filter-panel {
+  background-color: rgba(255, 255, 255, 0.12);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.liquid-glass-filter-panel .liquid-glass-date-picker {
+  position: static;
+}
+.dark .liquid-glass-control.liquid-glass-control {
+  border-color: rgba(207, 190, 238, 0.15);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.025) 45%, rgba(255, 255, 255, 0.06));
+  color: #d8d9ed;
+  box-shadow:
+    inset 1px 1px 1px rgba(255, 255, 255, 0.15),
+    inset -1px -1px 1px rgba(255, 255, 255, 0.07),
+    0 2px 5px rgba(0, 0, 0, 0.12);
+}
+.dark .liquid-glass-control.liquid-glass-control:hover:not(:disabled) {
+  background-color: rgba(167, 139, 250, 0.09);
+  color: #ddd0ff;
+}
+.dark .liquid-glass-menu.liquid-glass-menu {
+  border-color: rgba(207, 190, 238, 0.16);
+  background: linear-gradient(135deg, rgba(42, 36, 61, 0.97), rgba(25, 27, 42, 0.94));
+  box-shadow:
+    inset 1px 1px 1px rgba(255, 255, 255, 0.13),
+    0 12px 30px rgba(0, 0, 0, 0.3);
+}
+.dark .dashboard-glass .liquid-glass-filter-panel {
+  background-color: rgba(255, 255, 255, 0.025);
+}
+@media (prefers-reduced-motion: reduce) {
+  .liquid-glass-control.liquid-glass-control {
+    transition: none;
+  }
+}
