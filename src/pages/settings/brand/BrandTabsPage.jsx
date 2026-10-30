@@ -5,7 +5,7 @@ import LiquidGlassButton from '@/components/common/LiquidGlassButton';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Mail, CreditCard, FileText, ArrowLeft, ArrowUpDown, ArrowUp, ArrowDown, Plus } from 'lucide-react';
-import { toast, Toaster } from 'sonner';
+import { toast } from 'sonner';
 
 import brandService from '@/services/brandService';
 import { getApiErrorMessage } from '@/lib/apiError';
@@ -166,7 +166,8 @@ const BrandTabsPage = () => {
 
   // Optimistic Toggle Email Active
   const handleToggleEmailActive = async (emailItem) => {
-    if (!emailPerms.canUpdate || updatingEmailIds.has(emailItem.brandEmailId)) {
+    if (updatingEmailIds.has(emailItem.brandEmailId)) return;
+    if (!emailPerms.canUpdate) {
       toast.error('You do not have permission to edit email configurations.');
       return;
     }
@@ -252,7 +253,8 @@ const BrandTabsPage = () => {
 
   // Optimistic Toggle Gateway Active
   const handleToggleGatewayActive = async (gw) => {
-    if (!gatewayPerms.canUpdate || pendingStatus.has(`gateway:${gw.gatewayId}`)) {
+    if (pendingStatus.has(`gateway:${gw.gatewayId}`)) return;
+    if (!gatewayPerms.canUpdate) {
       toast.error('You do not have permission to edit gateways.');
       return;
     }
@@ -333,7 +335,8 @@ const BrandTabsPage = () => {
 
   // Optimistic Toggle Template Active
   const handleToggleTemplateActive = async (tpl) => {
-    if (!templatePerms.canUpdate || pendingStatus.has(`template:${tpl.brandEmailTemplateId}`)) {
+    if (pendingStatus.has(`template:${tpl.brandEmailTemplateId}`)) return;
+    if (!templatePerms.canUpdate) {
       toast.error('You do not have permission to edit email templates.');
       return;
     }
@@ -446,7 +449,7 @@ const BrandTabsPage = () => {
   if (!selectedBrandId || !accessibleTabs.length)
     return (
       <div role="alert" className="p-6 text-gray-600 dark:text-gray-300">
-        {!selectedBrandId ? 'Select a brand to manage its settings.' : 'You do not have permission to view this brand?s settings.'}
+        {!selectedBrandId ? 'Select a brand to manage its settings.' : 'You do not have permission to view this brand’s settings.'}
         <button className="ml-3 text-purple-600" onClick={() => navigate('/settings/brand')}>
           Back to Brands
         </button>
@@ -455,7 +458,7 @@ const BrandTabsPage = () => {
 
   return (
     <div className="space-y-6">
-      <Toaster position="top-right" richColors />
+
 
       {/* Header & Breadcrumbs */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-gray-200 dark:border-white/10">

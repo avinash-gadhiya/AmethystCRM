@@ -863,44 +863,9 @@
   color: #fff;
   background: rgba(255, 255, 255, 0.16);
 }
-.lead-report-window.modal {
-  position: fixed !important;
-  inset: 0 !important;
-  z-index: 2050 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  padding: 1rem !important;
-  overflow-x: hidden !important;
-  overflow-y: auto !important;
-}
-.lead-report-window.modal.show {
-  display: block !important;
-}
-.lead-report-window .lead-report-modal {
-  position: relative;
-  width: min(800px, calc(100vw - 2rem)) !important;
-  max-width: min(800px, calc(100vw - 2rem)) !important;
-  min-height: 0;
-  margin: 1.5rem auto;
-  pointer-events: none;
-}
-.lead-report-modal .modal-content {
-  width: 100%;
-  overflow: hidden;
-  max-height: calc(100vh - 4rem);
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
-  background: #ffffff;
-  pointer-events: auto;
-}
-.lead-report-backdrop.modal-backdrop {
-  z-index: 2040 !important;
-  background: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(2px);
-}
-.lead-report-backdrop.modal-backdrop.show {
-  opacity: 1;
+.lead-report-dialog {
+  max-width: min(800px, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
 }
 .lead-report-modal-header {
   display: flex;
@@ -941,7 +906,7 @@
   flex-direction: column;
   gap: 0.15rem;
 }
-.lead-report-modal-title .modal-title {
+.lead-report-modal-title h3 {
   color: #0f172a;
   font-size: 1.05rem;
   font-weight: 700;
@@ -952,7 +917,7 @@
   font-size: 0.8rem;
   font-weight: 400;
 }
-.lead-report-modal .modal-body {
+.lead-report-body {
   padding: 1rem 1.25rem 1.25rem;
   background: #ffffff;
   display: flex;
@@ -1427,15 +1392,13 @@
     grid-column: span 12;
     flex-wrap: wrap;
   }
-  .lead-report-window .lead-report-modal {
-    width: calc(100vw - 1rem) !important;
-    max-width: calc(100vw - 1rem) !important;
-    margin: 0.5rem auto;
+  .lead-report-dialog {
+    max-width: calc(100vw - 1.5rem);
   }
   .lead-report-modal-header {
     padding: 0.85rem 1rem;
   }
-  .lead-report-modal .modal-body {
+  .lead-report-body {
     padding: 0.75rem;
   }
   .lead-report-control-grid,

@@ -8,7 +8,7 @@ import {
   Lock,
   Globe
 } from 'lucide-react';
-import { toast, Toaster } from 'sonner';
+import { toast } from 'sonner';
 
 import blockIpService from '@/services/blockIpService';
 import { resolveConfiguredPagePermissions } from '@/utils/configuredPagePermissions';
@@ -204,7 +204,7 @@ const BlockedIpPage = () => {
 
   return (
     <div className="blocked-ip-page px-5 lg:px-10 py-5">
-      <Toaster richColors position="top-right" />
+
 
       <div className="flex flex-col gap-5 lg:gap-7.5">
         {/* Header */}

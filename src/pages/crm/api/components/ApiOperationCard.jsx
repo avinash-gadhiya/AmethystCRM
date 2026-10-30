@@ -12,7 +12,7 @@ export default function ApiOperationCard({ operation, busy, result, onRun, onOpe
         <div className="d-flex align-items-start justify-content-between gap-2 mb-2">
           <div className="d-flex align-items-center gap-2 min-w-0">
             <Badge bg={METHOD_TONES[operation.method]}>{operation.method}</Badge>
-            <code className="small text-dark text-break">/api{operation.path}</code>
+            <code className="small text-slate-800 dark:text-slate-200 text-break">/api{operation.path}</code>
           </div>
           {operation.safeRead && <ShieldCheck size={16} className="text-success flex-shrink-0" aria-label="Safe read" />}
         </div>

@@ -4,6 +4,7 @@ import {
   ArrowUp,
   ArrowUpDown,
   Edit,
+  Lock,
   Search,
   Target,
   X
@@ -143,6 +144,18 @@ const SalesTargetPage = () => {
         </div>
       </div>
 
+      {!permissions.canView ? (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-6 text-center">
+          <Lock size={32} className="mx-auto text-red-500 mb-2" />
+          <h3 className="text-base font-semibold text-red-600 dark:text-red-400">
+            Access Restricted
+          </h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            You do not have permission to view Sales Targets.
+          </p>
+        </div>
+      ) : (
+        <>
       <div className="card p-4 sm:p-5 bg-white dark:bg-[#17132a] border border-gray-300 dark:border-white/10 rounded-xl shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center justify-between sm:justify-start gap-3 w-full sm:w-auto">
@@ -303,6 +316,8 @@ const SalesTargetPage = () => {
           </div>
         )}
       </div>
+        </>
+      )}
 
       {permissions.canUpdate && <SalesTargetModal
         open={modalOpen}

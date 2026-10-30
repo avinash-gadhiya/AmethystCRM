@@ -7,8 +7,12 @@ let revision = 0;
 const getSnapshot = () => {
   const user = authService.getUser();
   const next = JSON.stringify([
-    authService.getToken(), user?.userId, user?.roleId, user?.roleName || user?.role,
-    user?.permissionCodes, user?.isAssignPersonalPermission
+    authService.getToken(),
+    user?.userId,
+    user?.roleId,
+    user?.roleName || user?.role,
+    user?.permissionCodes,
+    user?.isAssignPersonalPermission
   ]);
   if (next !== identity) {
     identity = next;

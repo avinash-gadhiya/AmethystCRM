@@ -52,18 +52,32 @@ const normalizeKey = (value) =>
     ?.toLowerCase()
     .replace(/[^a-z0-9]/g, '') || '';
 
+const findMatchingAliasGroup = (normalizedKey) => {
+  if (!normalizedKey) return [];
+  if (PAGE_ALIASES[normalizedKey]) return PAGE_ALIASES[normalizedKey];
+  for (const group of Object.values(PAGE_ALIASES)) {
+    if (group.some((alias) => normalizeKey(alias) === normalizedKey)) {
+      return group;
+    }
+  }
+  return [];
+};
+
 export const resolveConfiguredPagePermissions = (pathOrKey, extraAliases = []) => {
   try {
     const user = authService.getUser();
     if (!user) return { ...DENIED };
 
-    const roleName = String(user.role || user.roleName || '').toLowerCase();
-    if (roleName.includes('admin') || roleName.includes('developer') || Number(user.roleId) === 1) {
+    const roleName = String(user.role || user.roleName || '').trim().toLowerCase();
+    const hasPersonalOverride = Boolean(user.isAssignPersonalPermission);
+    const isPrivilegedRole =
+      ['super admin', 'superadmin', 'admin', 'developer'].includes(roleName) || Number(user.roleId) === 1;
+    if (!hasPersonalOverride && isPrivilegedRole) {
       return { ...FULL_ACCESS };
     }
 
     const key = normalizeKey(pathOrKey);
-    const aliases = [pathOrKey, ...(PAGE_ALIASES[key] || []), ...extraAliases].filter(Boolean);
+    const aliases = [pathOrKey, ...findMatchingAliasGroup(key), ...extraAliases].filter(Boolean);
     const permissions = permissionService.getPageActionPermissions(aliases, user.roleId);
     return {
       ...permissions,

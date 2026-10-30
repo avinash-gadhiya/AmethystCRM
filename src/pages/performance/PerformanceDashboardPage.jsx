@@ -35,9 +35,7 @@ const QUICK_FILTERS = [
   'Current Month',
   'Last Month',
   'This Year',
-  'Last Year',
-  'Current year',
-  'Previous year'
+  'Last Year'
 ];
 
 const TIER_FILTERS = [
@@ -194,7 +192,7 @@ export default function PerformanceDashboardPage() {
       .load({ fromDate, toDate }, controller.signal)
       .then((payload) => {
         if (controller.signal.aborted) return;
-        setRows(aggregatePerformance({ ...payload, toDate }));
+        setRows(aggregatePerformance({ ...payload, fromDate, toDate }));
       })
       .catch((requestError) => {
         if (controller.signal.aborted) return;
@@ -226,11 +224,12 @@ export default function PerformanceDashboardPage() {
       }),
       { totalSales: 0, salesCount: 0, totalRefunds: 0, refundsCount: 0, totalLeads: 0, conversionTotal: 0 }
     );
+    const netRevenue = totals.totalSales - totals.totalRefunds;
     return {
       ...totals,
-      netRevenue: totals.totalSales - totals.totalRefunds,
-      revenuePerLead: totals.totalLeads ? totals.totalSales / totals.totalLeads : 0,
-      conversionRate: filteredRows.length ? totals.conversionTotal / filteredRows.length : 0,
+      netRevenue,
+      revenuePerLead: totals.totalLeads ? netRevenue / totals.totalLeads : 0,
+      conversionRate: totals.totalLeads ? (totals.salesCount / totals.totalLeads) * 100 : 0,
       refundRate: totals.totalSales ? (totals.totalRefunds / totals.totalSales) * 100 : 0,
       agents: filteredRows.length
     };
@@ -259,7 +258,7 @@ export default function PerformanceDashboardPage() {
     {
       label: 'Revenue Per Lead',
       value: formatMoney(summary.revenuePerLead),
-      caption: 'Average gross basis',
+      caption: 'Average net basis',
       icon: CircleDollarSign,
       tone: 'blue'
     },

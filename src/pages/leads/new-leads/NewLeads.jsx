@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { RefreshCw, UserRoundCheck } from 'lucide-react';
-import { Badge, Button, Spinner } from 'react-bootstrap';
+import { Badge, Button, Spinner } from '@/components/ui/Bootstrap';
 import { toast } from 'sonner';
 
 import IosToggle from '@/components/common/IosToggle';

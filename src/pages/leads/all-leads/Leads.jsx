@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Download, FileBarChart, RefreshCw, RotateCcw, Search, Trash2, X } from 'lucide-react';
-import { Badge, Button, Modal, Spinner } from 'react-bootstrap';
+import { Badge, Button, Modal, Spinner } from '@/components/ui/Bootstrap';
 import { toast } from 'sonner';
 
 import DeleteConfirmModal from '@/components/common/DeleteConfirmModal';
@@ -207,16 +207,9 @@ function ReportDialog({ report, filters, lookups, onClose }) {
       show={Boolean(config)}
       onHide={onClose}
       size="lg"
-      centered
-      scrollable
-      backdrop
-      keyboard
-      container={document.body}
-      backdropClassName="lead-report-backdrop"
-      className="lead-report-window"
-      dialogClassName="lead-report-modal"
+      className="lead-report-dialog"
     >
-      <Modal.Header className="lead-report-modal-header">
+      <Modal.Header closeButton className="lead-report-modal-header">
         <div className="lead-report-modal-title">
           <div className="d-flex align-items-center gap-2">
             <FileBarChart size={18} className="text-primary flex-shrink-0" />
@@ -224,11 +217,8 @@ function ReportDialog({ report, filters, lookups, onClose }) {
           </div>
           <small>{config?.description}</small>
         </div>
-        <button type="button" className="lead-report-close" onClick={onClose} aria-label="Close report" title="Close report">
-          <X size={16} />
-        </button>
       </Modal.Header>
-      <Modal.Body>
+      <Modal.Body className="lead-report-body">
         <div className="lead-report-control-card">
           <div className="lead-report-control-top">
             <div className="lead-report-count">

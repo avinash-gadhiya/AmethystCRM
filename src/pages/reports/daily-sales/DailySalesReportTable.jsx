@@ -53,7 +53,7 @@ export default function DailySalesReportTable({ rows, loading, search, onSearchC
 
   useEffect(() => {
     setPage(1);
-  }, [rows.length, search, pageSize]);
+  }, [rows, search, pageSize, sort]);
 
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const safePage = Math.min(page, totalPages);

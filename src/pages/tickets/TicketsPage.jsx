@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Col, Form, Modal, Row } from 'components/ui/Bootstrap';
 import { Activity, CalendarDays, FileText, Paperclip, Plus, Ticket, UserRound } from 'lucide-react';
 
@@ -128,6 +128,7 @@ export default function TicketsPage() {
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [activityRows, setActivityRows] = useState([]);
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const detailsSeqRef = useRef(0);
 
 
   const loadTickets = useCallback(
@@ -175,6 +176,28 @@ export default function TicketsPage() {
     setShowEditor(true);
   };
 
+  const normalizeTicketForm = (source) => ({
+    ...EMPTY_FORM,
+    ...source,
+    ticketId: Number(source?.ticketId) || 0,
+    subject: source?.subject ?? '',
+    ticketStatus: Number(source?.ticketStatus) || 0,
+    customerId: Number(source?.customerId) || 0,
+    brandId: Number(source?.brandId) || 0,
+    assignedTo: source?.assignedTo ?? '',
+    caseNotes: source?.caseNotes ?? '',
+    remoteAccessCode: source?.remoteAccessCode ?? '',
+    remoteAccessMethod: Number(source?.remoteAccessMethod) || 0,
+    os: Number(source?.os) || 0,
+    osPassword: source?.osPassword ?? '',
+    t_StartDate: toDateTimeLocal(source?.t_StartDate),
+    t_EndDate: toDateTimeLocal(source?.t_EndDate),
+    qualityCheckDate: toDateTimeLocal(source?.qualityCheckDate),
+    qualityComment: source?.qualityComment ?? '',
+    files: [],
+    updatedBy: authService.getUser()?.userId || 0
+  });
+
   const openEdit = async (ticket) => {
     if (!permissions.canUpdate) return;
     setFormError('');
@@ -182,30 +205,17 @@ export default function TicketsPage() {
     setSaving(true);
     try {
       const fresh = await ticketService.getTicketById(ticket.ticketId);
-      const source = fresh || ticket;
-      setFormData({
-        ...EMPTY_FORM,
-        ...source,
-        ticketId: Number(source.ticketId) || 0,
-        ticketStatus: Number(source.ticketStatus) || 0,
-        customerId: Number(source.customerId) || 0,
-        brandId: Number(source.brandId) || 0,
-        assignedTo: source.assignedTo || '',
-        t_StartDate: toDateTimeLocal(source.t_StartDate),
-        t_EndDate: toDateTimeLocal(source.t_EndDate),
-        qualityCheckDate: toDateTimeLocal(source.qualityCheckDate),
-        files: [],
-        updatedBy: authService.getUser()?.userId || 0
-      });
+      setFormData(normalizeTicketForm(fresh || ticket));
     } catch (requestError) {
       setFormError(requestError.message || 'Unable to load ticket details.');
-      setFormData({ ...EMPTY_FORM, ...ticket, files: [] });
+      setFormData(normalizeTicketForm(ticket));
     } finally {
       setSaving(false);
     }
   };
 
   const openDetails = async (ticket) => {
+    const seq = ++detailsSeqRef.current;
     setSelectedTicket(ticket);
     setActivityRows([]);
     setShowDetails(true);
@@ -215,12 +225,16 @@ export default function TicketsPage() {
         ticketService.getTicketById(ticket.ticketId),
         ticketService.getTicketActivity(ticket.ticketId)
       ]);
+      if (seq !== detailsSeqRef.current) return;
       setSelectedTicket(details || ticket);
-      setActivityRows(activity.sort((left, right) => new Date(right.createdDate || 0) - new Date(left.createdDate || 0)));
+      setActivityRows((Array.isArray(activity) ? [...activity] : []).sort((left, right) => new Date(right.createdDate || 0) - new Date(left.createdDate || 0)));
     } catch (requestError) {
+      if (seq !== detailsSeqRef.current) return;
       setError(requestError.message || 'Unable to load ticket details.');
     } finally {
-      setDetailsLoading(false);
+      if (seq === detailsSeqRef.current) {
+        setDetailsLoading(false);
+      }
     }
   };
 
@@ -233,7 +247,7 @@ export default function TicketsPage() {
     if (Number(formData.ticketId) > 0 ? !permissions.canUpdate : !permissions.canAdd) return;
     setFormError('');
 
-    if (!formData.subject.trim()) {
+    if (!String(formData.subject ?? '').trim()) {
       setFormError('Subject is required.');
       return;
     }
@@ -269,9 +283,14 @@ export default function TicketsPage() {
   }, [searchText]);
 
   useEffect(() => {
-    const timer = window.setTimeout(applySearch, 400);
+    const next = searchText.trim();
+    if (next === appliedSearch) return undefined;
+    const timer = window.setTimeout(() => {
+      setPage(1);
+      setAppliedSearch(next);
+    }, 400);
     return () => window.clearTimeout(timer);
-  }, [applySearch]);
+  }, [searchText, appliedSearch]);
 
   const attachmentRows = useMemo(() => getAttachments(selectedTicket), [selectedTicket]);
 

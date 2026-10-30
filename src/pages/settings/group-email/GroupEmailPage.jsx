@@ -62,12 +62,14 @@ const GroupEmailPage = () => {
 
   // Search Debouncing
   useEffect(() => {
+    const trimmed = searchTerm.trim();
+    if (trimmed === debouncedSearch) return undefined;
     const timer = setTimeout(() => {
-      setDebouncedSearch(searchTerm.trim());
+      setDebouncedSearch(trimmed);
       setCurrentPage(1);
     }, 350);
     return () => clearTimeout(timer);
-  }, [searchTerm]);
+  }, [searchTerm, debouncedSearch]);
 
   // Load Group dropdown options only if user has view, add, or update access
   const loadGroupOptions = useCallback(async (forceFresh = false) => {

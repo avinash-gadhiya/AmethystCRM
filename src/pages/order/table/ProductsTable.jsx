@@ -151,7 +151,7 @@ const ProductsTable = () => {
 
   const canViewByCode = !codesLoading && hasCode('View_Product');
   const hasGlobalViewProduct = useMemo(
-    () => permissionService.getUserPermissionCodes().includes('view_product'),
+    () => permissionService.getUserPermissionCodes().some((code) => String(code || '').trim().toLowerCase() === 'view_product'),
     [],
   );
   const canSeeProducts = canView || canViewByCode || hasGlobalViewProduct;
@@ -199,7 +199,7 @@ const ProductsTable = () => {
   }, [searchText, pageNumber, pageSize]);
 
   useEffect(() => {
-    if (permissionsLoading && codesLoading) return;
+    if (permissionsLoading || codesLoading) return;
     if (!canSeeProducts) {
       setProducts([]);
       setTotalCount(0);

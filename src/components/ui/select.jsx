@@ -12,17 +12,29 @@ const getOptionText = (node) => {
   return '';
 };
 
-export function Select({ value, onValueChange, children, disabled = false }) {
-  const [open, setOpen] = useState(false);
+export function Select({ value, onValueChange, onOpenChange, children, disabled = false }) {
+  const [open, setOpenState] = useState(false);
   const [itemLabels, setItemLabels] = useState({});
   const containerRef = useRef(null);
   const triggerRef = useRef(null);
   const contentRef = useRef(null);
   const listboxId = useId();
+  const onOpenChangeRef = useRef(onOpenChange);
+  onOpenChangeRef.current = onOpenChange;
+
+  const setOpen = useCallback((nextOpenOrUpdater) => {
+    setOpenState((prev) => {
+      const next = typeof nextOpenOrUpdater === 'function' ? nextOpenOrUpdater(prev) : Boolean(nextOpenOrUpdater);
+      if (next !== prev) {
+        onOpenChangeRef.current?.(next);
+      }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (disabled) setOpen(false);
-  }, [disabled]);
+  }, [disabled, setOpen]);
 
   // Close on outside click
   useEffect(() => {
@@ -39,11 +51,17 @@ export function Select({ value, onValueChange, children, disabled = false }) {
     const handleEscape = (e) => {
       if (e.key === 'Escape') setOpen(false);
     };
+    const initialWidth = typeof window !== 'undefined' ? window.innerWidth : 0;
     const handleViewportChange = (event) => {
       // Keep the menu open while its own options are being scrolled. The
       // capture listener also receives scroll events from the portal content,
       // which previously closed long menus before an option could be chosen.
       if (event?.type === 'scroll' && contentRef.current?.contains(event.target)) return;
+      // Ignore vertical-only viewport resizes caused by mobile virtual keyboards
+      // opening when focusing SelectSearchInput inside the dropdown.
+      if (event?.type === 'resize' && typeof window !== 'undefined' && Math.abs(window.innerWidth - initialWidth) < 8) {
+        return;
+      }
       setOpen(false);
     };
     document.addEventListener('mousedown', handleOutsideClick);
@@ -56,12 +74,13 @@ export function Select({ value, onValueChange, children, disabled = false }) {
       window.removeEventListener('resize', handleViewportChange);
       window.removeEventListener('scroll', handleViewportChange, true);
     };
-  }, [open]);
+  }, [open, setOpen]);
 
   const registerItem = useCallback((val, label) => {
+    const key = String(val);
     setItemLabels((prev) => {
-      if (prev[val] === label) return prev;
-      return { ...prev, [val]: label };
+      if (prev[val] === label && prev[key] === label) return prev;
+      return { ...prev, [val]: label, [key]: label };
     });
   }, []);
 
@@ -132,7 +151,10 @@ export function SelectValue({ placeholder = 'Select...' }) {
   if (!context) return null;
   const { value, itemLabels } = context;
 
-  const display = value !== undefined && value !== null && itemLabels[value] !== undefined ? itemLabels[value] : placeholder;
+  const resolvedLabel = value !== undefined && value !== null
+    ? (itemLabels[value] ?? itemLabels[String(value)])
+    : undefined;
+  const display = resolvedLabel !== undefined ? resolvedLabel : placeholder;
 
   return <span className="truncate block">{display}</span>;
 }

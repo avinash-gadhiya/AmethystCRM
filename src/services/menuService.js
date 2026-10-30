@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { deleteById, getAuthHeaders } from './http';
 import permissionService from './permissionService';
+import { findPagedRecord } from '@/lib/findPagedRecord';
 
 const getApiBaseUrl = () => {
   return (import.meta.env.VITE_APP_API_URL || 'https://demoapi.enstasol.com/api').replace(/\/$/, '');
@@ -108,15 +109,10 @@ export const menuService = {
   },
 
   /**
-   * GET /Menu/{id}
+   * Find a menu through the documented GET /Menu collection.
    */
   async getMenuById(menuId, signal) {
-    const API_URL = getApiBaseUrl();
-    const response = await axios.get(`${API_URL}/Menu/${encodeURIComponent(menuId)}`, {
-      headers: getAuthHeaders(),
-      signal
-    });
-    return response.data?.data || response.data;
+    return findPagedRecord((params, requestSignal) => this.getMenus(params, requestSignal), 'menuId', menuId, signal);
   },
 
   /**

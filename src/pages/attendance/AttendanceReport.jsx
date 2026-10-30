@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   CalendarDays,
   ChevronLeft,
@@ -189,7 +190,7 @@ const matchDate = (dateVal, targetYear, targetMonth, targetDay) => {
     const y = Number(dmyMatch[3]);
     if (y === targetYear) {
       if (d === targetDay && m === targetMonth) return true;
-      if (d === targetMonth && m === targetDay) return true;
+      if (m > 12 && d === targetMonth && m === targetDay) return true;
     }
     return false;
   }
@@ -375,6 +376,15 @@ const getDayAttendanceInfo = (user, year, month, day, dateRange) => {
   const toNum = dateToNumber(parseDateToTuple(dateRange?.toDate));
   const isWithinQueryRange = fromNum > 0 && toNum > 0 && targetNum >= fromNum && targetNum <= toNum;
 
+  if (isSunday) {
+    return {
+      type: 'weekend',
+      raw: null,
+      dateKey: targetDateKey,
+      isSunday
+    };
+  }
+
   if (isWithinQueryRange) {
     const stats = getRowStats(user);
 
@@ -400,7 +410,8 @@ const getDayAttendanceInfo = (user, year, month, day, dateRange) => {
 
     // If user has mixed stats:
     // If entry had any punch/login activity -> present; otherwise unmarked working day is absent
-    if (stats.absent > 0) {
+    const hasExplicitContainer = [user?.dates, user?.attendance, user?.attendanceDetails, user?.records, user?.dayWise, user?.attendanceList, user?.days].some((c) => (Array.isArray(c) && c.length > 0) || (c && typeof c === 'object' && !Array.isArray(c) && Object.keys(c).length > 0));
+    if (!hasExplicitContainer && stats.absent > 0 && stats.present === 0) {
       return {
         type: 'absent',
         raw: 'Absent',
@@ -439,7 +450,7 @@ const buildCalendarDays = (monthDate) => {
   return cells;
 };
 
-const AttendanceCalendarModal = ({ user, initialMonth, dateRange, onClose }) => {
+const AttendanceCalendarModalContent = ({ user, initialMonth, dateRange, onClose }) => {
   const [month, setMonth] = useState(initialMonth);
   const [selectedDate, setSelectedDate] = useState('');
   const days = useMemo(() => buildCalendarDays(month), [month]);
@@ -623,6 +634,24 @@ const AttendanceCalendarModal = ({ user, initialMonth, dateRange, onClose }) => 
                     Off
                   </span>
                 );
+              } else if (dayInfo.type === 'holiday') {
+                boxClass = 'border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-500/40 dark:bg-violet-950/40 dark:text-violet-300';
+                statusLabel = 'Holiday';
+                dateColor = 'font-bold text-violet-700 dark:text-violet-300 text-sm';
+                badgeElement = (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-violet-500 text-white shadow-xs uppercase tracking-wider">
+                    Holiday
+                  </span>
+                );
+              } else if (dayInfo.type === 'halfday') {
+                boxClass = 'border-orange-300 bg-orange-50 text-orange-700 dark:border-orange-500/40 dark:bg-orange-950/40 dark:text-orange-300';
+                statusLabel = 'Half Day';
+                dateColor = 'font-bold text-orange-700 dark:text-orange-300 text-sm';
+                badgeElement = (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-orange-500 text-white shadow-xs uppercase tracking-wider">
+                    Half Day
+                  </span>
+                );
               } else if (dayInfo.type === 'leave') {
                 boxClass = 'border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-500/40 dark:bg-sky-950/40 dark:text-sky-300';
                 statusLabel = 'Leave';
@@ -698,6 +727,11 @@ const AttendanceCalendarModal = ({ user, initialMonth, dateRange, onClose }) => 
   );
 };
 
+const AttendanceCalendarModal = (props) => {
+  const modal = <AttendanceCalendarModalContent {...props} />;
+  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal;
+};
+
 export default function AttendanceReport() {
   const initialFilters = useMemo(getInitialFilters, []);
   const [filters, setFilters] = useState(initialFilters);
@@ -714,6 +748,7 @@ export default function AttendanceReport() {
 
   // Debounce user search input
   const searchTimeoutRef = useRef(null);
+  useEffect(() => () => { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); }, []);
   const handleSearchChange = (event) => {
     const value = event.target.value;
     setSearchInput(value);

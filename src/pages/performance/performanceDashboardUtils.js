@@ -98,16 +98,42 @@ const normalizeLocation = (item) => ({
   name: String(valueOf(item, 'locationName', 'name') || '').trim()
 });
 
-const getTargetToDate = (monthlyTarget, toDate) => {
+const getTargetToDate = (monthlyTarget, fromDate, toDate) => {
   if (monthlyTarget <= 0) return 0;
-  const requested = toDate ? new Date(`${toDate}T00:00:00`) : new Date();
+  const requestedEnd = toDate ? new Date(`${toDate}T00:00:00`) : new Date();
   const today = new Date();
-  const effective = Number.isNaN(requested.getTime()) || requested > today ? today : requested;
-  const daysInMonth = new Date(effective.getFullYear(), effective.getMonth() + 1, 0).getDate();
-  return (monthlyTarget / daysInMonth) * effective.getDate();
+  today.setHours(0, 0, 0, 0);
+  const effectiveEnd = Number.isNaN(requestedEnd.getTime()) || requestedEnd > today ? today : requestedEnd;
+  const requestedStart = fromDate ? new Date(`${fromDate}T00:00:00`) : new Date(effectiveEnd.getFullYear(), effectiveEnd.getMonth(), 1);
+  const effectiveStart = Number.isNaN(requestedStart.getTime())
+    ? new Date(effectiveEnd.getFullYear(), effectiveEnd.getMonth(), 1)
+    : requestedStart;
+  if (effectiveStart > effectiveEnd) return 0;
+
+  if (
+    effectiveStart.getFullYear() === effectiveEnd.getFullYear() &&
+    effectiveStart.getMonth() === effectiveEnd.getMonth()
+  ) {
+    const daysInMonth = new Date(effectiveEnd.getFullYear(), effectiveEnd.getMonth() + 1, 0).getDate();
+    const elapsedDays = effectiveEnd.getDate() - effectiveStart.getDate() + 1;
+    return (monthlyTarget / daysInMonth) * elapsedDays;
+  }
+
+  let totalTarget = 0;
+  const cursor = new Date(effectiveStart.getFullYear(), effectiveStart.getMonth(), 1);
+  while (cursor <= effectiveEnd) {
+    const year = cursor.getFullYear();
+    const month = cursor.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const segStart = year === effectiveStart.getFullYear() && month === effectiveStart.getMonth() ? effectiveStart.getDate() : 1;
+    const segEnd = year === effectiveEnd.getFullYear() && month === effectiveEnd.getMonth() ? effectiveEnd.getDate() : daysInMonth;
+    totalTarget += (monthlyTarget / daysInMonth) * Math.max(0, segEnd - segStart + 1);
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  return totalTarget;
 };
 
-export const aggregatePerformance = ({ report = {}, users = [], locations = [], toDate = '' }) => {
+export const aggregatePerformance = ({ report = {}, users = [], locations = [], fromDate = '', toDate = '' }) => {
   const locationMap = new Map(
     locations
       .map(normalizeLocation)
@@ -167,24 +193,29 @@ export const aggregatePerformance = ({ report = {}, users = [], locations = [], 
 
   (Array.isArray(sales) ? sales : []).forEach((item) => {
     const row = ensureRow(item);
-    row.totalSales += safeNumber(valueOf(item, 'splitSaleAmount', 'amount', 'saleAmount'));
-    row.salesCount += Math.max(1, safeNumber(valueOf(item, 'salesCount', 'count')));
+    const saleAmount = safeNumber(valueOf(item, 'splitSaleAmount', 'amount', 'saleAmount'));
+    const explicitCount = valueOf(item, 'salesCount', 'count');
+    row.totalSales += saleAmount;
+    row.salesCount += explicitCount !== undefined ? Math.max(0, safeNumber(explicitCount)) : (saleAmount > 0 ? 1 : 0);
   });
   (Array.isArray(refunds) ? refunds : []).forEach((item) => {
     const row = ensureRow(item);
-    row.totalRefunds += safeNumber(valueOf(item, 'splitRefundAmount', 'refundAmount', 'amount'));
-    row.refundsCount += Math.max(1, safeNumber(valueOf(item, 'refundsCount', 'count')));
+    const refundAmount = safeNumber(valueOf(item, 'splitRefundAmount', 'refundAmount', 'amount'));
+    const explicitCount = valueOf(item, 'refundsCount', 'count');
+    row.totalRefunds += refundAmount;
+    row.refundsCount += explicitCount !== undefined ? Math.max(0, safeNumber(explicitCount)) : (refundAmount > 0 ? 1 : 0);
   });
   (Array.isArray(leads) ? leads : []).forEach((item) => {
     const row = ensureRow(item);
-    row.totalLeads += Math.max(1, safeNumber(valueOf(item, 'leadCount', 'totalLeads', 'leads', 'count')));
+    const explicitLeads = valueOf(item, 'leadCount', 'totalLeads', 'leads', 'count');
+    row.totalLeads += explicitLeads !== undefined ? Math.max(0, safeNumber(explicitLeads)) : 1;
   });
 
   const prepared = Array.from(rows.values()).map((row) => {
     const netRevenue = row.totalSales - row.totalRefunds;
     const revenuePerLead = row.totalLeads > 0 ? netRevenue / row.totalLeads : 0;
     const conversionRate = row.totalLeads > 0 ? (row.salesCount / row.totalLeads) * 100 : 0;
-    const targetToDate = getTargetToDate(row.salesTarget, toDate);
+    const targetToDate = getTargetToDate(row.salesTarget, fromDate, toDate);
     const targetAchievement = targetToDate > 0 ? (row.totalSales / targetToDate) * 100 : 0;
     const rplAchievement = row.rplTarget > 0 ? (revenuePerLead / row.rplTarget) * 100 : 0;
     const existingAchievements = [targetToDate > 0 ? targetAchievement : null, row.rplTarget > 0 ? rplAchievement : null].filter(
@@ -236,7 +267,7 @@ export const aggregatePerformance = ({ report = {}, users = [], locations = [], 
   return prepared.map((row, index) => {
     const rank = index + 1;
     let tier = 'Needs Review';
-    if (rank === 1) tier = 'Top Performer';
+    if (rank === 1 && (row.netRevenue > 0 || row.totalSales > 0)) tier = 'Top Performer';
     else if ((row.hasTargets && row.overallAchievement >= 85) || (!row.hasTargets && row.score >= 60)) tier = 'Solid';
     else if ((row.hasTargets && row.overallAchievement >= 60) || (!row.hasTargets && row.score >= 40)) tier = 'Developing';
     return { ...row, rank, tier };

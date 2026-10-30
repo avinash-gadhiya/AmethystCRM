@@ -2,6 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
+const { transformSync } = require('esbuild');
 const source = fs.readFileSync('src/services/brandService.js', 'utf8').replace(/^import .*;\r?\n/gm, '').replace('export const brandService', 'const brandService').replace('export default brandService;', 'globalThis.service = brandService;');
 function setup(handler = () => ({ success: true, data: [], totalCount: 0 })) {
   const calls = [];
@@ -51,9 +52,10 @@ test('delete contracts use the exact documented routes', async () => {
   await service.deleteGateway(9);
   await service.deleteBrandEmailTemplate(10);
   await service.deleteGatewayPaymentType({ gatewayPaymentTypeId: 11, gatewayId: 9, paymentTypeId: 3 });
-  assert.deepEqual(calls.map(c => c.path), ['/Brand', '/BrandEmail/8', '/Gateway', '/BrandEmailTemplates', '/GatewayPaymentType/11']);
+  assert.deepEqual(calls.map(c => c.path), ['/Brand', '/BrandEmail', '/Gateway', '/BrandEmailTemplates', '/GatewayPaymentType']);
   assert.deepEqual(plain(calls[0].data), { id: 2 });
-  assert.deepEqual(plain(calls[4].data), { gatewayId: 9, paymentTypeId: 3 });
+  assert.deepEqual(plain(calls[1].data), { id: 8 });
+  assert.deepEqual(plain(calls[4].data), { id: 11 });
 });
 test('dropdown requests deduplicate and mutations invalidate related references', async () => {
   const { service, calls } = setup(() => ({ success: true, data: [{ SettingValueId: 1, SettingValueText: 'Actual type' }], totalCount: 1 }));
@@ -95,17 +97,51 @@ test('templates resolve sender labels using brand-filtered email references and 
   assert.equal(result.data[0].fromEmail, 'sender@example.test');
   assert.equal(calls[1].data.BrandId, 2);
 });
-test('page permissions cannot leak across brands, child tabs, or another cached user', () => {
-  const source = fs.readFileSync('src/utils/brandPermissions.js','utf8').replace(/^import .*;\r?\n/gm,'').replace('export const resolveBrandPermissions','const resolveBrandPermissions') + '\nglobalThis.resolve = resolveBrandPermissions;';
-  const storage = {
-    'crm_permission_menus:v2:2:12': JSON.stringify([{menuPermissionPageDTOs:[{pageUrl:'/settings/brandemail',menuPagePermissionDTOs:[{permissionName:'View',hasPermission:true},{permissionName:'Delete',hasPermission:false}]}]}]),
-    'crm_permission_menus:v2:2:13': JSON.stringify([{menuPermissionPageDTOs:[{pageUrl:'/settings/brand',menuPagePermissionDTOs:[{permissionName:'Delete',hasPermission:true}]}]}])
+test('page permissions cannot leak across brands, child tabs, or another cached user', async () => {
+  let user = { roleId: 2, userId: 12, role: 'Agent', permissionCodes: [] };
+  const window = new EventTarget();
+  const auth = { getUser: () => user, getToken: () => `test-session-${user.userId}` };
+  const page = (path) => [{ menuId: 1, menuName: 'Settings', isActive: true, menuPermissionPageDTOs: [{
+    pageId: 2, pageUrl: path, pageName: path.split('/').pop(), isActive: true, menuPagePermissionDTOs: [
+      { permissionName: 'View', hasPermission: true },
+      { permissionName: 'Delete', hasPermission: user.userId === 13 }
+    ]
+  }] }];
+  const loadModule = (file, dependencies) => {
+    const text = fs.readFileSync(file, 'utf8').replaceAll('import.meta.env', '({})');
+    const context = {
+      module: { exports: {} }, require: (name) => dependencies[name], console,
+      window, Event, AbortController, setTimeout, clearTimeout,
+      localStorage: { getItem: () => null },
+      fetch: async () => ({ ok: true, status: 200, json: async () => ({ data: [{ roleId: 2,
+        permissionMenuDTOs: page(user.userId === 12 ? '/settings/brandemail' : '/settings/brand')
+      }] }) })
+    };
+    vm.runInNewContext(transformSync(text, { format: 'cjs' }).code, context);
+    return context.module.exports;
   };
-  const context = { authService: {getUser:()=>({roleId:2,userId:12,role:'Agent',permissionCodes:[]})}, localStorage:{getItem:key=>storage[key] || null} };
-  vm.runInNewContext(source,context);
-  assert.equal(context.resolve('brandemail').canView,true);
-  assert.equal(context.resolve('brandemail').canDelete,false);
-  assert.equal(context.resolve('brand').canView,false);
-  assert.equal(context.resolve('brand').canDelete,false);
-  assert.equal(context.resolve('gateway').canView,false);
+  const permissions = loadModule('src/services/permissionService.js', {
+    './authService': { __esModule: true, default: auth, AUTH_SESSION_CHANGED_EVENT: 'auth-session-changed' },
+    './http': { handleSessionExpired() {} },
+    '@/lib/browserStorage': { clearStoredPermissionMenus() {} }
+  }).default;
+  const configured = loadModule('src/utils/configuredPagePermissions.js', {
+    '@/services/authService': { __esModule: true, default: auth },
+    '@/services/permissionService': { __esModule: true, default: permissions }
+  });
+  const resolve = loadModule('src/utils/brandPermissions.js', {
+    '@/utils/configuredPagePermissions': configured
+  }).resolveBrandPermissions;
+  await permissions.fetchPermissions();
+  assert.equal(resolve('brandemail').canView, true);
+  assert.equal(resolve('brandemail').canDelete, false);
+  assert.equal(resolve('brand').canView, false);
+  assert.equal(resolve('brand').canDelete, false);
+  assert.equal(resolve('gateway').canView, false);
+  user = { ...user, userId: 13 };
+  window.dispatchEvent(new Event('auth-session-changed'));
+  assert.equal(resolve('brandemail').canView, false, 'previous user grants disappear before the next API response');
+  await permissions.fetchPermissions();
+  assert.equal(resolve('brand').canDelete, true);
+  assert.equal(resolve('brandemail').canView, false);
 });

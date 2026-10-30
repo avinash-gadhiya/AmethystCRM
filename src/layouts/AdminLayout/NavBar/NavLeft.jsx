@@ -15,7 +15,7 @@ export default function NavLeft() {
       {/* Sidebar toggle button for desktop */}
       <button
         type="button"
-        className="neu-icon-btn d-none d-lg-inline-flex"
+        className="neu-icon-btn hidden lg:inline-flex"
         onClick={() => dispatch({ type: actionType.COLLAPSE_MENU })}
         title="Toggle sidebar"
         aria-label="Toggle sidebar"

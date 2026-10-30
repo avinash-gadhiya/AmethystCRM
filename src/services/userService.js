@@ -276,24 +276,11 @@ export const userService = {
   // GET /api/UserGroup?id={id}
   async getUserGroup(id) {
     const API_URL = getApiBaseUrl();
-    try {
-      const response = await axios.get(`${API_URL}/UserGroup`, {
-        headers: getAuthHeaders(),
-        params: { id }
-      });
-      return response.data?.data || response.data || [];
-    } catch (err) {
-      // Fallback try with userId param
-      try {
-        const fallback = await axios.get(`${API_URL}/UserGroup`, {
-          headers: getAuthHeaders(),
-          params: { userId: id }
-        });
-        return fallback.data?.data || fallback.data || [];
-      } catch {
-        throw err;
-      }
-    }
+    const response = await axios.get(`${API_URL}/UserGroup`, {
+      headers: getAuthHeaders(),
+      params: { id }
+    });
+    return response.data?.data || response.data || [];
   },
 
   // PUT /api/UserGroup

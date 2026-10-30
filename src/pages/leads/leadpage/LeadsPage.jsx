@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
-import { Card, Spinner } from 'react-bootstrap';
+import { Card, Spinner } from '@/components/ui/Bootstrap';
 import { toast } from 'sonner';
 
 import leadService from '@/services/leadService';
@@ -72,12 +72,13 @@ export default function LeadsPage() {
       leadService.getLookup('/Location', ['locationId', 'LocationId', 'id'], ['name', 'locationName', 'LocationName'], controller.signal),
       leadService.getOptions('vendors', controller.signal)
     ])
-      .then(([dispositions, users, groups, locations, vendors]) => setLookups({ dispositions, users, groups, locations, vendors }))
+      .then(([dispositions, users, groups, locations, vendors]) => {
+        if (!controller.signal.aborted) setLookups({ dispositions, users, groups, locations, vendors });
+      })
       .catch((error) => {
-        if (error?.name !== 'AbortError') {
-          console.error(error);
-          toast.error(getMessage(error, 'Some lead filters could not be loaded.'));
-        }
+        if (controller.signal.aborted || error?.name === 'AbortError' || error?.name === 'CanceledError') return;
+        console.error(error);
+        toast.error(getMessage(error, 'Some lead filters could not be loaded.'));
       })
       .finally(() => {
         if (!controller.signal.aborted) setLookupsLoading(false);

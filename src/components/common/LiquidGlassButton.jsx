@@ -9,7 +9,7 @@ const LiquidGlassButton = React.forwardRef(
     if (isDanger) {
       variantClasses = 'bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white border-transparent shadow-sm focus:ring-rose-500/20';
     } else if (isSecondary) {
-      variantClasses = 'bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 border-slate-300 shadow-sm focus:ring-slate-500/20';
+      variantClasses = 'bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 border-slate-300 shadow-sm focus:ring-slate-500/20 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-600';
     }
 
     return (

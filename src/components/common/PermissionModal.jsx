@@ -31,11 +31,18 @@ const getPageState = (page) =>
     page?.hasPermission ?? page?.isGranted
   );
 
-const getMenuState = (menu) =>
-  getSelectionState(
-    getPages(menu).map((page) => getPageState(page).all),
-    menu?.hasPermission ?? menu?.isGranted
-  );
+const getMenuState = (menu) => {
+  const pages = getPages(menu);
+  if (pages.length === 0) {
+    const selected = isGranted(menu?.hasPermission ?? menu?.isGranted);
+    return { all: selected, any: selected, checked: selected };
+  }
+
+  const pageStates = pages.map((page) => getPageState(page));
+  const all = pageStates.every((state) => state.all);
+  const any = pageStates.some((state) => state.any);
+  return { all, any, checked: all ? true : any ? 'indeterminate' : false };
+};
 
 const updateAll = (tree, checked) =>
   tree.map((menu) => ({
@@ -254,7 +261,14 @@ const PermissionModal = ({
   if (!open || typeof document === 'undefined') return null;
 
   const change = (updater) => onPermissionsChange?.(updater(tree));
-  const selectAllState = getSelectionState(tree.map((menu) => getMenuState(menu).all));
+  const menuStates = tree.map((menu) => getMenuState(menu));
+  const selectAllAll = menuStates.length > 0 && menuStates.every((state) => state.all);
+  const selectAllAny = menuStates.some((state) => state.any);
+  const selectAllState = {
+    all: selectAllAll,
+    any: selectAllAny,
+    checked: selectAllAll ? true : selectAllAny ? 'indeterminate' : false
+  };
 
   return createPortal(
     <div

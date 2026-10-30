@@ -5,6 +5,7 @@ const TableRefreshButton = ({
   className = '',
   title = 'Refresh',
   onClick,
+  onRefresh,
   disabled = false,
   loading = false,
   minSpinMs = 450
@@ -18,7 +19,7 @@ const TableRefreshButton = ({
       setIsRefreshing(true);
       try {
         const startedAt = Date.now();
-        const maybePromise = onClick?.(e);
+        const maybePromise = onClick ? onClick(e) : onRefresh?.();
         if (maybePromise && typeof maybePromise.then === 'function') {
           await maybePromise;
         }
@@ -34,7 +35,7 @@ const TableRefreshButton = ({
         setIsRefreshing(false);
       }
     },
-    [disabled, loading, isRefreshing, minSpinMs, onClick]
+    [disabled, loading, isRefreshing, minSpinMs, onClick, onRefresh]
   );
 
   return (

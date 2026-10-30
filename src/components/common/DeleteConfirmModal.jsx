@@ -9,11 +9,13 @@ const DeleteConfirmModal = ({
   title = 'Delete Role',
   description = 'Are you sure you want to delete',
   itemName,
+  targetName,
   details = [],
   message,
   confirmText = 'Delete',
   cancelText = 'Cancel',
   loading = false,
+  isLoading: isLoadingProp = false,
   isDeleting = false,
   loadingText = 'Deleting...',
   onCancel,
@@ -21,7 +23,8 @@ const DeleteConfirmModal = ({
   onConfirm
 }) => {
   const isVisible = open ?? isOpen ?? false;
-  const isLoading = loading || isDeleting;
+  const isLoading = Boolean(loading || isLoadingProp || isDeleting);
+  const resolvedItemName = itemName ?? targetName;
   const handleCancel = onCancel || onClose;
 
   if (!isVisible) return null;
@@ -39,7 +42,7 @@ const DeleteConfirmModal = ({
             <div className="text-sm text-gray-700 dark:text-gray-200">{message}</div>
           ) : (
             <p className="text-sm text-gray-700 dark:text-gray-200">
-              {description} {itemName ? <span className="font-semibold text-gray-900 dark:text-white">&ldquo;{itemName}&rdquo;</span> : null}?
+              {description} {resolvedItemName ? <span className="font-semibold text-gray-900 dark:text-white">&ldquo;{resolvedItemName}&rdquo;</span> : null}?
             </p>
           )}
 

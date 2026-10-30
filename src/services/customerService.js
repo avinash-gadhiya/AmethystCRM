@@ -41,8 +41,7 @@ export const customerService = {
         PageNumber: params.PageNumber || 1,
         PageSize: params.PageSize || 10,
         SortProperty: params.SortProperty || 'customerId',
-        IsDescending: params.IsDescending !== false,
-        SalesPersonId: params.SalesPersonId || ''
+        IsDescending: params.IsDescending !== false
       },
       signal
     });

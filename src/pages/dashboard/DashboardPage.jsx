@@ -195,14 +195,7 @@ const DashboardPage = () => {
   const [dailyLocationWiseSales, setDailyLocationWiseSales] = useState([]);
   const [dayWiseSalesAndRpl, setDayWiseSalesAndRpl] = useState([]);
   const [userWiseSummary, setUserWiseSummary] = useState([]);
-  const isFetchingRef = useRef(false);
-
-  // Keep isSmallScreen in sync with window width after resize
-  useEffect(() => {
-    const handleResize = () => setIsSmallScreen(window.innerWidth < 640);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  const fetchSeqRef = useRef(0);
 
   const formatPieValue = useCallback((value) => {
     const numeric = Number(value || 0);
@@ -350,9 +343,9 @@ const DashboardPage = () => {
       return parsed;
     };
 
-    const baseDate = parseDate(fromDate ? `${fromDate}T00:00:00` : '')
-      || parseDate(toDate ? `${toDate}T00:00:00` : '')
-      || parseDate(dailyLocationWiseSales[0]?.date);
+    const parsedStart = parseDate(fromDate ? `${fromDate}T00:00:00` : '');
+    const parsedEnd = parseDate(toDate ? `${toDate}T00:00:00` : '');
+    const baseDate = parsedStart || parsedEnd || parseDate(dailyLocationWiseSales[0]?.date);
 
     if (!baseDate) return [];
 
@@ -360,6 +353,14 @@ const DashboardPage = () => {
     const monthEnd = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 0);
     monthStart.setHours(0, 0, 0, 0);
     monthEnd.setHours(0, 0, 0, 0);
+
+    const useFullCurrentMonth = quickDateFilter === 'Current Month';
+    const rangeStart = !useFullCurrentMonth && parsedStart && parsedEnd && parsedStart <= parsedEnd
+      ? parsedStart
+      : monthStart;
+    const rangeEnd = !useFullCurrentMonth && parsedStart && parsedEnd && parsedStart <= parsedEnd
+      ? parsedEnd
+      : monthEnd;
 
     const byDate = new Map();
     dailyLocationWiseSales.forEach((row) => {
@@ -370,8 +371,8 @@ const DashboardPage = () => {
     });
 
     const filled = [];
-    const cursor = new Date(monthStart);
-    while (cursor <= monthEnd) {
+    const cursor = new Date(rangeStart);
+    while (cursor <= rangeEnd) {
       const key = toYmd(cursor);
       const row = byDate.get(key);
       const entry = {
@@ -390,7 +391,7 @@ const DashboardPage = () => {
     }
 
     return filled;
-  }, [dailyLocationWiseSales, fromDate, toDate]);
+  }, [dailyLocationWiseSales, fromDate, toDate, quickDateFilter]);
 
   const dailyLocNames = useMemo(() => {
     const locationSet = new Set();
@@ -471,10 +472,19 @@ const DashboardPage = () => {
     }
 
     const baseMonth = new Date(start);
-    const normalizedStart = new Date(baseMonth.getFullYear(), baseMonth.getMonth(), 1);
-    const normalizedEnd = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 1, 0);
+    const monthStart = new Date(baseMonth.getFullYear(), baseMonth.getMonth(), 1);
+    const monthEnd = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 1, 0);
+    monthStart.setHours(0, 0, 0, 0);
+    monthEnd.setHours(0, 0, 0, 0);
+
+    const useFullCurrentMonth = quickDateFilter === 'Current Month';
+    const normalizedStart = !useFullCurrentMonth && start <= end ? new Date(start) : monthStart;
+    const normalizedEnd = !useFullCurrentMonth && start <= end ? new Date(end) : monthEnd;
     normalizedStart.setHours(0, 0, 0, 0);
     normalizedEnd.setHours(0, 0, 0, 0);
+    const spansMonths =
+      normalizedStart.getFullYear() !== normalizedEnd.getFullYear() ||
+      normalizedStart.getMonth() !== normalizedEnd.getMonth();
     const daysTotal = Math.max(
       1,
       Math.round((normalizedEnd.getTime() - normalizedStart.getTime()) / (1000 * 60 * 60 * 24)) + 1,
@@ -498,17 +508,20 @@ const DashboardPage = () => {
     const filled = [];
     const cursor = new Date(normalizedStart);
     const perDaySalesTarget = salesTargetDefault ? salesTargetDefault / daysTotal : 0;
-    const perDayRplTarget = rplTargetDefault ? rplTargetDefault / daysTotal : 0;
+    const perDayRplTarget = rplTargetDefault || 0;
     while (cursor <= normalizedEnd) {
       const key = toYmd(cursor);
       const existing = dataByDate.get(key);
       const baseSalesTarget = perDaySalesTarget || Number(existing?.salesTarget) || 0;
       const baseRplTarget = perDayRplTarget || Number(existing?.rplTarget) || 0;
+      const computedDayLabel = spansMonths
+        ? `${cursor.getDate()} ${MONTH_SHORT[cursor.getMonth()] || ''}`.trim()
+        : (existing?.dayLabel || formatDayLabel(cursor));
 
       filled.push({
         day: existing?.day || formatDayFull(cursor),
         date: existing?.date || key,
-        dayLabel: existing?.dayLabel || formatDayLabel(cursor),
+        dayLabel: computedDayLabel,
         totalLeads: Number(existing?.totalLeads) || 0,
         totalSales: Number(existing?.totalSales) || 0,
         rpl: Number(existing?.rpl) || 0,
@@ -520,7 +533,7 @@ const DashboardPage = () => {
     }
 
     return filled;
-  }, [dayWiseSalesAndRpl, fromDate, toDate, resolvedTargets]);
+  }, [dayWiseSalesAndRpl, fromDate, toDate, quickDateFilter, resolvedTargets]);
 
   // Day-wise total sales as columns (actual up to today, forecast columns for
   // the remaining days at the per-day target) against a flat "total target"
@@ -703,12 +716,11 @@ const DashboardPage = () => {
   }, [dayWiseSalesAndRpl, summary.totalSales, resolvedTargets]);
 
   const fetchDashboard = useCallback(async () => {
-    if (isFetchingRef.current) return;
+    const seq = ++fetchSeqRef.current;
 
     const from = String(fromDate || '').trim();
     const to = String(toDate || '').trim();
 
-    isFetchingRef.current = true;
     setLoading(true);
     try {
       authService.setupAxios();
@@ -767,6 +779,8 @@ const DashboardPage = () => {
         locationWiseResponse,
         dailyLocResponse,
       ] = await Promise.all(requests);
+
+      if (seq !== fetchSeqRef.current) return;
 
       if (isAdminUser) {
         const locationWiseRaw = Array.isArray(locationWiseResponse?.data?.data) ? locationWiseResponse.data.data : [];
@@ -831,8 +845,10 @@ const DashboardPage = () => {
         })),
       );
 
-      if (!isAdminUser && Number.isFinite(currentUserId) && currentUserId > 0) {
-        const currentUserSummary = userWiseData.find((item) => Number(item?.userId) === currentUserId);
+      if (!isAdminUser) {
+        const currentUserSummary = Number.isFinite(currentUserId) && currentUserId > 0
+          ? userWiseData.find((item) => Number(item?.userId) === currentUserId)
+          : null;
         if (currentUserSummary) {
           setSummary({
             totalSales: Number(currentUserSummary?.totalSales) || 0,
@@ -844,6 +860,18 @@ const DashboardPage = () => {
             totalChargebacks: rowsCarryChargebacks ? readChargeback(currentUserSummary) : envelopeChargebacks,
             totalChargebacksCount: rowsCarryChargebacks ? readChargebackCount(currentUserSummary) : envelopeChargebacksCount,
             netAmount: Number(currentUserSummary?.netAmount) || 0,
+          });
+        } else {
+          setSummary({
+            totalSales: 0,
+            totalSalesCount: 0,
+            totalRefunds: 0,
+            totalRefundsCount: 0,
+            totalVoids: 0,
+            totalVoidsCount: 0,
+            totalChargebacks: rowsCarryChargebacks ? 0 : envelopeChargebacks,
+            totalChargebacksCount: rowsCarryChargebacks ? 0 : envelopeChargebacksCount,
+            netAmount: 0,
           });
         }
       }
@@ -890,6 +918,7 @@ const DashboardPage = () => {
         setDailyLocationWiseSales([]);
       }
     } catch (error) {
+      if (seq !== fetchSeqRef.current) return;
       console.error('Failed to load dashboard summary:', error);
       toast.error(getApiErrorMessage(error, 'Failed to load dashboard'));
       setSummary({
@@ -908,8 +937,9 @@ const DashboardPage = () => {
       setDayWiseSalesAndRpl([]);
       setUserWiseSummary([]);
     } finally {
-      isFetchingRef.current = false;
-      setLoading(false);
+      if (seq === fetchSeqRef.current) {
+        setLoading(false);
+      }
     }
   }, [fromDate, toDate, isDateFilterApplied, selectedUserId, isAdminUser, currentUserId]);
 
@@ -1846,7 +1876,13 @@ const DashboardPage = () => {
               <div className="flex flex-col min-[420px]:flex-row items-stretch min-[420px]:items-center gap-2 w-full sm:w-auto min-w-0">
               {isAdminUser && (
                 <div className="flex-1 sm:flex-none sm:w-[200px] lg:w-[176px] xl:w-[210px] min-w-0">
-                  <Select value={selectedUserId} onValueChange={handleSalesPersonChange}>
+                  <Select
+                    value={selectedUserId}
+                    onValueChange={handleSalesPersonChange}
+                    onOpenChange={(isOpen) => {
+                      if (!isOpen) setSalesPersonSearchText('');
+                    }}
+                  >
                     <SelectTrigger className="h-10 w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg text-sm text-gray-700 dark:text-slate-100">
                       <SelectValue placeholder="All Sales Persons" />
                     </SelectTrigger>
@@ -1885,7 +1921,7 @@ const DashboardPage = () => {
               <div className="flex-1 sm:flex-none sm:w-[172px] lg:w-[150px] xl:w-[182px] min-w-0">
                 <Select value={quickDateFilter} onValueChange={handleQuickDateChange}>
                   <SelectTrigger className="h-10 w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg text-sm text-gray-700 dark:text-slate-100">
-                    <SelectValue placeholder="Current Month" />
+                    <SelectValue placeholder={quickDateFilter ? 'Current Month' : 'Custom Range'} />
                   </SelectTrigger>
                   <SelectContent position="popper" sideOffset={4} className="min-w-[var(--radix-select-trigger-width)] bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-white">
                     {[...QUICK_DATE_FILTERS, ...YEAR_FILTER_OPTIONS].map((item) => (
@@ -1905,14 +1941,18 @@ const DashboardPage = () => {
                   emptyLabel="This month"
                   showQuickDateDropdown={false}
                   showClearButton={false}
-                  onChange={(from, to) => { setFromDate(from); setToDate(to); setIsDateFilterApplied(true); }}
+                  onChange={(from, to) => {
+                    setQuickDateFilter('');
+                    setFromDate(from);
+                    setToDate(to);
+                    setIsDateFilterApplied(true);
+                  }}
                   onClear={handleResetDate}
                 />
                 <TableRefreshButton
                   className="dashboard-toolbar-refresh-btn"
                   title="Refresh dashboard"
                   onClick={handleRefreshDashboard}
-                  triggerPageRefresh={false}
                   disabled={loading}
                   loading={loading}
                 />

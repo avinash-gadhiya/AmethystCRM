@@ -312,8 +312,12 @@ function ReportView() {
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
-      setAppliedSearch(searchText.trim());
-      setPage(1);
+      const nextSearch = searchText.trim();
+      setAppliedSearch((prev) => {
+        if (prev !== nextSearch) setPage(1);
+        return nextSearch;
+      });
+
     }, 350);
     return () => window.clearTimeout(timeout);
   }, [searchText]);
@@ -388,11 +392,12 @@ function ReportView() {
   }, [page, totalPages, loading]);
 
   const summary = useMemo(() => {
+    const summaryRows = filteredRows.filter((row) => !['grand total', 'total'].includes(String(getValue(row, config.columns[0][0]) ?? '').trim().toLowerCase()));
     const amountKey = activeReport === 'performance' ? 'salesAmount' : 'amount';
-    const amount = filteredRows.reduce((sum, row) => sum + safeNumber(getValue(row, amountKey)), 0);
+    const amount = summaryRows.reduce((sum, row) => sum + safeNumber(getValue(row, amountKey)), 0);
     if (activeReport === 'disposition') {
-      const totalLeads = filteredRows.reduce((sum, row) => sum + safeNumber(getValue(row, 'total')), 0);
-      const topDisposition = [...filteredRows].sort(
+      const totalLeads = summaryRows.reduce((sum, row) => sum + safeNumber(getValue(row, 'total')), 0);
+      const topDisposition = [...summaryRows].sort(
         (left, right) => safeNumber(getValue(right, 'total')) - safeNumber(getValue(left, 'total'))
       )[0];
       return {
@@ -403,28 +408,28 @@ function ReportView() {
       };
     }
     if (activeReport === 'userLeads') {
-      const totalPicked = filteredRows.reduce((sum, row) => sum + safeNumber(getValue(row, 'leadsPicked')), 0);
+      const totalPicked = summaryRows.reduce((sum, row) => sum + safeNumber(getValue(row, 'leadsPicked')), 0);
       return {
         primaryLabel: 'Leads picked',
         primary: totalPicked.toLocaleString(),
         secondaryLabel: 'Active users',
-        secondary: filteredRows.filter((row) => safeNumber(getValue(row, 'leadsPicked')) > 0).length
+        secondary: summaryRows.filter((row) => safeNumber(getValue(row, 'leadsPicked')) > 0).length
       };
     }
     if (activeReport === 'tickets') {
       return {
         primaryLabel: 'Closed tickets',
-        primary: filteredRows.reduce((sum, row) => sum + safeNumber(getValue(row, 'closed')), 0),
+        primary: summaryRows.reduce((sum, row) => sum + safeNumber(getValue(row, 'closed')), 0),
         secondaryLabel: 'Open tickets',
-        secondary: filteredRows.reduce(
+        secondary: summaryRows.reduce(
           (sum, row) => sum + safeNumber(getValue(row, 'new')) + safeNumber(getValue(row, 'inProgress')),
           0
         )
       };
     }
     if (activeReport === 'performance') {
-      const leads = filteredRows.reduce((sum, row) => sum + safeNumber(row.leads), 0);
-      const sales = filteredRows.reduce((sum, row) => sum + safeNumber(row.salesClosed), 0);
+      const leads = summaryRows.reduce((sum, row) => sum + safeNumber(row.leads), 0);
+      const sales = summaryRows.reduce((sum, row) => sum + safeNumber(row.salesClosed), 0);
       return {
         primaryLabel: 'Total sales',
         primary: formatValue(amount, 'money'),
@@ -436,15 +441,15 @@ function ReportView() {
       primaryLabel: activeReport === 'service' ? 'Closed services' : 'Total amount',
       primary:
         activeReport === 'service'
-          ? filteredRows.filter((row) => String(getValue(row, 'ticketStatusName') || '').toLowerCase() === 'closed').length
+          ? summaryRows.filter((row) => String(getValue(row, 'ticketStatusName') || '').toLowerCase() === 'closed').length
           : formatValue(amount, 'money'),
       secondaryLabel: activeReport === 'service' ? 'Active services' : 'Customers',
       secondary:
         activeReport === 'service'
-          ? filteredRows.filter((row) => String(getValue(row, 'ticketStatusName') || '').toLowerCase() !== 'closed').length
-          : new Set(filteredRows.map((row) => getValue(row, 'customerId')).filter(Boolean)).size
+          ? summaryRows.filter((row) => String(getValue(row, 'ticketStatusName') || '').toLowerCase() !== 'closed').length
+          : new Set(summaryRows.map((row) => getValue(row, 'customerId')).filter(Boolean)).size
     };
-  }, [activeReport, filteredRows]);
+  }, [activeReport, filteredRows, config.columns]);
 
   const applyFilters = (event) => {
     if (event && event.preventDefault) event.preventDefault();
@@ -602,7 +607,7 @@ function ReportView() {
                       return <option key={id} value={id}>{name}</option>;
                     })}
                   </Form.Select>
-                  <Form.Select value={draftFilters.vendorId} onChange={(event) => updateAndApplyFilter('vendorId', event.target.value)} aria-label="Filter by vendor">
+                  <Form.Select className="hidden" style={{ display: 'none' }} hidden value={draftFilters.vendorId} onChange={(event) => updateAndApplyFilter('vendorId', event.target.value)} aria-label="Filter by vendor">
                     <option value="">All Vendors</option>
                   </Form.Select>
                 </>
@@ -746,7 +751,7 @@ function ReportView() {
                       <td colSpan={config.columns.length} className="text-center text-muted py-5">
                         <div className="py-4">
                           <BarChart3 size={32} className="report-empty-icon text-muted mb-2 opacity-50" />
-                          <div className="fw-medium text-dark">{error ? 'Report unavailable' : restricted ? 'Access restricted' : 'No records found'}</div>
+                          <div className="fw-medium text-gray-900 dark:text-gray-100">{error ? 'Report unavailable' : restricted ? 'Access restricted' : 'No records found'}</div>
                           <div className="small text-muted">{error ? 'Use Retry above to load this report again.' : restricted ? 'Contact your administrator for report access.' : 'Try adjusting your date range or search filter.'}</div>
                         </div>
                       </td>

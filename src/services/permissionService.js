@@ -629,7 +629,13 @@ const getCacheKey = ({ roleId, userId }) => `${roleId}:${userId}`;
 const ensurePermissionSession = () => {
   const identity = getIdentity();
   const user = authService.getUser();
-  const next = JSON.stringify([identity.roleId, identity.userId, authService.getToken(), user?.permissionCodes, user?.isAssignPersonalPermission]);
+  const next = JSON.stringify([
+    identity.roleId,
+    identity.userId,
+    authService.getToken(),
+    user?.permissionCodes,
+    user?.isAssignPersonalPermission
+  ]);
   if (next !== permissionSession) {
     permissionSession = next;
     cacheGeneration += 1;
@@ -839,8 +845,8 @@ export const permissionService = {
     if (!force && permissionMenus.has(requestKey)) return this.getNavigation(targetRoleId);
     const generation = cacheGeneration;
     const user = authService.getUser();
-    const personalPermissions = normalizeBoolean(user?.isAssignPersonalPermission) === true &&
-      (!targetRoleId || Number(targetRoleId) === Number(user?.roleId));
+    const personalPermissions =
+      normalizeBoolean(user?.isAssignPersonalPermission) === true && (!targetRoleId || Number(targetRoleId) === Number(user?.roleId));
     const endpoint = personalPermissions
       ? '/UserPermission?userId=' + encodeURIComponent(identity.userId)
       : '/Permission?roleId=' + encodeURIComponent(identity.roleId);
@@ -875,7 +881,10 @@ export const permissionService = {
         if (generation !== cacheGeneration || requests.get(requestKey) !== request) return this.getNavigation();
         console.error('Unable to load sidebar permissions:', error);
         permissionMenus.set(requestKey, []);
-        permissionErrors.set(requestKey, controller.signal.aborted ? 'Permission loading timed out. Please retry.' : 'Unable to load your permissions. Please retry.');
+        permissionErrors.set(
+          requestKey,
+          controller.signal.aborted ? 'Permission loading timed out. Please retry.' : 'Unable to load your permissions. Please retry.'
+        );
         const navigation = this.getNavigation(targetRoleId);
         this.notify(navigation);
         return navigation;
@@ -903,11 +912,13 @@ export const permissionService = {
     // Tab pages may be hidden from the sidebar, but still require their own
     // backend permission record when opened directly.
     const granted = getStoredPermissionCodes();
-    return this.getPermissionMenus().some((menu) =>
-      menu && normalizeBoolean(menu.isActive) !== false &&
-      (Array.isArray(menu.menuPermissionPageDTOs) ? menu.menuPermissionPageDTOs : []).some((page) =>
-        page && normalizeRoute(page.pageUrl).toLowerCase().replace(/\/+$/, '') === normalized && canDisplayPage(page, granted)
-      )
+    return this.getPermissionMenus().some(
+      (menu) =>
+        menu &&
+        normalizeBoolean(menu.isActive) !== false &&
+        (Array.isArray(menu.menuPermissionPageDTOs) ? menu.menuPermissionPageDTOs : []).some(
+          (page) => page && normalizeRoute(page.pageUrl).toLowerCase().replace(/\/+$/, '') === normalized && canDisplayPage(page, granted)
+        )
     );
   },
 
@@ -934,9 +945,9 @@ export const permissionService = {
         return clean.length > 3 && clean.endsWith('s') ? clean.slice(0, -1) : clean;
       };
       const requestedKeys = new Set(requestedValues.map(pageKey).filter(Boolean));
-      const pages = (Array.isArray(menus) ? menus : []).filter((menu) => normalizeBoolean(menu.isActive) !== false).flatMap((menu) =>
-        Array.isArray(menu?.menuPermissionPageDTOs) ? menu.menuPermissionPageDTOs : []
-      );
+      const pages = (Array.isArray(menus) ? menus : [])
+        .filter((menu) => normalizeBoolean(menu.isActive) !== false)
+        .flatMap((menu) => (Array.isArray(menu?.menuPermissionPageDTOs) ? menu.menuPermissionPageDTOs : []));
       const page =
         pages.find((candidate) => requestedPaths.includes(normalizeRoute(candidate?.pageUrl).toLowerCase())) ||
         pages.find((candidate) =>
@@ -967,7 +978,10 @@ export const permissionService = {
       .trim()
       .toLowerCase()
       .replace(/[^a-z]/g, '');
-    if (['superadmin', 'admin', 'developer'].includes(roleName) && normalizeBoolean(authService.getUser()?.isAssignPersonalPermission) !== true) {
+    if (
+      ['superadmin', 'admin', 'developer'].includes(roleName) &&
+      normalizeBoolean(authService.getUser()?.isAssignPersonalPermission) !== true
+    ) {
       return { canView: true, canAdd: true, canUpdate: true, canDelete: true };
     }
     return this.getPageActionPermissions(path, targetRoleId);
@@ -991,7 +1005,9 @@ export const permissionService = {
         .trim()
         .toLowerCase()
         .replace(/[^a-z]/g, '');
-      const systemRole = ['superadmin', 'admin', 'developer'].includes(roleName) && normalizeBoolean(authService.getUser()?.isAssignPersonalPermission) !== true;
+      const systemRole =
+        ['superadmin', 'admin', 'developer'].includes(roleName) &&
+        normalizeBoolean(authService.getUser()?.isAssignPersonalPermission) !== true;
       return new Set(
         getPermissionRows(page)
           .filter((permission) => normalizeBoolean(permission.isActive) !== false)

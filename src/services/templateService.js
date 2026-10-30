@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { deleteById, getAuthHeaders } from './http';
+import { findPagedRecord } from '@/lib/findPagedRecord';
 
 const getApiBaseUrl = () => {
   return (import.meta.env.VITE_APP_API_URL || 'https://demoapi.enstasol.com/api').replace(/\/$/, '');
@@ -143,15 +144,10 @@ export const templateService = {
   },
 
   /**
-   * GET /Template/{id}
+   * Find a template through the documented GET /Template collection.
    */
   async getTemplateById(templateId, signal) {
-    const API_URL = getApiBaseUrl();
-    const response = await axios.get(`${API_URL}/Template/${encodeURIComponent(templateId)}`, {
-      headers: getAuthHeaders(),
-      signal
-    });
-    return response.data?.data || response.data;
+    return findPagedRecord((params, requestSignal) => this.getTemplates(params, requestSignal), 'templateId', templateId, signal);
   },
 
   /**
@@ -266,7 +262,7 @@ export const templateService = {
       try {
         const response = await axios.get(`${API_URL}/Setting`, {
           headers: getAuthHeaders(),
-          params: { Text: candidate, PageNumber: 1, PageSize: 50 },
+          params: { text: candidate },
           signal
         });
 

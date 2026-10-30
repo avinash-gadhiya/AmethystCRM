@@ -58,12 +58,14 @@ const LocationPage = () => {
 
   // Search Debouncing
   useEffect(() => {
+    const trimmed = searchTerm.trim();
+    if (trimmed === debouncedSearch) return undefined;
     const timer = setTimeout(() => {
-      setDebouncedSearch(searchTerm.trim());
+      setDebouncedSearch(trimmed);
       setCurrentPage(1);
     }, 350);
     return () => clearTimeout(timer);
-  }, [searchTerm]);
+  }, [searchTerm, debouncedSearch]);
 
   // A monotonically increasing request ID prevents older responses from replacing newer results.
   const latestRequestRef = useRef(0);

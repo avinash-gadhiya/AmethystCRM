@@ -128,11 +128,7 @@ const getSettingOptions = async (settingKey, signal) => {
     const settings = await apiClient.get(
       '/Setting',
       {
-        Text: '',
-        PageNumber: 1,
-        PageSize: 1000,
-        SortProperty: 'settingId',
-        IsDescending: false
+        text: ''
       },
       signal
     );

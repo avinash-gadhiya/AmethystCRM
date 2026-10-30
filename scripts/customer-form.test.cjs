@@ -219,7 +219,7 @@ test('country and state API choices support PascalCase responses and filter stat
   assert.equal((await country.getCountryDropdown()).data[0].countryId, 1);
   const states = await country.getStates({ CountryId: 1, countryName: 'USA' });
   assert.deepEqual(plain(states), [{ stateId: 5, stateName: 'Ohio', countryId: 1, countryName: 'USA' }]);
-  assert.equal(calls[1].options.params.CountryId, 1);
+  assert.equal('CountryId' in calls[1].options.params, false, 'State has no documented CountryId filter; returned rows are filtered locally');
   assert.equal(calls[1].options.headers.Authorization, 'Bearer test-only');
 });
 

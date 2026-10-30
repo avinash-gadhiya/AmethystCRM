@@ -85,7 +85,8 @@ const BrandEmailSettingsRoute = () => {
 };
 
 const GatewaySettingsRoute = () => {
-  const params = new URLSearchParams(window.location.search);
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
   const brandId = params.get('brandId');
   if (brandId) {
     return <BrandDetailsPage />;
@@ -406,30 +407,6 @@ const MainRoutes = {
             },
             {
               path: '/Settings',
-              element: <SettingsPage />
-            },
-            {
-              path: '/setting',
-              element: <SettingsPage />
-            },
-            {
-              path: '/Setting',
-              element: <SettingsPage />
-            },
-            {
-              path: '/settings/settings',
-              element: <SettingsPage />
-            },
-            {
-              path: '/settings/setting',
-              element: <SettingsPage />
-            },
-            {
-              path: '/Settings/Settings',
-              element: <SettingsPage />
-            },
-            {
-              path: '/Settings/Setting',
               element: <SettingsPage />
             },
             {
@@ -929,10 +906,6 @@ const MainRoutes = {
             },
             {
               path: '/Setting/*',
-              element: <SettingsPage />
-            },
-            {
-              path: '/SettingValue',
               element: <SettingsPage />
             },
             {

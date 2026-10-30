@@ -7,11 +7,19 @@ const normalize = (code) => (code || '').toString().trim().toLowerCase();
 export const usePagePermissionCodes = (options = {}) => {
   const location = useLocation();
   const candidatePaths = useMemo(() => {
-    const list = [location.pathname, options.path]
+    const explicitPath = (options.path || '').toString().trim();
+    const includeLocationFallback = options.includeLocationFallback === true;
+
+    const list = [
+      explicitPath,
+      (!explicitPath || includeLocationFallback) ? location.pathname : '',
+    ]
       .map((value) => (value || '').toString().trim())
       .filter(Boolean);
     return Array.from(new Set(list));
-  }, [location.pathname, options.path]);
+  }, [location.pathname, options.includeLocationFallback, options.path]);
+
+  const candidateKey = candidatePaths.join('|');
 
   const [loading, setLoading] = useState(true);
   const [grantedCodes, setGrantedCodes] = useState(() => new Set());
@@ -64,7 +72,8 @@ export const usePagePermissionCodes = (options = {}) => {
     return () => {
       cancelled = true;
     };
-  }, [candidatePaths]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [candidateKey]);
 
   const has = useMemo(() => {
     return (code) => {

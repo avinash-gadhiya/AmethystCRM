@@ -62,7 +62,7 @@ export default function NavCollapse({ collapse, type }) {
   const handleToggle = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (configContext.state.collapseMenu) {
+    if (configContext.state.collapseMenu && (typeof window === 'undefined' || window.innerWidth > 1024)) {
       dispatch({ type: actionType.COLLAPSE_MENU });
     }
     dispatch({ type: actionType.COLLAPSE_TOGGLE, menu: { id: collapse.id, type } });

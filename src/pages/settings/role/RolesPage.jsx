@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Eye, Trash2, Plus, Search, X, ShieldCheck } from 'lucide-react';
-import { toast, Toaster } from 'sonner';
+import { toast } from 'sonner';
 
 import roleService from '@/services/roleService';
 import permissionService from '@/services/permissionService';
 import authService from '@/services/authService';
+import { getLoginUrl } from '@/services/http';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { resolveConfiguredPagePermissions } from '@/utils/configuredPagePermissions';
 
@@ -271,7 +272,7 @@ const RolesPage = () => {
       // old grants until a new login token is issued.
       if (updatedRoleId === Number(authService.getUser()?.roleId)) {
         authService.logout();
-        window.location.assign(`${import.meta.env.BASE_URL}login`);
+        window.location.assign(getLoginUrl());
         return;
       }
 
@@ -344,8 +345,6 @@ const RolesPage = () => {
 
   return (
     <div className="roles-page px-5 lg:px-10 py-5">
-      <Toaster richColors position="top-right" />
-
       <div className="flex flex-col gap-5 lg:gap-7.5">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

@@ -6,6 +6,7 @@ import { useLocation } from 'react-router-dom';
 import ApiDataViewer from './components/ApiDataViewer';
 import ApiOperationCard from './components/ApiOperationCard';
 import ApiRequestModal from './components/ApiRequestModal';
+import { getOperationQuery } from '@/lib/apiOperationQuery';
 import { Alert, Badge, Button, Card, Col, Form, InputGroup, Row, Spinner } from 'components/ui/Bootstrap';
 import { humanizeKey, unwrapApiPayload } from '@/lib/apiData';
 import { CRM_API_MODULES, getApiModule } from 'services/catalog/crmApiCatalog';
@@ -85,7 +86,7 @@ export default function CRMApiWorkspacePage({ moduleName }) {
     if (!entry.safeRead) return;
     setBusyIds((current) => [...current, entry.id]);
     try {
-      const payload = await apiClient.get(entry.path, defaultParams());
+      const payload = await apiClient.get(entry.path, getOperationQuery(entry.method, entry.path, defaultParams()));
       setResults((current) => ({ ...current, [entry.id]: { ok: true, count: payloadCount(payload) } }));
     } catch (error) {
       setResults((current) => ({ ...current, [entry.id]: { ok: false, count: 0, message: error.message || 'Request failed' } }));
@@ -103,7 +104,7 @@ export default function CRMApiWorkspacePage({ moduleName }) {
       while (queue.length) {
         const entry = queue.shift();
         try {
-          const payload = await apiClient.get(entry.path, defaultParams());
+          const payload = await apiClient.get(entry.path, getOperationQuery(entry.method, entry.path, defaultParams()));
           nextResults[entry.id] = { ok: true, count: payloadCount(payload) };
         } catch (error) {
           nextResults[entry.id] = { ok: false, count: 0, message: error.message || 'Request failed' };

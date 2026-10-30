@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   User,
   Mail,
@@ -16,7 +17,7 @@ import {
   Lock,
   Circle
 } from 'lucide-react';
-import authService from 'services/authService';
+import authService, { AUTH_SESSION_CHANGED_EVENT } from 'services/authService';
 import userService from 'services/userService';
 import './MyProfilePage.css';
 
@@ -47,27 +48,46 @@ export default function MyProfilePage() {
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
+  const profileSuccessTimerRef = useRef(null);
+  const passwordSuccessTimerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (profileSuccessTimerRef.current) clearTimeout(profileSuccessTimerRef.current);
+      if (passwordSuccessTimerRef.current) clearTimeout(passwordSuccessTimerRef.current);
+    };
+  }, []);
 
   // Fetch fresh user details on mount if userId is available
   useEffect(() => {
+    let active = true;
     const userId = Number(currentUser.userId || localStorage.getItem('userId')) || 0;
     if (userId > 0) {
       userService.getUserById(userId).then((freshUser) => {
-        if (freshUser) {
-          setCurrentUser((prev) => ({
-            ...prev,
-            ...freshUser,
-            firstName: freshUser.firstName ?? prev.firstName,
-            lastName: freshUser.lastName ?? prev.lastName,
-            email: freshUser.email ?? prev.email,
-            userName: freshUser.username ?? freshUser.userName ?? prev.userName,
-            role: freshUser.roleName ?? freshUser.role ?? prev.role
-          }));
+        if (freshUser && active) {
+          setCurrentUser((prev) => {
+            const nextFirst = freshUser.firstName ?? prev.firstName ?? '';
+            const nextLast = freshUser.lastName ?? prev.lastName ?? '';
+            const nextUserName = freshUser.username ?? freshUser.userName ?? prev.userName ?? '';
+            return {
+              ...prev,
+              ...freshUser,
+              firstName: nextFirst,
+              lastName: nextLast,
+              email: freshUser.email ?? prev.email,
+              userName: nextUserName,
+              role: freshUser.roleName ?? freshUser.role ?? prev.role,
+              displayName: `${String(nextFirst).trim()} ${String(nextLast).trim()}`.trim() || nextUserName || prev.displayName
+            };
+          });
         }
       }).catch(() => {
         // Non-blocking fallback to cached user
       });
     }
+    return () => {
+      active = false;
+    };
   }, []);
 
   const openEditModal = () => {
@@ -114,10 +134,14 @@ export default function MyProfilePage() {
 
       setCurrentUser(updatedUser);
       localStorage.setItem('user', JSON.stringify(updatedUser));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event(AUTH_SESSION_CHANGED_EVENT));
+      }
 
       setProfileSuccess('Profile updated successfully.');
       setIsEditModalOpen(false);
-      setTimeout(() => setProfileSuccess(''), 5000);
+      if (profileSuccessTimerRef.current) clearTimeout(profileSuccessTimerRef.current);
+      profileSuccessTimerRef.current = setTimeout(() => setProfileSuccess(''), 5000);
     } catch (err) {
       setProfileError(err?.message || 'Failed to update profile. Please try again.');
     } finally {
@@ -168,7 +192,8 @@ export default function MyProfilePage() {
       });
       setPasswordSuccess('Password changed successfully.');
       setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
-      setTimeout(() => setPasswordSuccess(''), 5000);
+      if (passwordSuccessTimerRef.current) clearTimeout(passwordSuccessTimerRef.current);
+      passwordSuccessTimerRef.current = setTimeout(() => setPasswordSuccess(''), 5000);
     } catch (err) {
       setPasswordError(err?.message || 'Failed to change password. Please check your current password.');
     } finally {
@@ -176,16 +201,33 @@ export default function MyProfilePage() {
     }
   };
 
-  const firstName = currentUser.firstName || 'CRM';
-  const lastName = currentUser.lastName || 'Developer';
-  const fullName = `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.displayName || currentUser.userName || 'CRM Developer';
-  const userName = currentUser.userName || currentUser.username || 'developer';
-  const email = currentUser.email || 'developer@crm.com';
-  const role = currentUser.role || currentUser.roleName || 'Developer';
+  const hasRealUser = Boolean(
+    currentUser.firstName ||
+    currentUser.lastName ||
+    currentUser.userName ||
+    currentUser.username ||
+    currentUser.email ||
+    currentUser.displayName
+  );
+  const firstName = currentUser.firstName || (hasRealUser ? '—' : 'CRM');
+  const lastName = currentUser.lastName || (hasRealUser ? '—' : 'User');
+  const fullName =
+    `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() ||
+    currentUser.displayName ||
+    currentUser.userName ||
+    currentUser.username ||
+    'CRM User';
+  const userName = currentUser.userName || currentUser.username || '—';
+  const email = currentUser.email || '—';
+  const role = currentUser.role || currentUser.roleName || 'User';
 
-  const initials =
-    (currentUser.firstName?.[0] || currentUser.userName?.[0] || 'C') +
-    (currentUser.lastName?.[0] || 'D');
+  const initials = (() => {
+    const f = String(currentUser.firstName || '').trim()[0] || '';
+    const l = String(currentUser.lastName || '').trim()[0] || '';
+    if (f || l) return `${f}${l}`;
+    const fallbackParts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
+    return fallbackParts.slice(0, 2).map((p) => p[0]).join('') || 'CU';
+  })();
 
   return (
     <div className="my-profile-page space-y-6 pb-12 mx-auto">
@@ -782,13 +824,13 @@ export default function MyProfilePage() {
       )}
 
       {/* EDIT PROFILE MODAL (Matches Screenshot 2 Exactly) */}
-      {isEditModalOpen && (
+      {isEditModalOpen && createPortal(
         <div
-          className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+          className="my-profile-modal fixed inset-0 z-[9999] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
           onClick={closeEditModal}
         >
           <div
-            className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden p-6 sm:p-7 animate-in zoom-in-95 duration-150 relative"
+            className="my-profile-modal-surface bg-white dark:bg-[#17132a] rounded-2xl border border-slate-200 dark:border-white/10 shadow-2xl max-w-md w-full overflow-hidden p-6 sm:p-7 animate-in zoom-in-95 duration-150 relative"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -890,7 +932,8 @@ export default function MyProfilePage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

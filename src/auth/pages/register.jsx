@@ -25,7 +25,7 @@ export default function SignUp1() {
               Sign up to get started with the CRM dashboard
             </p>
 
-            <form noValidate>
+            <form noValidate onSubmit={(e) => e.preventDefault()}>
               {/* Username */}
               <div className="mb-4">
                 <label htmlFor="reg-username" className="block text-xs font-medium text-gray-500 mb-1.5">

@@ -1035,16 +1035,20 @@ body:has(.navbar-collapsed) .pc-header {
 @media (max-width: 1024px) {
   .pc-mob-header {
     display: flex;
+    z-index: 1025;
   }
 
   header.pc-header {
-    top: 0;
+    display: none !important;
+    top: 64px;
     left: 0 !important;
+    z-index: 1020 !important;
   }
 
   header.pc-header.mob-header-active {
+    display: flex !important;
     top: 64px;
-    z-index: 45;
+    z-index: 1020 !important;
   }
 }
 
@@ -1222,7 +1226,7 @@ body:has(.navbar-collapsed) .pc-header {
   position: fixed;
   inset: 0;
   background: rgba(15, 23, 42, 0.4);
-  z-index: 35;
+  z-index: 1028;
   backdrop-filter: blur(2px);
 }
 

@@ -14,7 +14,7 @@ const resolvePath = (str) => path.resolve(__dirname, str);
 
 export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const API_URL = `${env.VITE_APP_BASE_NAME}`;
+  const API_URL = env.VITE_APP_BASE_NAME || '/';
   const PORT = 3000;
   const https = command === 'serve' ? loadLocalHttps(__dirname, { ...env, ...process.env }, mode === 'https') : undefined;
 
@@ -22,13 +22,14 @@ export default defineConfig(({ mode, command }) => {
     server: {
       open: false,
       port: PORT,
-      strictPort: true,
+      strictPort: false,
       host: true,
       https
     },
     preview: {
       open: false,
       host: true,
+      strictPort: false,
       https
     },
     define: {

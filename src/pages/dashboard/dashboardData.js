@@ -23,7 +23,9 @@ export const textValue = (item, keys, fallback = '-') => {
 
 export const numberValue = (item, keys, fallback = 0) => {
   for (const key of keys) {
-    const value = Number(item?.[key]);
+    const raw = item?.[key];
+    if (raw === null || raw === undefined || raw === '' || typeof raw === 'boolean') continue;
+    const value = Number(raw);
     if (Number.isFinite(value)) return value;
   }
   return fallback;
@@ -33,7 +35,10 @@ export const findNumber = (value, keys, fallback = 0) => {
   if (!value || typeof value !== 'object') return fallback;
   const wanted = keys.map((key) => key.toLowerCase());
   for (const [key, entry] of Object.entries(value)) {
-    if (wanted.includes(key.toLowerCase()) && Number.isFinite(Number(entry))) return Number(entry);
+    if (!wanted.includes(key.toLowerCase())) continue;
+    if (entry === null || entry === undefined || entry === '' || typeof entry === 'boolean') continue;
+    const numeric = Number(entry);
+    if (Number.isFinite(numeric)) return numeric;
   }
   for (const entry of Object.values(value)) {
     if (entry && typeof entry === 'object' && !Array.isArray(entry)) {

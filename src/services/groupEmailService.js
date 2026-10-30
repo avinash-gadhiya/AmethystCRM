@@ -1,4 +1,5 @@
 import apiClient from './core/apiClient';
+import { findPagedRecord } from '@/lib/findPagedRecord';
 
 const inFlightRequests = new Map();
 const emailCache = new Map();
@@ -107,11 +108,10 @@ export const groupEmailService = {
 
   /**
    * Get single Group Email by ID
-   * GET /GroupEmail/{id}
+   * GET /GroupEmail, matched by ID (there is no detail route in Swagger).
    */
   async getGroupEmailById(groupEmailId, signal) {
-    const response = await apiClient.request(`/GroupEmail/${encodeURIComponent(groupEmailId)}`, { signal });
-    return response?.data || response;
+    return findPagedRecord((params, requestSignal) => this.getGroupEmails(params, requestSignal, true), 'groupEmailId', groupEmailId, signal);
   },
 
   /**

@@ -9,6 +9,9 @@ import LiquidGlassButton from '@/components/common/LiquidGlassButton';
 import GlassCloseButton from '@/components/common/GlassCloseButton';
 import IosToggle from '@/components/common/IosToggle';
 
+const normalizeOptionalId = (value) =>
+  value !== undefined && value !== null && value !== '' && Number(value) > 0 ? value : '';
+
 const UserEditorModal = ({
   open,
   user = null,
@@ -18,7 +21,8 @@ const UserEditorModal = ({
   onClose,
   onSuccess
 }) => {
-  const isEditing = Boolean(user && (user.userId || user.id));
+  const targetUserId = user ? (user.userId || user.id || 0) : 0;
+  const isEditing = Boolean(user && targetUserId);
 
   const [formData, setFormData] = useState({
     userId: 0,
@@ -46,8 +50,6 @@ const UserEditorModal = ({
     setErrorMsg('');
     setSelfWarningOpen(false);
 
-    const targetUserId = user ? (user.userId || user.id || 0) : 0;
-
     if (user && targetUserId) {
       // 1. Pre-fill immediately with available user object to avoid delay
       setFormData({
@@ -58,8 +60,8 @@ const UserEditorModal = ({
         lastName: user.lastName || '',
         passwordHash: '',
         existingPasswordHash: user.passwordHash || '',
-        roleId: user.roleId || (roles.length > 0 ? roles[0].roleId || roles[0].id : ''),
-        locationId: user.locationId || (locations.length > 0 ? locations[0].locationId || locations[0].id : ''),
+        roleId: normalizeOptionalId(user.roleId) || (roles.length > 0 ? roles[0].roleId || roles[0].id : ''),
+        locationId: normalizeOptionalId(user.locationId),
         salesTarget: user.salesTarget ?? 0,
         rplTarget: user.rplTarget ?? 0,
         isActive: user.isActive !== false,
@@ -81,8 +83,8 @@ const UserEditorModal = ({
             firstName: latest.firstName ?? prev.firstName,
             lastName: latest.lastName ?? prev.lastName,
             existingPasswordHash: latest.passwordHash || prev.existingPasswordHash,
-            roleId: (latest.roleId !== undefined && latest.roleId !== null) ? latest.roleId : prev.roleId,
-            locationId: (latest.locationId !== undefined && latest.locationId !== null) ? latest.locationId : prev.locationId,
+            roleId: normalizeOptionalId(latest.roleId) || prev.roleId,
+            locationId: latest.locationId !== undefined ? normalizeOptionalId(latest.locationId) : prev.locationId,
             salesTarget: (latest.salesTarget !== null && latest.salesTarget !== undefined) ? latest.salesTarget : prev.salesTarget,
             rplTarget: (latest.rplTarget !== null && latest.rplTarget !== undefined) ? latest.rplTarget : prev.rplTarget,
             isActive: latest.isActive !== false,
@@ -109,14 +111,23 @@ const UserEditorModal = ({
         passwordHash: '',
         existingPasswordHash: '',
         roleId: roles.length > 0 ? roles[0].roleId || roles[0].id : '',
-        locationId: locations.length > 0 ? locations[0].locationId || locations[0].id : '',
+        locationId: '',
         salesTarget: 0,
         rplTarget: 0,
         isActive: true,
         isLeadOn: true
       });
     }
-  }, [open, user, roles, locations]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, targetUserId]);
+
+  useEffect(() => {
+    if (!open || isEditing || roles.length === 0) return;
+    setFormData((prev) => {
+      if (prev.roleId !== '' && prev.roleId !== null && prev.roleId !== undefined) return prev;
+      return { ...prev, roleId: roles[0].roleId ?? roles[0].id ?? '' };
+    });
+  }, [open, isEditing, roles]);
 
   if (!open) return null;
 
@@ -149,6 +160,10 @@ const UserEditorModal = ({
     }
     if (!isEditing && !formData.passwordHash?.trim()) {
       setErrorMsg('Password is required for new accounts.');
+      return;
+    }
+    if (!formData.roleId || Number(formData.roleId) <= 0) {
+      setErrorMsg('Role is required.');
       return;
     }
 
@@ -310,6 +325,7 @@ const UserEditorModal = ({
                   </label>
                   <select
                     name="roleId"
+                    required
                     value={formData.roleId !== undefined && formData.roleId !== null ? String(formData.roleId) : ''}
                     onChange={handleInputChange}
                     className="w-full rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0f1322] px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500"

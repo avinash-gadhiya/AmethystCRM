@@ -1,7 +1,6 @@
 /**
- * Bootstrap-to-Tailwind UI Shims
- * Provides drop-in replacements for react-bootstrap components using Tailwind CSS.
- * This file is used internally for migrating legacy view files.
+ * Shared React UI built with Tailwind and the application's component styles.
+ * Compound component names preserve the existing page APIs without loading Bootstrap.
  */
 import { createContext, forwardRef, useContext } from 'react';
 
@@ -102,8 +101,9 @@ const BADGE_BG = {
 
 export const Badge = ({ children, bg = 'primary', className = '', text, ...props }) => {
   const bgClass = BADGE_BG[bg] || BADGE_BG.primary;
+  const textClass = text === 'dark' ? 'text-dark' : text === 'light' ? '!text-white' : '';
   return (
-    <span className={`badge ${bgClass} ${className}`} {...props}>
+    <span className={`badge ${bgClass} ${textClass} ${className}`} {...props}>
       {children}
     </span>
   );

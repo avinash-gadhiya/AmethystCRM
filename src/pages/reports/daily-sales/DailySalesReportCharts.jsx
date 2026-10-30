@@ -1,4 +1,4 @@
-﻿import PropTypes from 'prop-types';
+import PropTypes from 'prop-types';
 import Chart from 'react-apexcharts';
 import { Award, LineChart, MapPin, TrendingUp } from 'lucide-react';
 import { formatDailySalesCurrency as money, formatDailySalesPercentage as percent } from '@/utils/dailySalesReportUtils';
@@ -99,6 +99,11 @@ export default function DailySalesReportCharts({ rows, locationGroups, loading }
   const seriesValues = (key) => (agents.length === 1 ? Array(3).fill(agents[0][key]) : agents.map((agent) => agent[key]));
   const locations = [...locationGroups].sort((a, b) => b.totalSales - a.totalSales);
   const positiveLocations = locations.filter((group) => group.totalSales > 0);
+  const locationColorMap = new Map(
+    positiveLocations.map((group, index) => [group.key, index === 0 ? '#155dfb' : COLORS[index % COLORS.length]])
+  );
+  const getLocationColor = (group, fallbackIndex) =>
+    locationColorMap.get(group.key) || (group.totalSales < 0 ? '#f43f5e' : COLORS[fallbackIndex % COLORS.length]);
   const total = positiveLocations.reduce((sum, group) => sum + group.totalSales, 0);
   const hasAdjustments = locations.some((group) => group.totalSales < 0);
   const locationMax = Math.max(1, ...locations.map((group) => Math.abs(group.totalSales)));
@@ -106,7 +111,7 @@ export default function DailySalesReportCharts({ rows, locationGroups, loading }
   const locationOptions = {
     chart: { type: 'radialBar', background: 'transparent', fontFamily: 'Inter, sans-serif', foreColor: '#94a3b8' },
     labels: positiveLocations.map((group) => group.locationName),
-    colors: positiveLocations.map((_, index) => (index === 0 ? '#155dfb' : COLORS[index % COLORS.length])),
+    colors: positiveLocations.map((group, index) => getLocationColor(group, index)),
     stroke: { lineCap: 'butt' },
     legend: { show: false },
     plotOptions: {
@@ -180,7 +185,7 @@ export default function DailySalesReportCharts({ rows, locationGroups, loading }
                       <span className="flex min-w-0 items-center gap-2 text-slate-600 dark:text-slate-300">
                         <span
                           className="h-2 w-2 shrink-0 rounded-full"
-                          style={{ backgroundColor: index === 0 ? '#155dfb' : COLORS[index % COLORS.length] }}
+                          style={{ backgroundColor: getLocationColor(group, index) }}
                         />
                         <span className="truncate" title={group.locationName}>
                           {group.locationName}
@@ -193,7 +198,7 @@ export default function DailySalesReportCharts({ rows, locationGroups, loading }
                         className="h-full rounded-full"
                         style={{
                           width: `${(Math.abs(group.totalSales) / locationMax) * 100}%`,
-                          backgroundColor: index === 0 ? '#155dfb' : COLORS[index % COLORS.length]
+                          backgroundColor: getLocationColor(group, index)
                         }}
                       />
                     </div>

@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { paymentService } from '@/services';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { isCardPayment } from '@/lib/paymentMethod';
+import { toAbsoluteUrl } from '@/utils/Assets';
 import { usePageCrudPermissions } from '@/hooks/usePageCrudPermissions';
 import usePagePermissionCodes from '@/hooks/usePagePermissionCodes';
 import { useSearchFieldFetchGuard } from '@/hooks/useSearchFieldFetchGuard';
@@ -90,7 +91,7 @@ const getStatusBadge = (payment) => {
     if (payment.isChargeBack) parts.push('Chargeback');
     if (payment.isAlert) parts.push('Alert');
     if (payment.isRetrieval) parts.push('Retrieval');
-    label = parts.join(' â€¢ ');
+    label = parts.join(' • ');
   } else if (payment.isChargeBack) {
     label = 'Chargeback';
   } else if (payment.isVoid) {
@@ -127,6 +128,8 @@ const Toolbar = ({
   onSearchChange,
   onDateRangeChange,
   onDateClear,
+  onRefresh,
+  loading,
   onDownload,
   downloadDisabled,
   onClearSearch,
@@ -157,6 +160,8 @@ const Toolbar = ({
         <TableRefreshButton
           className="shrink-0 dark:text-gray-200 dark:bg-gray-800"
           title="Refresh"
+          onClick={onRefresh}
+          loading={loading}
         />
         <Button
           variant="outline"
@@ -374,6 +379,7 @@ const PaymentsTable = () => {
   // Newest payments first: the list is sorted by payment date descending.
   const [sorting, setSorting] = useState([{ id: 'paymentDate', desc: true }]);
   const refundFileInputRef = useRef(null);
+  const fetchSeqRef = useRef(0);
   const columns = useMemo(() => getColumns(), []);
 
   // Selecting a search field alone is not a query yet - see the hook.
@@ -389,6 +395,7 @@ const PaymentsTable = () => {
   };
 
   const fetchPayments = useCallback(async () => {
+    const seq = ++fetchSeqRef.current;
     try {
       setLoading(true);
       const sortProp = sorting.length > 0 ? sorting[0].id : 'paymentDate';
@@ -409,14 +416,28 @@ const PaymentsTable = () => {
         IsDescending: isDesc,
       });
 
+      if (seq !== fetchSeqRef.current) return;
       setPayments(result?.data || []);
       setTotalCount(result?.totalCount ?? result?.total ?? 0);
     } catch (error) {
+      if (seq !== fetchSeqRef.current) return;
       console.error('Failed to fetch payments:', error);
     } finally {
-      setLoading(false);
+      if (seq === fetchSeqRef.current) {
+        setLoading(false);
+      }
     }
   }, [searchText, searchField, paymentStatus, fromDate, toDate, pageNumber, pageSize, sorting]);
+
+  useEffect(() => {
+    const next = searchTerm.trim();
+    if (next === searchText) return undefined;
+    const timer = window.setTimeout(() => {
+      setPageNumber(1);
+      setSearchText(next);
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [searchTerm, searchText]);
 
   useEffect(() => {
     if (permissionsLoading || codesLoading) return;
@@ -433,8 +454,6 @@ const PaymentsTable = () => {
 
   const handleSearchChange = useCallback((e) => {
     setSearchTerm(e.target.value);
-    setSearchText(e.target.value);
-    setPageNumber(1);
   }, []);
 
   const handleSearchFieldChange = useCallback((value) => {
@@ -623,7 +642,7 @@ const PaymentsTable = () => {
             <Button
               type="button"
               variant="outline"
-              onClick={() => window.open(REFUND_DEMO_FILE_PATH, '_blank', 'noopener,noreferrer')}
+              onClick={() => window.open(toAbsoluteUrl(REFUND_DEMO_FILE_PATH), '_blank', 'noopener,noreferrer')}
             >
               Demo Refund File
             </Button>
@@ -671,6 +690,8 @@ const PaymentsTable = () => {
           onSearchChange={handleSearchChange}
           onDateRangeChange={handleDateRangeChange}
           onDateClear={handleDateClear}
+          onRefresh={fetchPayments}
+          loading={loading}
           onDownload={handleDownload}
           downloadDisabled={downloading}
           onClearSearch={handleClearSearch}

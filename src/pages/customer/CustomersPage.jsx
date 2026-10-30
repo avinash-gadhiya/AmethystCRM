@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal } from 'components/ui/Bootstrap';
 import CustomerFormModal from '@/components/customer/CustomerFormModal';
 import { CalendarDays, Database, History, Mail, MapPin, Phone, Plus, UserRound, UsersRound } from 'lucide-react';
@@ -88,6 +88,7 @@ export default function CustomersPage() {
   const [statusBusy, setStatusBusy] = useState({});
   const [deleteCustomer, setDeleteCustomer] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const detailsSeqRef = useRef(0);
 
   const loadCustomers = useCallback(
     async (signal) => {
@@ -135,9 +136,14 @@ export default function CustomersPage() {
   }, [searchInput]);
 
   useEffect(() => {
-    const timer = window.setTimeout(applySearch, 400);
+    const next = searchInput.trim();
+    if (next === searchText) return undefined;
+    const timer = window.setTimeout(() => {
+      setPage(1);
+      setSearchText(next);
+    }, 400);
     return () => window.clearTimeout(timer);
-  }, [applySearch]);
+  }, [searchInput, searchText]);
 
   const openCreate = () => {
     if (!permissions.canAdd) return;
@@ -147,21 +153,41 @@ export default function CustomersPage() {
 
   const openEdit = (customer) => {
     if (!permissions.canUpdate) return;
-    setFormData({ ...EMPTY_FORM, ...customer, updatedBy: authService.getUser()?.userId || 0, updatedDate: new Date().toISOString() });
+    setFormData({
+      ...EMPTY_FORM,
+      ...customer,
+      name: customer?.name ?? '',
+      email: customer?.email ?? '',
+      phone: customer?.phone ?? '',
+      phone2: customer?.phone2 ?? '',
+      address: customer?.address ?? '',
+      city: customer?.city ?? '',
+      stateName: customer?.stateName ?? '',
+      zipCode: customer?.zipCode ?? '',
+      countryName: customer?.countryName || 'USA',
+      salesPersonName: customer?.salesPersonName ?? '',
+      updatedBy: authService.getUser()?.userId || 0,
+      updatedDate: new Date().toISOString()
+    });
     setShowEditor(true);
   };
 
   const openDetails = async (customer) => {
+    const seq = ++detailsSeqRef.current;
     setSelectedCustomer(customer);
     setShowDetails(true);
     setDetailsLoading(true);
     try {
       const details = await customerService.getCustomerById(customer.customerId);
+      if (seq !== detailsSeqRef.current) return;
       setSelectedCustomer(details || customer);
     } catch (requestError) {
+      if (seq !== detailsSeqRef.current) return;
       setError(requestError.message || 'Unable to load customer details.');
     } finally {
-      setDetailsLoading(false);
+      if (seq === detailsSeqRef.current) {
+        setDetailsLoading(false);
+      }
     }
   };
 

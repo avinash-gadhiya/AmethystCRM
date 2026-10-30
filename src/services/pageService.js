@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { deleteById, getAuthHeaders } from './http';
 import permissionService from './permissionService';
+import { findPagedRecord } from '@/lib/findPagedRecord';
 
 const getApiBaseUrl = () => {
   return (import.meta.env.VITE_APP_API_URL || 'https://demoapi.enstasol.com/api').replace(/\/$/, '');
@@ -166,15 +167,10 @@ export const pageService = {
   },
 
   /**
-   * GET /Page/{id}
+   * Find a page through the documented GET /Page collection.
    */
   async getPageById(pageId, signal) {
-    const API_URL = getApiBaseUrl();
-    const response = await axios.get(`${API_URL}/Page/${encodeURIComponent(pageId)}`, {
-      headers: getAuthHeaders(),
-      signal
-    });
-    return response.data?.data || response.data;
+    return findPagedRecord((params, requestSignal) => this.getPages(params, requestSignal), 'pageId', pageId, signal);
   },
 
   /**

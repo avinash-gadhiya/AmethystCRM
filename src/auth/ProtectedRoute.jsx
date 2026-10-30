@@ -26,19 +26,30 @@ export function ProtectedRoute() {
     if (!isAuth) return undefined;
     let active = true;
     const update = (navigation = permissionService.getNavigation()) => {
-      if (active) setPermissions({
-        session, navigation,
-        checking: !permissionService.hasLoadedPermissions(),
-        error: permissionService.getPermissionError()
-      });
+      if (active)
+        setPermissions({
+          session,
+          navigation,
+          checking: !permissionService.hasLoadedPermissions(),
+          error: permissionService.getPermissionError()
+        });
     };
     const refresh = (force = false) => {
       update();
-      permissionService.fetchPermissions(undefined, { force }).then((navigation) => {
-        if (active) setPermissions({ session, navigation, checking: false, error: permissionService.getPermissionError() });
-      }).catch(() => {
-        if (active) setPermissions({ session, navigation: permissionService.getNavigation(), checking: false, error: 'Unable to load your permissions. Please retry.' });
-      });
+      permissionService
+        .fetchPermissions(undefined, { force })
+        .then((navigation) => {
+          if (active) setPermissions({ session, navigation, checking: false, error: permissionService.getPermissionError() });
+        })
+        .catch(() => {
+          if (active)
+            setPermissions({
+              session,
+              navigation: permissionService.getNavigation(),
+              checking: false,
+              error: 'Unable to load your permissions. Please retry.'
+            });
+        });
     };
     const unsubscribe = permissionService.subscribe(update);
     const onInvalidation = () => refresh(true);
@@ -62,18 +73,28 @@ export function ProtectedRoute() {
   if (permissions.session !== session || (permissions.checking && !isProfile)) return <Loader />;
 
   if (permissions.error && !isProfile) {
-    return <div role="alert" className="mx-auto mt-12 max-w-lg rounded-2xl border border-slate-200 bg-white p-6 text-slate-800 shadow-sm">
-      <h1 className="mb-2 text-lg font-semibold">Unable to load permissions</h1>
-      <p className="mb-4 text-sm text-slate-600">{permissions.error}</p>
-      <div className="flex flex-wrap items-center gap-4 text-sm">
-        <button type="button" className="rounded-lg bg-indigo-600 px-4 py-2 text-white" onClick={() => {
-          permissionService.clearCache();
-          window.dispatchEvent(new Event('app:routes-invalidated'));
-        }}>Retry</button>
-        <Link to="/MyProfile">My Profile</Link>
-        <button type="button" onClick={() => authService.logout()}>Sign out</button>
+    return (
+      <div role="alert" className="mx-auto mt-12 max-w-lg rounded-2xl border border-slate-200 bg-white p-6 text-slate-800 shadow-sm">
+        <h1 className="mb-2 text-lg font-semibold">Unable to load permissions</h1>
+        <p className="mb-4 text-sm text-slate-600">{permissions.error}</p>
+        <div className="flex flex-wrap items-center gap-4 text-sm">
+          <button
+            type="button"
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-white"
+            onClick={() => {
+              permissionService.clearCache();
+              window.dispatchEvent(new Event('app:routes-invalidated'));
+            }}
+          >
+            Retry
+          </button>
+          <Link to="/MyProfile">My Profile</Link>
+          <button type="button" onClick={() => authService.logout()}>
+            Sign out
+          </button>
+        </div>
       </div>
-    </div>;
+    );
   }
 
   if (!permissionService.hasPath(location.pathname, permissions.navigation)) {

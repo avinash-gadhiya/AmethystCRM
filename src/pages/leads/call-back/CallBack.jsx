@@ -1,6 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Clock3, History, RefreshCw } from 'lucide-react';
-import { Button, Modal, Spinner } from 'react-bootstrap';
+import { Button, Modal, Spinner } from '@/components/ui/Bootstrap';
 
 import leadService from '@/services/leadService';
 import {
@@ -26,6 +26,7 @@ export default function CallBack({ permissions, dispositions, users }) {
     [history, setHistory] = useState([]),
     [historyLoading, setHistoryLoading] = useState(false),
     [historyError, setHistoryError] = useState('');
+  const historyReqRef = useRef(0);
   const now = useNow();
   const loader = useCallback(
     (signal) =>
@@ -37,17 +38,23 @@ export default function CallBack({ permissions, dispositions, users }) {
   );
   const state = usePagedData(loader, [loader]);
   const openHistory = async (row) => {
+    const reqId = ++historyReqRef.current;
     setHistoryLead(row);
     setHistory([]);
     setHistoryError('');
     setHistoryLoading(true);
     try {
-      setHistory(await leadService.getCallbackHistory(row.leadId));
+      const items = await leadService.getCallbackHistory(row.leadId);
+      if (reqId !== historyReqRef.current) return;
+      setHistory(items);
     } catch (error) {
+      if (reqId !== historyReqRef.current) return;
       console.error(error);
       setHistoryError(getMessage(error, 'Unable to load callback history.'));
     } finally {
-      setHistoryLoading(false);
+      if (reqId === historyReqRef.current) {
+        setHistoryLoading(false);
+      }
     }
   };
   const columns = [
@@ -168,7 +175,17 @@ export default function CallBack({ permissions, dispositions, users }) {
           state.refresh();
         }}
       />
-      <Modal show={Boolean(historyLead)} onHide={() => setHistoryLead(null)} size="lg" centered scrollable>
+      <Modal
+        show={Boolean(historyLead)}
+        onHide={() => {
+          historyReqRef.current += 1;
+          setHistoryLead(null);
+          setHistoryLoading(false);
+        }}
+        size="lg"
+        centered
+        scrollable
+      >
         <Modal.Header closeButton>
           <Modal.Title>Callback History · Lead #{historyLead?.leadId}</Modal.Title>
         </Modal.Header>

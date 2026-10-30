@@ -196,7 +196,6 @@ export const countryService = {
         const response = await axios.get(`${API_URL}/State`, {
           headers: getAuthHeaders(),
           params: {
-            CountryId: countryId,
             PageNumber: pageNumber,
             PageSize: pageSize
           }

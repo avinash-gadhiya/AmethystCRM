@@ -77,7 +77,7 @@ try {
     console.log('Local HTTPS certificate trusted for the current Windows user.');
   }
   console.log(`Certificate ready for: ${hosts.join(', ')}`);
-  console.log('Run npm run dev:https, then open https://localhost:3000/DashboardKit/.');
+  console.log('Run npm run dev:https, then open the HTTPS URL printed by Vite (it chooses another port if 3000 is busy).');
 } catch (error) {
   console.error(error.message);
   process.exitCode = 1;

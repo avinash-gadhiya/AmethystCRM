@@ -18,9 +18,9 @@ const PAGE_SIZES = [10, 25, 50, 100];
 
 const BrandEmailPage = () => {
   const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const permissions = useMemo(() => resolveBrandPermissions(location.pathname), [location.pathname]);
-  const selectedBrandId = Number(searchParams.get('brandId')) || 0;
+  const [selectedBrandId, setSelectedBrandId] = useState(() => Number(searchParams.get('brandId')) || 0);
 
   const [brands, setBrands] = useState([]);
   const [brandsLoading, setBrandsLoading] = useState(false);
@@ -42,8 +42,11 @@ const BrandEmailPage = () => {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearch(search.trim());
-      setPage(1);
+      const next = search.trim();
+      setDebouncedSearch((prev) => {
+        if (prev !== next) setPage(1);
+        return next;
+      });
     }, 350);
     return () => clearTimeout(timer);
   }, [search]);
@@ -121,11 +124,7 @@ const BrandEmailPage = () => {
   }, [fetchEmails]);
 
   const setBrandFilter = (value) => {
-    const next = new URLSearchParams(searchParams);
-    if (value) next.set('brandId', String(value));
-    else next.delete('brandId');
-    next.set('tab', 'email');
-    setSearchParams(next);
+    setSelectedBrandId(Number(value) || 0);
     setPage(1);
   };
 

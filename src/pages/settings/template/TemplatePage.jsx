@@ -87,12 +87,14 @@ const TemplatePage = () => {
 
   // Search Debouncing
   useEffect(() => {
+    const trimmed = searchTerm.trim();
+    if (trimmed === debouncedSearch) return undefined;
     const timer = setTimeout(() => {
-      setDebouncedSearch(searchTerm.trim());
+      setDebouncedSearch(trimmed);
       setCurrentPage(1);
     }, 350);
     return () => clearTimeout(timer);
-  }, [searchTerm]);
+  }, [searchTerm, debouncedSearch]);
 
   // Fetch Templates
   const abortControllerRef = useRef(null);
@@ -124,16 +126,19 @@ const TemplatePage = () => {
         controller.signal
       );
 
+      if (abortControllerRef.current !== controller) return;
       setTemplates(res.data);
       setTotalCount(res.totalCount);
     } catch (err) {
-      if (err?.name === 'CanceledError' || err?.name === 'AbortError') return;
+      if (err?.name === 'CanceledError' || err?.name === 'AbortError' || abortControllerRef.current !== controller) return;
       const msg = getApiErrorMessage(err, 'Failed to fetch templates.');
       toast.error(msg);
       setTemplates([]);
       setTotalCount(0);
     } finally {
-      setLoading(false);
+      if (abortControllerRef.current === controller) {
+        setLoading(false);
+      }
     }
   }, [perms.canView, debouncedSearch, currentPage, pageSize, sortProperty, isDescending]);
 
@@ -321,7 +326,7 @@ const TemplatePage = () => {
                 </div>
 
                 {/* Refresh Button */}
-                <TableRefreshButton onClick={fetchTemplates} className="shrink-0" />
+                <TableRefreshButton onClick={fetchTemplates} loading={loading} className="shrink-0" />
               </div>
             </div>
           </div>

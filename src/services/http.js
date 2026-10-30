@@ -79,9 +79,7 @@ export const deleteById = async (baseUrl, id, config = {}) => {
 
   const url = stripTrailingSlash(baseUrl);
   const endpointName = url.split('/').pop().toLowerCase();
-  const prefersQueryParam =
-    config?.strategy === 'query' ||
-    QUERY_PARAM_DELETE_ENDPOINTS.includes(endpointName);
+  const prefersQueryParam = config?.strategy === 'query' || QUERY_PARAM_DELETE_ENDPOINTS.includes(endpointName);
 
   const headers = {
     ...getAuthHeaders(),
@@ -132,4 +130,3 @@ export default {
   deleteById,
   getAuthHeaders
 };
-

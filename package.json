@@ -3,7 +3,6 @@
   "version": "3.0.0",
   "private": true,
   "description": "DashboardKit CRM frontend application",
-  "homepage": "https://your-username.github.io/DashboardKit",
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
@@ -16,10 +15,8 @@
     "@radix-ui/react-popover": "^1.1.2",
     "@radix-ui/react-slot": "^1.1.0",
     "@tanem/react-nprogress": "^5.0.53",
-    "@vitejs/plugin-react": "^4.3.4",
     "apexcharts": "^4.3.0",
     "axios": "^1.20.0",
-    "bootstrap": "5.3.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.4",
@@ -27,16 +24,14 @@
     "highcharts": "^13.1.1",
     "highcharts-react-official": "^3.2.3",
     "lucide-react": "^1.46.0",
+    "prop-types": "^15.8.1",
     "react": "^18.3.1",
     "react-apexcharts": "^1.7.0",
-    "react-bootstrap": "^2.10.4",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.1",
     "simplebar-react": "^3.2.6",
     "sonner": "^2.0.8",
     "tailwind-merge": "^2.5.5",
-    "vite": "^5.4.1",
-    "vite-tsconfig-paths": "^5.0.1",
     "web-vitals": "^4.2.3"
   },
   "scripts": {
@@ -72,10 +67,13 @@
     ]
   },
   "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "10.4.5",
     "gh-pages": "^6.3.0",
     "postcss": "^8.4.49",
     "prettier": "^3.4.1",
-    "tailwindcss": "^3.4.17"
+    "tailwindcss": "^3.4.17",
+    "vite": "^5.4.1",
+    "vite-tsconfig-paths": "^5.0.1"
   }
 }

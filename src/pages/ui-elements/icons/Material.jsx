@@ -1,16 +1,29 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as LucideIcons from 'lucide-react';
 import { Search, Check } from 'lucide-react';
 
 // -----------------------|| MATERIAL (now Lucide Gallery) ||-----------------------//
 
-const allIcons = Object.entries(LucideIcons)
-  .filter(([name, comp]) => typeof comp === 'function' && name !== 'default' && name !== 'createLucideIcon')
-  .map(([name]) => name);
+const allIcons = LucideIcons.icons
+  ? Object.keys(LucideIcons.icons)
+  : Object.entries(LucideIcons)
+      .filter(
+        ([name, comp]) =>
+          /^[A-Z]/.test(name) &&
+          name !== 'Icon' &&
+          comp &&
+          (typeof comp === 'function' || (typeof comp === 'object' && '$$typeof' in comp))
+      )
+      .map(([name]) => name);
 
 export default function Material() {
   const [query, setQuery] = useState('');
   const [copied, setCopied] = useState('');
+  const copyTimerRef = useRef(null);
+
+  useEffect(() => () => {
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+  }, []);
 
   const filtered = query
     ? allIcons.filter((n) => n.toLowerCase().includes(query.toLowerCase()))
@@ -19,7 +32,8 @@ export default function Material() {
   const handleCopy = (name) => {
     navigator.clipboard.writeText(`<${name} size={20} />`).catch(() => {});
     setCopied(name);
-    setTimeout(() => setCopied(''), 2000);
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = setTimeout(() => setCopied(''), 2000);
   };
 
   return (

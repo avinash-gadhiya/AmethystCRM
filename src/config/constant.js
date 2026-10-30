@@ -1,5 +1,5 @@
 // imports from project
-export const BASE_TITLE = ' | DashboardKit React Bootstrap 5 Admin Template';
+export const BASE_TITLE = ' | DashboardKit CRM';
 
 // -----------------------|| Application default Configuration ||-----------------------//
 

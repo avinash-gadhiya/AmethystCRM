@@ -50,8 +50,16 @@ const pageParams = (params = {}, defaultSort) => ({
   PageSize: params.PageSize || 10,
   SortProperty: params.SortProperty || defaultSort,
   IsDescending: params.IsDescending !== false,
-  BrandId: params.BrandId || '',
-  GatewayId: params.GatewayId || ''
+  BrandId: params.BrandId || ''
+});
+
+const gatewayPaymentTypePayload = (mapping) => ({
+  gatewayPaymentTypeId: Number(mapping.gatewayPaymentTypeId) || 0,
+  gatewayId: Number(mapping.gatewayId),
+  isActive: mapping.isActive !== false,
+  paymentTypeName: mapping.paymentTypeName || '',
+  gatewayName: mapping.gatewayName || '',
+  paymentTypeIds: Array.isArray(mapping.paymentTypeIds) ? mapping.paymentTypeIds.map(Number) : []
 });
 
 export const gatewayService = {
@@ -115,13 +123,16 @@ export const gatewayService = {
     const rawGatewayId = params.getwayId ?? params.gatewayId ?? params.GatewayId;
     const rawPaymentTypeId = params.paymentTypeId ?? params.PaymentTypeId;
 
-    const queryParams = { ...params };
+    const queryParams = {
+      Text: params.Text || '', PageNumber: params.PageNumber || 1, PageSize: params.PageSize || 10,
+      IsDescending: params.IsDescending ?? true,
+      ...(params.SortProperty ? { SortProperty: params.SortProperty } : {})
+    };
     if (rawBrandId !== undefined && rawBrandId !== null && rawBrandId !== '') {
       queryParams.brandId = Number(rawBrandId);
     }
     if (rawGatewayId !== undefined && rawGatewayId !== null && rawGatewayId !== '') {
       queryParams.getwayId = Number(rawGatewayId);
-      queryParams.gatewayId = Number(rawGatewayId);
     }
     if (rawPaymentTypeId !== undefined && rawPaymentTypeId !== null && rawPaymentTypeId !== '') {
       queryParams.paymentTypeId = Number(rawPaymentTypeId);
@@ -134,31 +145,17 @@ export const gatewayService = {
   },
 
   async createGatewayPaymentType(mapping) {
-    return request('/GatewayPaymentType', { method: 'POST', data: mapping });
+    return request('/GatewayPaymentType', { method: 'POST', data: gatewayPaymentTypePayload(mapping) });
   },
 
   async updateGatewayPaymentType(mapping) {
-    return request('/GatewayPaymentType', { method: 'PUT', data: mapping });
+    return request('/GatewayPaymentType', { method: 'PUT', data: gatewayPaymentTypePayload(mapping) });
   },
 
   async deleteGatewayPaymentType(mapping) {
-    const attempts = mapping.gatewayPaymentTypeId
-      ? [{ id: mapping.gatewayPaymentTypeId }, { gatewayPaymentTypeId: mapping.gatewayPaymentTypeId }]
-      : [
-          { gatewayId: mapping.gatewayId, paymentTypeId: mapping.paymentTypeId },
-          { getwayId: mapping.gatewayId, paymentTypeId: mapping.paymentTypeId }
-        ];
-
-    let lastError;
-    for (const params of attempts) {
-      try {
-        return await request('/GatewayPaymentType', { method: 'DELETE', params });
-      } catch (error) {
-        lastError = error;
-        if (![400, 404, 405].includes(error.status)) throw error;
-      }
-    }
-    throw lastError;
+    const id = Number(mapping.gatewayPaymentTypeId);
+    if (!id) throw new Error('Gateway payment type ID is required.');
+    return request('/GatewayPaymentType', { method: 'DELETE', params: { id } });
   },
 
   async getTransactions(params = {}, signal) {
@@ -166,6 +163,7 @@ export const gatewayService = {
       await request('/GatewayTransaction', {
         params: {
           ...pageParams(params, 'transactionDateUtc'),
+          GatewayId: params.GatewayId || '',
           FromDate: params.FromDate || '',
           ToDate: params.ToDate || '',
           NormalizedStatus: params.NormalizedStatus,
@@ -193,7 +191,9 @@ export const gatewayService = {
   },
 
   async getSyncLogs(params = {}, signal) {
-    return unwrapList(await request('/GatewayTransaction/SyncLog', { params: pageParams(params, 'startedAtUtc'), signal }));
+    return unwrapList(await request('/GatewayTransaction/SyncLog', {
+      params: { ...pageParams(params, 'startedAtUtc'), GatewayId: params.GatewayId || '' }, signal
+    }));
   }
 };
 

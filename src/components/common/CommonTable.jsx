@@ -287,7 +287,7 @@ const CommonTable = ({
                   return (
                     <React.Fragment key={rowId}>
                     <tr
-                      onClick={() => onRowClick && onRowClick(row, rowIdx)}
+                      onClick={(event) => onRowClick && onRowClick(row, rowIdx, event)}
                       className={`group hover:bg-purple-50/30 dark:hover:bg-white/[0.02] transition-colors ${
                         onRowClick ? 'cursor-pointer' : ''
                       } ${customRowClass}`}

@@ -49,7 +49,10 @@ const ShareSaleModal = ({
   const hasPaymentPicker = (paymentOptions || []).length > 0;
 
   useEffect(() => {
-    if (!open) return undefined;
+    if (!open) {
+      setUserSearchText('');
+      return undefined;
+    }
     if (typeof onUserSearch !== 'function') return undefined;
 
     const query = String(userSearchText || '').trim();
@@ -331,7 +334,13 @@ const ShareSaleModal = ({
                         <label className={labelClass}>Sale With <span className="text-red-600 dark:text-red-400">*</span></label>
                         <Select
                           value={row.shareWithId ? String(row.shareWithId) : ''}
-                          onValueChange={(value) => onUpdateShareSaleRow(row.rowId, 'shareWithId', value)}
+                          onValueChange={(value) => {
+                            setUserSearchText('');
+                            onUpdateShareSaleRow(row.rowId, 'shareWithId', value);
+                          }}
+                          onOpenChange={(nextOpen) => {
+                            if (!nextOpen) setUserSearchText('');
+                          }}
                           disabled={isExistingPostRow}
                         >
                           <SelectTrigger className={selectTriggerCompactClass}>
@@ -347,10 +356,18 @@ const ShareSaleModal = ({
                               />
                             )}
                           >
-                            {filteredSalesAgentUsers.length === 0 ? (
-                              <div className="px-2 py-2 text-xs text-slate-500 dark:text-slate-400">No eligible user found.</div>
-                            ) : (
-                              filteredSalesAgentUsers.map((u) => (
+                            {(() => {
+                              const selectedId = Number(row?.shareWithId);
+                              const selectedUser = selectedId > 0
+                                ? salesAgentUsers.find((u) => Number(u?.userId) === selectedId)
+                                : null;
+                              const rowUsers = selectedUser && !filteredSalesAgentUsers.some((u) => Number(u?.userId) === selectedId)
+                                ? [selectedUser, ...filteredSalesAgentUsers]
+                                : filteredSalesAgentUsers;
+                              if (rowUsers.length === 0) {
+                                return <div className="px-2 py-2 text-xs text-slate-500 dark:text-slate-400">No eligible user found.</div>;
+                              }
+                              return rowUsers.map((u) => (
                                 <SelectItem
                                   key={u.userId}
                                   value={String(u.userId)}
@@ -358,8 +375,8 @@ const ShareSaleModal = ({
                                 >
                                   {getSalesPersonLabel(u)}
                                 </SelectItem>
-                              ))
-                            )}
+                              ));
+                            })()}
                           </SelectContent>
                         </Select>
                       </div>

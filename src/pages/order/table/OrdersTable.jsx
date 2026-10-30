@@ -1,7 +1,8 @@
 import MiniCalendarInput from '@/components/common/MiniCalendarInput';
+import './OrdersTable.css';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, ChevronRight, CreditCard, ShoppingBag, Ban, Edit, Trash2, Package, CircleDollarSign, Gift, CheckCircle2, Plus,Undo2, Eraser, Landmark, ScrollText, Wallet, Zap } from 'lucide-react';
+import { ChevronDown, ChevronRight, CreditCard, ShoppingBag, Ban, Edit, Trash2, Package, CircleDollarSign, Gift, CheckCircle2, Plus,Undo2, Eraser, Landmark, ScrollText, Wallet, Zap, Send, Users } from 'lucide-react';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import PaymentsIcon from '@mui/icons-material/Payments';
 import CorporateFareIcon from '@mui/icons-material/CorporateFare';
@@ -27,6 +28,7 @@ import { getApiErrorMessage } from '@/lib/apiError';
 import { changePaymentMethod, isCardPayment, getOrderGatewayName } from '@/lib/paymentMethod';
 import { usePageCrudPermissions } from '@/hooks/usePageCrudPermissions';
 import usePagePermissionCodes from '@/hooks/usePagePermissionCodes';
+import authService from '@/services/authService';
 import { useSearchFieldFetchGuard } from '@/hooks/useSearchFieldFetchGuard';
 import { TableCard, PageHeader, ModalPortal } from '@/components/common/page-card';
 import { resolveDynamicPath } from '@/lib/dynamicPaths';
@@ -345,6 +347,7 @@ const OrdersTable = () => {
 
     const {
         loading: permissionsLoading,
+        canView,
         canAdd,
         canUpdate,
         canDelete,
@@ -353,18 +356,30 @@ const OrdersTable = () => {
     const {
         loading: orderCodesLoading,
         has: hasOrderCode,
-    } = usePagePermissionCodes({ path: '/Orders' });
+    } = usePagePermissionCodes();
 
     const canViewOrders = !orderCodesLoading && hasOrderCode('View_Order');
+    const { loading: paymentCodesLoading, has: hasPaymentCode } = usePagePermissionCodes({ path: '/Orders/Payments' });
     const canViewOrderSummary = !orderCodesLoading && hasOrderCode('View_Order_Summary');
     const canViewSearchBar = !orderCodesLoading && hasOrderCode('View_Search_Bar');
-    const canViewOrderPayments = !orderCodesLoading && hasOrderCode('View_Order_Payment');
+    const currentUser = authService.getUser();
+    const roleName = String(currentUser?.roleName || currentUser?.role || '').toLowerCase().replace(/[^a-z]/g, '');
+    const hasPersonalPermissions = ['true', '1'].includes(String(currentUser?.isAssignPersonalPermission).toLowerCase());
+    const hasFullOrderAccess = canViewOrders && canView && !hasPersonalPermissions &&
+        (['superadmin', 'admin', 'developer'].includes(roleName) || Number(currentUser?.roleId) === 1);
+    // Match the page's privileged-role policy even when an older permission
+    // tree omits the separate Order Payment codes. Personal grants stay exact.
+    const hasPaymentPermission = (code) => !permissionsLoading && !orderCodesLoading &&
+        (hasOrderCode(code) || hasFullOrderAccess);
+    const canViewOrderPayments = hasPaymentPermission('View_Order_Payment') ||
+        (!permissionsLoading && !orderCodesLoading && !paymentCodesLoading && canViewOrders &&
+            (hasPaymentCode('View_Payments') || hasPaymentCode('View_Payment')));
 
-    const canAddOrderPayment = !orderCodesLoading && hasOrderCode('Add_Order_Payment');
-    const canUpdateOrderPayment = !orderCodesLoading && hasOrderCode('Update_Order_Payment');
-    const canDeleteOrderPayment = !orderCodesLoading && hasOrderCode('Delete_Order_Payment');
-    const canVoidOrderPayment = !orderCodesLoading && hasOrderCode('Void_Order_Payment');
-    const canRefundOrderPayment = !orderCodesLoading && hasOrderCode('Refund_Order_Payment');
+    const canAddOrderPayment = hasPaymentPermission('Add_Order_Payment');
+    const canUpdateOrderPayment = hasPaymentPermission('Update_Order_Payment');
+    const canDeleteOrderPayment = hasPaymentPermission('Delete_Order_Payment');
+    const canVoidOrderPayment = hasPaymentPermission('Void_Order_Payment');
+    const canRefundOrderPayment = hasPaymentPermission('Refund_Order_Payment');
     const [filters, setFilters] = useState({
         SearchField: null,
         Text: '',
@@ -383,6 +398,15 @@ const OrdersTable = () => {
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(false);
     const [expandedOrderId, setExpandedOrderId] = useState(null);
+    const expandedOrderIdRef = useRef(null);
+    const activeActionsRef = useRef(new Set());
+    const beginAction = (key) => {
+        if (activeActionsRef.current.has(key)) return false;
+        activeActionsRef.current.add(key);
+        return true;
+    };
+    const finishAction = (key) => activeActionsRef.current.delete(key);
+    const [orderPaymentsStatus, setOrderPaymentsStatus] = useState({});
     const [summary, setSummary] = useState(null);
     const [summaryLoading, setSummaryLoading] = useState(false);
     const latestOrdersFetchIdRef = useRef(0);
@@ -410,6 +434,9 @@ const OrdersTable = () => {
     const [paymentDraft, setPaymentDraft] = useState(emptyPayment);
     const [paymentActiveTab, setPaymentActiveTab] = useState('card');
     const [paymentLoading, setPaymentLoading] = useState(false);
+    const [paymentLoadError, setPaymentLoadError] = useState('');
+    const paymentLoadContextRef = useRef(null);
+    const paymentRequestIdRef = useRef(0);
     const [paymentSaving, setPaymentSaving] = useState(false);
     const [paymentErrors, setPaymentErrors] = useState({});
     const [activeEditPaymentId, setActiveEditPaymentId] = useState(0);
@@ -783,8 +810,27 @@ const OrdersTable = () => {
         try {
             const response = await orderService.getOrders(withSearchAllDates(filters));
             if (latestOrdersFetchIdRef.current !== requestId) return;
-            setData(response.data || []);
+            const orders = response.data || [];
+            setData(orders);
             setTotal(response.totalCount || 0);
+            setPaymentDetailsById({});
+            setOrderPaymentsStatus({});
+            const activeId = expandedOrderIdRef.current;
+            if (canViewOrderPayments && activeId && orders.some((order) => Number(order.orderId) === Number(activeId))) {
+                setOrderPaymentsStatus({ [activeId]: 'loading' });
+                try {
+                    const payments = await paymentService.getOrderPayments(activeId);
+                    if (latestOrdersFetchIdRef.current !== requestId) return;
+                    setData(orders.map((order) => Number(order.orderId) === Number(activeId) ? { ...order, payments } : order));
+                    setPaymentDetailsById(Object.fromEntries(payments.map((payment) => [payment.paymentId, payment])));
+                    setOrderPaymentsStatus({ [activeId]: 'loaded' });
+                } catch {
+                    if (latestOrdersFetchIdRef.current === requestId) setOrderPaymentsStatus({ [activeId]: 'error' });
+                }
+            } else if (activeId) {
+                expandedOrderIdRef.current = null;
+                setExpandedOrderId(null);
+            }
         } catch (err) {
             if (latestOrdersFetchIdRef.current !== requestId) return;
             console.error('Failed to load orders', err);
@@ -796,7 +842,7 @@ const OrdersTable = () => {
                 setLoading(false);
             }
         }
-    }, [filters, orderCodesLoading, canViewOrders]);
+    }, [filters, orderCodesLoading, canViewOrders, canViewOrderPayments]);
 
     useEffect(() => {
         // Picking a search field on its own is not a query yet: wait for the Text.
@@ -869,8 +915,8 @@ const OrdersTable = () => {
         const payments = order?.payments || [];
         if (!Array.isArray(payments) || payments.length === 0) return;
 
-        // The /Order API already returns payments; avoid eager per-payment fetch here.
-        // We'll only fetch /Payment/{id} when opening Edit/Refund and required fields are missing.
+        // Reuse the order's payment rows; individual detail requests are reserved
+        // for actions such as editing, refunding, and loading mail templates.
         const next = {};
         for (const p of payments) {
             const id = Number(p?.paymentId) || 0;
@@ -1363,6 +1409,8 @@ const OrdersTable = () => {
     );
 
     const closePaymentModal = () => {
+        paymentRequestIdRef.current += 1;
+        setPaymentLoadError('');
         setPaymentModalOpen(false);
         setPaymentLoading(false);
         setPaymentSaving(false);
@@ -2015,6 +2063,9 @@ const OrdersTable = () => {
             Number(source?.orderId) ||
             Number(expandedOrderId) ||
             0;
+        paymentLoadContextRef.current = { paymentId: id, orderId: fallbackOrderId };
+        const requestId = ++paymentRequestIdRef.current;
+        setPaymentLoadError('');
 
         const parentOrder =
             (data || []).find((o) => Number(o?.orderId) === Number(fallbackOrderId)) ||
@@ -2028,20 +2079,13 @@ const OrdersTable = () => {
         setPaymentModalOpen(true);
         setPaymentErrors({});
 
-        const amountFromSource = resolvePaymentAmount(source);
-        const shouldFetch =
-            !cached ||
-            !Number.isFinite(amountFromSource) ||
-            amountFromSource <= 0 ||
-            !inferredBrandId ||
-            !inferredGatewayId;
-
-        if (shouldFetch) {
+        { // Always load the current Payment DTO before editing.
             try {
                 setPaymentLoading(true);
-                const fetched = await paymentService.getPaymentById(id);
+                const fetched = await paymentService.getOrderPaymentById(id, fallbackOrderId);
+                if (requestId !== paymentRequestIdRef.current) return;
                 if (!fetched) {
-                    toast.error('Payment not found');
+                    setPaymentLoadError('Payment not found. Retry loading this payment.');
                     setPaymentDraft(emptyPayment);
                     return;
                 }
@@ -2061,58 +2105,19 @@ const OrdersTable = () => {
                 );
                 return;
             } catch (err) {
+                if (requestId !== paymentRequestIdRef.current) return;
                 console.error('Failed to load payment', err);
-                toast.error(getApiErrorMessage(err, 'Failed to load payment'));
+                const message = getApiErrorMessage(err, 'Failed to load payment');
+                setPaymentLoadError(message);
+                toast.error(message);
                 setPaymentDraft(emptyPayment);
                 return;
             } finally {
-                setPaymentLoading(false);
+                if (requestId === paymentRequestIdRef.current) setPaymentLoading(false);
             }
         }
 
-        // Use cached/row data when it already contains a valid amount.
-        setPaymentLoading(false);
-        setPaymentActiveTab(tabFromPaymentType(source?.paymentType));
-        setPaymentDraft(
-            normalizeExclusiveFlags({
-                ...emptyPayment,
-                ...source,
-                orderId: Number(source?.orderId) || fallbackOrderId,
-                brandId: Number(source?.brandId) || inferredBrandId,
-                gatewayId: Number(source?.gatewayId) || inferredGatewayId,
-                amount: Number.isFinite(amountFromSource) ? amountFromSource : 0,
-            }),
-        );
     };
-
-    useEffect(() => {
-        if (!paymentModalOpen) return;
-        if (paymentModalMode !== 'edit') return;
-        if (!paymentLoading) return;
-
-        const id = Number(activeEditPaymentId) || 0;
-        if (!id) return;
-
-        const cached = paymentDetailsById?.[id];
-        if (!cached) return;
-
-        const resolvedAmount = resolvePaymentAmount(cached);
-
-        setPaymentActiveTab(tabFromPaymentType(cached.paymentType));
-        // Keep inferred order/brand/gateway from the modal draft when cached data is partial.
-        setPaymentDraft((prev) =>
-            normalizeExclusiveFlags({
-                ...emptyPayment,
-                ...prev,
-                ...cached,
-                orderId: Number(cached?.orderId) || Number(prev?.orderId) || 0,
-                brandId: Number(cached?.brandId) || Number(prev?.brandId) || 0,
-                gatewayId: Number(cached?.gatewayId) || Number(prev?.gatewayId) || 0,
-                amount: Number.isFinite(resolvedAmount) ? resolvedAmount : 0,
-            }),
-        );
-        setPaymentLoading(false);
-    }, [activeEditPaymentId, paymentDetailsById, paymentLoading, paymentModalMode, paymentModalOpen]);
 
     const openRefundModal = async (paymentOrId) => {
         if (orderCodesLoading || !canRefundOrderPayment) {
@@ -2129,7 +2134,8 @@ const OrdersTable = () => {
         setRefundAvailableAmount(0);
         setRefundDraft(emptyRefund);
         try {
-            const context = await paymentService.getRefundContext(id);
+            const orderId = Number(paymentOrId?.orderId || paymentDetailsById[id]?.orderId) || 0;
+            const context = await paymentService.getRefundContext(id, undefined, { orderId });
             if (requestId !== refundRequestIdRef.current) return;
             const payment = context.payment;
             const editing = /refund/i.test(payment.saleType || '');
@@ -2200,7 +2206,7 @@ const OrdersTable = () => {
 
     const normalizeExclusiveFlags = (draft) => {
         const next = { ...draft };
-        const firstTrueKey = exclusiveFlagKeys.find((k) => !!next[k]);
+        const firstTrueKey = exclusiveFlagKeys.find((k) => /^(true|1)$/i.test(String(next[k] ?? '').trim()));
         exclusiveFlagKeys.forEach((k) => {
             next[k] = false;
         });
@@ -2209,7 +2215,14 @@ const OrdersTable = () => {
     };
 
     const savePayment = async () => {
+        if (paymentSaving || paymentLoading || paymentLoadError) return;
         if (!validatePaymentBeforeSave()) return;
+        if (paymentModalMode === 'edit' && !Number(paymentDraft.paymentId)) {
+            setPaymentLoadError('Reload this payment before saving changes.');
+            return;
+        }
+        const actionKey = `payment:${paymentDraft.paymentId || `new-${paymentDraft.orderId}`}`;
+        if (!beginAction(actionKey)) return;
 
         try {
             setPaymentSaving(true);
@@ -2283,7 +2296,7 @@ const OrdersTable = () => {
 
                 // Refresh latest saved payment from API so expanded payment details do not show stale cached data.
                 try {
-                    const refreshedPayment = await paymentService.getPaymentById(paymentId);
+                    const refreshedPayment = await paymentService.getOrderPaymentById(paymentId, paymentDraft.orderId);
                     if (refreshedPayment) {
                         setPaymentDetailsById((prev) => ({ ...prev, [paymentId]: refreshedPayment }));
                     } else {
@@ -2349,6 +2362,7 @@ const OrdersTable = () => {
             console.error('Failed to save payment', err);
             toast.error(getApiErrorMessage(err, 'Failed to save payment'));
         } finally {
+            finishAction(actionKey);
             setPaymentSaving(false);
         }
     };
@@ -2359,11 +2373,14 @@ const OrdersTable = () => {
             toast.error('You do not have permission to refund order payments.');
             return;
         }
+        const actionKey = `payment:${refundDraft.paymentId}`;
+        if (!beginAction(actionKey)) return;
         setRefundSaving(true);
         setRefundError('');
         try {
             const saved = await paymentService.saveRefund({
                 paymentId: Number(refundDraft.paymentId),
+                orderId: Number(refundDraft.orderId),
                 draft: refundDraft,
                 userId: Number(localStorage.getItem('userId')) || 0,
                 saleType: saleTypes.find((type) => /refund/i.test(type.name || ''))?.name || 'Refund'
@@ -2379,11 +2396,12 @@ const OrdersTable = () => {
             setRefundError(message);
             toast.error(message);
         } finally {
+            finishAction(actionKey);
             setRefundSaving(false);
         }
     };
 
-    const voidPayment = async (paymentId) => {
+    const voidPayment = async (paymentId, orderId) => {
         if (orderCodesLoading) {
             toast.error('Permissions are still loading, please try again.');
             return;
@@ -2395,16 +2413,18 @@ const OrdersTable = () => {
 
         const id = Number(paymentId) || 0;
         if (!id) return;
+        const actionKey = `payment:${id}`;
+        if (!beginAction(actionKey)) return false;
 
         try {
             setPaymentSaving(true);
             const currentUserId = Number(localStorage.getItem('userId')) || 0;
             const nowIso = new Date().toISOString();
 
-            const fetched = await paymentService.getPaymentById(id);
+            const fetched = await paymentService.getOrderPaymentById(id, orderId);
             if (!fetched) {
                 toast.error('Payment not found');
-                return;
+                return false;
             }
 
             const payload = {
@@ -2429,10 +2449,13 @@ const OrdersTable = () => {
             }));
             toast.success('Payment voided');
             await Promise.all([fetchOrders(), fetchOrderSummary()]);
+            return true;
         } catch (err) {
             console.error('Failed to void payment', err);
             toast.error(getApiErrorMessage(err, 'Failed to void payment'));
+            return false;
         } finally {
+            finishAction(actionKey);
             setPaymentSaving(false);
         }
     };
@@ -2449,8 +2472,9 @@ const OrdersTable = () => {
             const paymentId = Number(payment?.paymentId) || 0;
             const cachedDetails = (paymentId && paymentDetailsById?.[paymentId]) || null;
 
-            return !!(payment?.isVoid ?? payment?.IsVoid)
-                || !!(cachedDetails?.isVoid ?? cachedDetails?.IsVoid);
+            const markedVoid = (value) => /^(true|1)$/i.test(String(value ?? '').trim());
+            return markedVoid(payment?.isVoid ?? payment?.IsVoid)
+                || markedVoid(cachedDetails?.isVoid ?? cachedDetails?.IsVoid);
         },
         [paymentDetailsById],
     );
@@ -2466,7 +2490,7 @@ const OrdersTable = () => {
         }
 
         const paymentId = Number(payment?.paymentId) || 0;
-        if (!paymentId || payment?.isVoid) return;
+        if (!paymentId || isPaymentVoided(payment)) return;
         setVoidContext({
             paymentId,
             orderId: Number(order?.orderId) || 0,
@@ -2518,6 +2542,8 @@ const OrdersTable = () => {
 
         const orderId = Number(deleteOrderContext?.orderId) || 0;
         if (!orderId) return;
+        const actionKey = `order:${orderId}`;
+        if (!beginAction(actionKey)) return;
 
         try {
             setDeleteOrderSaving(true);
@@ -2532,6 +2558,7 @@ const OrdersTable = () => {
             console.error('Failed to delete order', err);
             toast.error(getApiErrorMessage(err, 'Failed to delete order'));
         } finally {
+            finishAction(actionKey);
             setDeleteOrderSaving(false);
         }
     };
@@ -2539,7 +2566,8 @@ const OrdersTable = () => {
     const confirmVoidPayment = async () => {
         const paymentId = Number(voidContext?.paymentId) || 0;
         if (!paymentId) return;
-        await voidPayment(paymentId);
+        const saved = await voidPayment(paymentId, voidContext?.orderId);
+        if (!saved) return;
         setVoidConfirmOpen(false);
         setVoidContext(null);
     };
@@ -2581,6 +2609,8 @@ const OrdersTable = () => {
 
         const paymentId = Number(deletePaymentContext?.paymentId) || 0;
         if (!paymentId) return;
+        const actionKey = `payment:${paymentId}`;
+        if (!beginAction(actionKey)) return;
         try {
             setDeletePaymentSaving(true);
             await paymentService.deletePayment(paymentId);
@@ -2608,6 +2638,7 @@ const OrdersTable = () => {
             console.error('Failed to delete payment', err);
             toast.error(getApiErrorMessage(err, 'Failed to delete payment'));
         } finally {
+            finishAction(actionKey);
             setDeletePaymentSaving(false);
         }
     };
@@ -2800,6 +2831,36 @@ const OrdersTable = () => {
         };
     }, [isBrandSearch, isSalesPersonSearch, brandSearchOptions, salesPersonSearchOptions]);
 
+    const toggleOrderPayments = useCallback(async (order, retry = false) => {
+        if (!canViewOrderPayments) return;
+        const orderId = order.orderId;
+        const wasExpanded = !retry && expandedOrderIdRef.current === orderId;
+        expandedOrderIdRef.current = wasExpanded ? null : orderId;
+        setExpandedOrderId(expandedOrderIdRef.current);
+        if (wasExpanded || orderPaymentsStatus[orderId] === 'loading') return;
+        if (!retry && orderPaymentsStatus[orderId] === 'loaded') return;
+        const actionKey = `load-payments:${orderId}`;
+        if (!beginAction(actionKey)) return;
+
+        const listRequestId = latestOrdersFetchIdRef.current;
+        setOrderPaymentsStatus((previous) => ({ ...previous, [orderId]: 'loading' }));
+        try {
+            const payments = await paymentService.getOrderPayments(orderId);
+            if (latestOrdersFetchIdRef.current !== listRequestId) return;
+            setData((previous) => previous.map((item) => item.orderId === orderId
+                ? { ...item, payments }
+                : item));
+            setPaymentDetailsById((previous) => ({ ...previous, ...Object.fromEntries(payments.map((payment) => [payment.paymentId, payment])) }));
+            setOrderPaymentsStatus((previous) => ({ ...previous, [orderId]: 'loaded' }));
+        } catch (error) {
+            if (latestOrdersFetchIdRef.current !== listRequestId) return;
+            setOrderPaymentsStatus((previous) => ({ ...previous, [orderId]: 'error' }));
+            toast.error(getApiErrorMessage(error, 'Failed to load order payments'));
+        } finally {
+            finishAction(actionKey);
+        }
+    }, [canViewOrderPayments, expandedOrderId, orderPaymentsStatus]);
+
     const columns = useMemo(
         () => [
             {
@@ -2807,19 +2868,19 @@ const OrdersTable = () => {
                 header: 'Order ID',
                 cell: ({ row }) => {
                     const order = row.original;
-                    const hasPayments = Array.isArray(order.payments) && order.payments.length > 0;
                     const isExpanded = expandedOrderId === order.orderId;
 
-                    const canTogglePayments = hasPayments && canViewOrderPayments;
+                    const canTogglePayments = canViewOrderPayments;
 
                     return (
                         <div className="flex items-center gap-2">
                             {canTogglePayments ? (
                                 <button
                                     type="button"
-                                    onClick={() => setExpandedOrderId((prev) => (prev === order.orderId ? null : order.orderId))}
-                                    className="p-1 rounded hover:bg-gray-100"
+                                    onClick={() => toggleOrderPayments(order)}
+                                    className="order-expand-button inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
                                     aria-label={isExpanded ? 'Collapse payments' : 'Expand payments'}
+                                    aria-expanded={isExpanded}
                                 >
                                     {isExpanded ? <ChevronDown size={16} className="text-gray-600" /> : <ChevronRight size={16} className="text-gray-600" />}
                                 </button>
@@ -2836,7 +2897,18 @@ const OrdersTable = () => {
             {
                 id: 'customerName',
                 header: 'Customer Name',
-                cell: ({ row }) => <span className="text-sm font-medium text-gray-900">{row.original.customerName || '-'}</span>,
+                cell: ({ row }) => {
+                    const order = row.original;
+                    const email = order.customerEmail || order.email || order.customer?.email;
+                    const phone = order.customerPhone || order.phone || order.phoneNumber || order.customer?.phone;
+                    return (
+                        <div className="flex min-w-[150px] flex-col gap-0.5 text-sm">
+                            <span className="font-medium text-gray-900">{order.customerName || order.customer?.name || '-'}</span>
+                            {email && <span className="text-xs text-slate-500 break-all">{email}</span>}
+                            {phone && <span className="text-xs text-slate-500">{phone}</span>}
+                        </div>
+                    );
+                },
                 enableSorting: false,
             },
             {
@@ -2960,6 +3032,37 @@ const OrdersTable = () => {
                 meta: { headerClassName: 'text-start ', cellClassName: 'text-start' },
             },
             {
+                id: 'paymentType',
+                header: 'Payment Type',
+                cell: ({ row }) => {
+                    const order = row.original;
+                    const payments = (Array.isArray(order.payments) ? order.payments : [])
+                        .filter((payment) => !['true', '1'].includes(String(payment.isDeleted).trim().toLowerCase())
+                            && !isPaymentVoided(payment) && !/refund/i.test(paymentDetailsById[payment.paymentId]?.saleType || payment.saleType || ''))
+                        .map((payment) => ({ ...payment, ...(paymentDetailsById[payment.paymentId] || {}) }));
+                    const sources = payments.length ? payments : order.paymentType ? [order] : [];
+                    if (!canViewOrderPayments || sources.length === 0) return <span className="text-gray-500">-</span>;
+                    return (
+                        <div className="flex min-w-[150px] flex-col gap-2">
+                            {sources.map((payment, index) => (
+                                <div key={payment.paymentId || index} className="flex flex-col gap-0.5 text-xs text-slate-500">
+                                    <span className="text-sm font-semibold text-gray-900">{payment.paymentType || '-'}</span>
+                                    {isCardPayment(payment.paymentType) && (
+                                        <div className="flex items-center gap-2 text-gray-900">
+                                            <span className="order-card-badge font-bold italic text-blue-700">{payment.cardType || 'Card'}</span>
+                                            <span className="font-medium">{maskCardToLast4(payment.cardNumber)}</span>
+                                        </div>
+                                    )}
+                                    {payment.transactionId && <span>Trans id: {payment.transactionId}</span>}
+                                    {payment.authCode && <span>Auth: {payment.authCode}</span>}
+                                </div>
+                            ))}
+                        </div>
+                    );
+                },
+                enableSorting: false,
+            },
+            {
                 id: 'paymentSummary',
                 header: 'Payment',
                 cell: ({ row }) => {
@@ -3000,7 +3103,7 @@ const OrdersTable = () => {
                     );
                 },
                 enableSorting: false,
-                meta: { cellClassName: 'text-gray-800 font-normal w-[240px]', headerClassName: 'w-[170px]' },
+                meta: { cellClassName: 'text-gray-800 font-normal w-[140px]', headerClassName: 'w-[140px]' },
             },
             {
                 id: 'orderDates',
@@ -3010,7 +3113,7 @@ const OrdersTable = () => {
                     const shareRows = extractShareRowsFromOrder(order);
 
                     const latestShareDate = pickLatestShareDate(shareRows);
-                    const paymentDate = order.paymentDate || latestShareDate;
+                    const paymentDate = order.paymentDate || (order.payments || []).find((payment) => !payment.isDeleted && !/refund/i.test(payment.saleType || ''))?.paymentDate || latestShareDate;
                     const saleDate = order.orderDate || order.createdDate || order.createdAt;
                     const hasAnyDate = paymentDate || saleDate;
 
@@ -3019,7 +3122,7 @@ const OrdersTable = () => {
                     }
 
                     return (
-                        <div className="rounded-lg border border-gray-200 p-3 shadow-sm bg-white w-full">
+                        <div className="order-date-card rounded-lg border border-gray-200 p-2 bg-white w-full">
                             <div className="flex flex-col">
                                 {paymentDate && (
                                     <div className="flex items-center gap-3">
@@ -3051,16 +3154,17 @@ const OrdersTable = () => {
                     );
                 },
                 enableSorting: false,
-                meta: { cellClassName: 'pl-0 pr-0 w-[230px]', headerClassName: 'w-[230px] text-center' },
+                meta: { cellClassName: 'w-[220px]', headerClassName: 'w-[220px] text-center' },
             },
             {
                 id: 'actions',
                 header: 'Actions',
+                sticky: 'right',
                 cell: ({ row }) => {
                     const order = row.original;
 
                     return (
-                        <div className="flex items-center gap-2 justify-center">
+                        <div className="order-actions flex items-center gap-2 justify-center">
                             {canUpdate && (
                                 <ActionIconButton
                                     label="Edit order"
@@ -3085,10 +3189,10 @@ const OrdersTable = () => {
                     );
                 },
                 enableSorting: false,
-                meta: { headerClassName: 'text-center ', cellClassName: 'text-start' },
+                meta: { headerClassName: 'w-[96px] min-w-[96px] text-center', cellClassName: 'w-[96px] min-w-[96px] text-center' },
             },
         ],
-        [expandedOrderId, canViewOrderPayments, canUpdate, canDelete, permissionsLoading, createOrderPath, navigate, getUserFullName, handleOpenSharePaymentFromOrder]
+        [expandedOrderId, toggleOrderPayments, canViewOrderPayments, canRefundOrderPayment, isPaymentVoided, paymentDetailsById, openRefundModal, canUpdate, canDelete, permissionsLoading, createOrderPath, navigate, getUserFullName, handleOpenSharePaymentFromOrder]
     );
 
     const columnCount = columns.length;
@@ -3122,7 +3226,7 @@ const OrdersTable = () => {
 
             setTemplateLoadingByPaymentId((prev) => ({ ...prev, [paymentId]: true }));
             try {
-                const fetched = await paymentService.getPaymentById(paymentId);
+                const fetched = await paymentService.getOrderPaymentById(paymentId, payment.orderId);
                 if (fetched) {
                     setPaymentDetailsById((prev) => ({ ...prev, [paymentId]: fetched }));
                 }
@@ -3158,8 +3262,6 @@ const OrdersTable = () => {
         const templateId = Number(
             templateRow?.brandEmailTempleteId ??
             templateRow?.brandEmailTemplateId ??
-            templateRow?.templateId ??
-            templateRow?.id ??
             0
         );
 
@@ -3169,7 +3271,7 @@ const OrdersTable = () => {
         }
 
         const key = `${paymentId}-${templateId || templateIndex}`;
-        if (sendingTemplateMailByKey[key]) return;
+        if (!beginAction(`mail:${key}`)) return;
 
         setSendingTemplateMailByKey((prev) => ({ ...prev, [key]: true }));
 
@@ -3185,6 +3287,7 @@ const OrdersTable = () => {
         } catch (error) {
             toast.error(getApiErrorMessage(error, 'Failed to send mail'));
         } finally {
+            finishAction(`mail:${key}`);
             setSendingTemplateMailByKey((prev) => ({ ...prev, [key]: false }));
         }
     }, [sendingTemplateMailByKey]);
@@ -3196,7 +3299,7 @@ const OrdersTable = () => {
             return;
         }
 
-        if (sendingPandaDocMailByPaymentId[paymentId]) return;
+        if (!beginAction(`panda:${paymentId}`)) return;
 
         setSendingPandaDocMailByPaymentId((prev) => ({ ...prev, [paymentId]: true }));
 
@@ -3209,6 +3312,7 @@ const OrdersTable = () => {
         } catch (error) {
             toast.error(getApiErrorMessage(error, 'Failed to send Panda Doc mail'));
         } finally {
+            finishAction(`panda:${paymentId}`);
             setSendingPandaDocMailByPaymentId((prev) => ({ ...prev, [paymentId]: false }));
         }
     }, [sendingPandaDocMailByPaymentId]);
@@ -3226,7 +3330,7 @@ const OrdersTable = () => {
                 if (source.isChargeBack) labelParts.push('Chargeback');
                 if (source.isAlert) labelParts.push('Alert');
                 if (source.isRetrieval) labelParts.push('Retrieval');
-                label = labelParts.join(' â€¢ ');
+                label = labelParts.join(' • ');
             } else if (source.isChargeBack) {
                 label = 'Chargeback';
             } else if (source.isVoid) {
@@ -3288,26 +3392,46 @@ const OrdersTable = () => {
         (row) => {
             const order = row?.original || row;
             const isExpanded = expandedOrderId === order.orderId;
-            const payments = order.payments || [];
-            if (!isExpanded || payments.length === 0) return null;
+            const payments = Array.isArray(order.payments) ? order.payments : [];
+            if (!isExpanded) return null;
             if (!canViewOrderPayments) return null;
+            const paymentTypes = payments.map((payment) => paymentDetailsById[payment.paymentId]?.paymentType || payment.paymentType || '');
+            const showPaymentType = paymentTypes.some((type) => !type) || new Set(paymentTypes.map((type) => String(type).toLowerCase())).size > 1;
+
+            const status = orderPaymentsStatus[order.orderId];
+            if (status !== 'loaded' || payments.length === 0) {
+                return (
+                    <tr key={`payment-section-${order.orderId}`} className="order-payment-row">
+                        <td colSpan={columnCount} className="px-4 py-4 text-center text-sm text-gray-500">
+                            <div role={status === 'error' ? 'alert' : 'status'} aria-live="polite">
+                                {status === 'error' ? 'Unable to load payments.'
+                                    : status !== 'loaded' ? 'Loading payments...'
+                                        : 'No payments found for this order.'}
+                            </div>
+                            {status === 'error' && (
+                                <button type="button" className="mt-3 rounded-lg border border-violet-200 bg-white px-4 py-2 text-violet-700" onClick={() => toggleOrderPayments(order, true)}>Retry payments</button>
+                            )}
+                        </td>
+                    </tr>
+                );
+            }
 
             return (
-                <tr key={`payment-section-${order.orderId}`} className="bg-white">
+                <tr key={`payment-section-${order.orderId}`} className="order-payment-row bg-white">
                     <td colSpan={columnCount} className="pt-0 pb-4 px-4">
                         <div className="mt-2 rounded-b-md border border-gray-200 border-t-0 overflow-hidden">
                             <div className="overflow-x-auto">
-                                <table className="min-w-full text-sm border-t border-gray-200">
+                                <table className="order-payment-table min-w-full text-sm border-t border-gray-200">
                                     <thead className="bg-gray-200 text-gray-700 border-b border-gray-300">
                                         <tr className="border-b border-gray-300">
+                                            <th className="w-[250px] min-w-[250px] px-3 py-2 text-center text-xs font-semibold border-r border-gray-300">Action</th>
                                             <th className="px-4 py-2 text-left text-xs font-semibold border-r border-gray-300 last:border-r-0">Payment ID</th>
-                                            <th className="px-4 py-2 text-left text-xs font-semibold border-r border-gray-300 last:border-r-0">Payment Type</th>
+                                            {showPaymentType && <th className="px-4 py-2 text-left text-xs font-semibold border-r border-gray-300 last:border-r-0">Payment Type</th>}
                                             <th className="px-4 py-2 text-left text-xs font-semibold border-r border-gray-300 last:border-r-0">Auth Code</th>
                                             <th className="px-4 py-2 text-center text-xs font-semibold border-r border-gray-300 last:border-r-0">Date</th>
                                             <th className="px-4 py-2 text-center text-xs font-semibold border-r border-gray-300 last:border-r-0">Brand &amp; Gateway</th>
                                             <th className="px-4 py-2 text-center text-xs font-semibold border-r border-gray-300 last:border-r-0">Amount</th>
                                             <th className="px-4 py-2 text-center text-xs font-semibold border-r border-gray-300 last:border-r-0">Payment Status</th>
-                                            <th className="px-4 py-2 text-center text-xs font-semibold border-r border-gray-300 last:border-r-0">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody className="bg-white">
@@ -3317,9 +3441,176 @@ const OrdersTable = () => {
                                                 className="hover:bg-gray-50 border-b border-gray-200 last:border-b-0"
                                             >
                                                 <td className="px-4 py-3 align-middle border-r border-gray-200 last:border-r-0">
-                                                    <span className="text-xs font-medium text-gray-900">{payment.paymentId || '-'}</span>
+                                                    <div role="group" aria-label={`Actions for payment ${payment.paymentId}`} className="order-payment-actions flex flex-nowrap items-center gap-2 text-xs text-gray-700 justify-center">
+                                                        {(() => {
+                                                            const templateRows = getTemplateRowsFromPayment(payment);
+                                                            const loadingTemplates = isTemplateLoading(payment);
+                                                            const paymentId = Number(payment?.paymentId) || 0;
+                                                            const details = (paymentId && paymentDetailsById?.[paymentId]) || payment || {};
+                                                            const statusMeta = getPaymentStatusMeta(payment, details);
+                                                            const showPandaDocMail = String(statusMeta.label || '').trim().toLowerCase() === 'sale';
+                                                            const templates = templateRows
+                                                                .map((t, index) => {
+                                                                    const templateName = String(t?.templateName || t?.name || '').trim();
+                                                                    const templateId = Number(
+                                                                        t?.brandEmailTempleteId ??
+                                                                        t?.brandEmailTemplateId ??
+                                                                        t?.templateId ??
+                                                                        t?.id ??
+                                                                        0
+                                                                    );
+
+                                                                    return {
+                                                                        row: t,
+                                                                        index,
+                                                                        templateName,
+                                                                        templateId,
+                                                                    };
+                                                                })
+                                                                .filter((t) => t.templateName);
+
+                                                            return (
+                                                                <>
+                                                                    {showPandaDocMail && (
+                                                                        <ActionIconButton
+                                                                            label="Panda Doc Mail"
+                                                                            className="text-emerald-700"
+                                                                            disabled={!!sendingPandaDocMailByPaymentId[payment?.paymentId]}
+                                                                            onClick={() => handleSendPandaDocMail(payment)}
+                                                                        >
+                                                                            <Send size={16} />
+                                                                        </ActionIconButton>
+                                                                    )}
+                                                                    <DropdownMenu
+                                                                        onOpenChange={(open) => {
+                                                                            if (open) handleTemplateMenuOpen(payment);
+                                                                        }}
+                                                                    >
+                                                                        <DropdownMenuTrigger asChild>
+                                                                            <button
+                                                                                type="button"
+                                                                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-violet-700 transition-colors hover:bg-gray-100"
+                                                                                aria-label="Payment templates"
+                                                                                title="Payment templates"
+                                                                            >
+                                                                                <ChevronDown size={16} />
+                                                                            </button>
+                                                                        </DropdownMenuTrigger>
+                                                                        <DropdownMenuContent align="start" className="min-w-[220px]">
+                                                                            <DropdownMenuItem onSelect={() => openShareSaleModal(order, payment, 'put')}>
+                                                                                <Users size={16} className="mr-2" />Share Payment
+                                                                            </DropdownMenuItem>
+                                                                            {loadingTemplates && <DropdownMenuItem disabled>Loading templates...</DropdownMenuItem>}
+                                                                            {!loadingTemplates && templates.length === 0 && <DropdownMenuItem disabled>No templates found</DropdownMenuItem>}
+                                                                            {!loadingTemplates && templates.map((template) => {
+                                                                                const actionKey = `${payment?.paymentId || 'payment'}-${template.templateId || template.index}`;
+                                                                                const isSending = !!sendingTemplateMailByKey[actionKey];
+
+                                                                                return (
+                                                                                <DropdownMenuItem
+                                                                                    key={`${payment?.paymentId || 'payment'}-template-${template.index}`}
+                                                                                    disabled={isSending}
+                                                                                    onClick={() => handleSendPaymentTemplateMail(payment, template.row, template.index)}
+                                                                                >
+                                                                                    {isSending ? 'Sending...' : template.templateName}
+                                                                                </DropdownMenuItem>
+                                                                                );
+                                                                            })}
+                                                                        </DropdownMenuContent>
+                                                                    </DropdownMenu>
+                                                                </>
+                                                            );
+                                                        })()}
+                                                        {(() => {
+                                                            const paymentId = Number(payment?.paymentId) || 0;
+                                                            const cachedDetails = (paymentId && paymentDetailsById?.[paymentId]) || null;
+                                                            const saleTypeText = String(cachedDetails?.saleType || payment.saleType || '').trim().toLowerCase();
+                                                            const isRefunded = saleTypeText.includes('refund');
+
+                                                            if (isRefunded) return null;
+
+                                                            return (
+                                                                <>
+                                                                    {canVoidOrderPayment && (
+                                                                        <ActionIconButton
+                                                                            label={isPaymentVoided(payment) ? 'Already voided' : 'Void payment'}
+                                                                            className={`w-8 h-8 ${isPaymentVoided(payment) ? 'text-slate-400 cursor-not-allowed' : 'text-amber-700 hover:bg-gray-100'}`}
+                                                                            onClick={() => {
+                                                                                if (!payment?.paymentId || isPaymentVoided(payment)) return;
+                                                                                openVoidConfirm(payment, order);
+                                                                            }}
+                                                                            disabled={paymentSaving}
+                                                                        >
+                                                                            <Ban size={16} />
+                                                                        </ActionIconButton>
+                                                                    )}
+                                                                    {(() => {
+                                                                        if (isPaymentVoided(payment)) return null;
+
+                                                                        return (
+                                                                            canRefundOrderPayment ? (
+                                                                                <ActionIconButton
+                                                                                    label="Refund"
+                                                                                    className="order-refund-action h-8 text-emerald-700 hover:bg-emerald-50"
+                                                                                    onClick={() => {
+                                                                                        if (!payment?.paymentId) return;
+                                                                                        openRefundModal({ ...payment, orderId: order.orderId });
+                                                                                    }}
+                                                                                >
+                                                                                    <Undo2 size={20} />
+                                                                                </ActionIconButton>
+                                                                            ) : null
+                                                                        );
+                                                                    })()}
+                                                                </>
+                                                            );
+                                                        })()}
+                                                        {(canUpdateOrderPayment || canRefundOrderPayment) && !isPaymentVoided(payment) && (
+                                                            <ActionIconButton
+                                                                label="Edit"
+                                                                className="w-8 h-8 text-violet-600 hover:bg-gray-100"
+                                                                onClick={() => {
+                                                                    if (!payment?.paymentId) return;
+                                                                    const paymentId = Number(payment?.paymentId) || 0;
+                                                                    const details = (paymentId && paymentDetailsById?.[paymentId]) || payment || {};
+                                                                    const saleTypeText = String(details.saleType || '').trim().toLowerCase();
+
+                                                                    // If the row is a Refund, edit it using the Refund modal.
+                                                                    if (saleTypeText.includes('refund')) {
+                                                                        if (!canRefundOrderPayment) {
+                                                                            toast.error("You don't have permission to refund order payments.");
+                                                                            return;
+                                                                        }
+                                                                        openRefundModal({ ...details, ...payment, orderId: order.orderId });
+                                                                        return;
+                                                                    }
+
+                                                                    openEditPaymentModal({ ...payment, orderId: order.orderId });
+                                                                }}
+                                                            >
+                                                                <Edit size={16} />
+                                                            </ActionIconButton>
+                                                        )}
+                                                        {canDeleteOrderPayment && !isPaymentVoided(payment) && (
+                                                            <ActionIconButton
+                                                                label="Delete payment"
+                                                                className="w-8 h-8 text-red-600 hover:bg-gray-100"
+                                                                variant="delete"
+                                                                onClick={() => {
+                                                                    if (!payment?.paymentId) return;
+                                                                    openDeletePaymentConfirm(payment, order);
+                                                                }}
+                                                                disabled={deletePaymentSaving}
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </ActionIconButton>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td className="px-4 py-3 align-middle border-r border-gray-200 last:border-r-0">
+                                                    <span className="text-xs font-medium text-gray-900">{payment.paymentId || '-'}</span>
+                                                </td>
+                                                {showPaymentType && <td className="px-4 py-3 align-middle border-r border-gray-200 last:border-r-0">
                                                     {(() => {
                                                         const paymentId = Number(payment?.paymentId) || 0;
                                                         const details = (paymentId && paymentDetailsById?.[paymentId]) || payment || {};
@@ -3353,7 +3644,7 @@ const OrdersTable = () => {
                                                             </>
                                                         );
                                                     })()}
-                                                </td>
+                                                </td>}
                                                 <td className="px-4 py-3 align-middle border-r border-gray-200 last:border-r-0">
                                                     {(() => {
                                                         const paymentId = Number(payment?.paymentId) || 0;
@@ -3412,169 +3703,7 @@ const OrdersTable = () => {
                                                         );
                                                     })()}
                                                 </td>
-                                                <td className="px-4 py-3 align-middle border-r border-gray-200 last:border-r-0">
-                                                    <div className="flex items-center gap-2 text-xs text-gray-700 justify-center">
-                                                        {(() => {
-                                                            const templateRows = getTemplateRowsFromPayment(payment);
-                                                            const loadingTemplates = isTemplateLoading(payment);
-                                                            const paymentId = Number(payment?.paymentId) || 0;
-                                                            const details = (paymentId && paymentDetailsById?.[paymentId]) || payment || {};
-                                                            const statusMeta = getPaymentStatusMeta(payment, details);
-                                                            const showPandaDocMail = String(statusMeta.label || '').trim().toLowerCase() === 'sale';
-                                                            const templates = templateRows
-                                                                .map((t, index) => {
-                                                                    const templateName = String(t?.templateName || t?.name || '').trim();
-                                                                    const templateId = Number(
-                                                                        t?.brandEmailTempleteId ??
-                                                                        t?.brandEmailTemplateId ??
-                                                                        t?.templateId ??
-                                                                        t?.id ??
-                                                                        0
-                                                                    );
 
-                                                                    return {
-                                                                        row: t,
-                                                                        index,
-                                                                        templateName,
-                                                                        templateId,
-                                                                    };
-                                                                })
-                                                                .filter((t) => t.templateName);
-
-                                                            return (
-                                                                <DropdownMenu
-                                                                    onOpenChange={(open) => {
-                                                                        if (open) handleTemplateMenuOpen(payment);
-                                                                    }}
-                                                                >
-                                                                    <DropdownMenuTrigger asChild>
-                                                                        <button
-                                                                            type="button"
-                                                                            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-violet-700 transition-colors hover:bg-gray-100"
-                                                                            aria-label="Payment templates"
-                                                                            title="Payment templates"
-                                                                        >
-                                                                            <ChevronDown size={16} />
-                                                                        </button>
-                                                                    </DropdownMenuTrigger>
-                                                                    <DropdownMenuContent align="start" className="min-w-[220px]">
-                                                                        {showPandaDocMail && (
-                                                                            <DropdownMenuItem
-                                                                                disabled={!!sendingPandaDocMailByPaymentId[payment?.paymentId]}
-                                                                                onClick={() => handleSendPandaDocMail(payment)}
-                                                                            >
-                                                                                {sendingPandaDocMailByPaymentId[payment?.paymentId] ? 'Sending Panda Doc Mail...' : 'Panda Doc Mail'}
-                                                                            </DropdownMenuItem>
-                                                                        )}
-                                                                        <DropdownMenuItem onClick={() => openShareSaleModal(order, payment, 'put')}>
-                                                                            Share Payment
-                                                                        </DropdownMenuItem>
-                                                                        {loadingTemplates && <DropdownMenuItem disabled>Loading templates...</DropdownMenuItem>}
-                                                                        {!loadingTemplates && templates.length === 0 && <DropdownMenuItem disabled>No templates found</DropdownMenuItem>}
-                                                                        {!loadingTemplates && templates.map((template) => {
-                                                                            const actionKey = `${payment?.paymentId || 'payment'}-${template.templateId || template.index}`;
-                                                                            const isSending = !!sendingTemplateMailByKey[actionKey];
-
-                                                                            return (
-                                                                            <DropdownMenuItem
-                                                                                key={`${payment?.paymentId || 'payment'}-template-${template.index}`}
-                                                                                disabled={isSending}
-                                                                                onClick={() => handleSendPaymentTemplateMail(payment, template.row, template.index)}
-                                                                            >
-                                                                                {isSending ? 'Sending...' : template.templateName}
-                                                                            </DropdownMenuItem>
-                                                                            );
-                                                                        })}
-                                                                    </DropdownMenuContent>
-                                                                </DropdownMenu>
-                                                            );
-                                                        })()}
-                                                        {(() => {
-                                                            const paymentId = Number(payment?.paymentId) || 0;
-                                                            const cachedDetails = (paymentId && paymentDetailsById?.[paymentId]) || null;
-                                                            const saleTypeText = String(cachedDetails?.saleType || payment.saleType || '').trim().toLowerCase();
-                                                            const isRefunded = saleTypeText.includes('refund');
-
-                                                            if (isRefunded) return null;
-
-                                                            return (
-                                                                <>
-                                                                    {canVoidOrderPayment && (
-                                                                        <ActionIconButton
-                                                                            label={payment.isVoid ? 'Already voided' : 'Void payment'}
-                                                                            className={`w-8 h-8 ${payment.isVoid ? 'text-slate-400 cursor-not-allowed' : 'text-amber-700 hover:bg-gray-100'}`}
-                                                                            onClick={() => {
-                                                                                if (!payment?.paymentId || payment.isVoid) return;
-                                                                                openVoidConfirm(payment, order);
-                                                                            }}
-                                                                            disabled={paymentSaving}
-                                                                        >
-                                                                            <Ban size={16} />
-                                                                        </ActionIconButton>
-                                                                    )}
-                                                                    {(() => {
-                                                                        if (isPaymentVoided(payment)) return null;
-
-                                                                        return (
-                                                                            canRefundOrderPayment ? (
-                                                                                <ActionIconButton
-                                                                                    label="Refund"
-                                                                                    className="w-8 h-8 text-emerald-700 hover:bg-gray-100"
-                                                                                    onClick={() => {
-                                                                                        if (!payment?.paymentId) return;
-                                                                                        openRefundModal({ ...payment, orderId: order.orderId });
-                                                                                    }}
-                                                                                >
-                                                                                    <Undo2 size={20} />
-                                                                                </ActionIconButton>
-                                                                            ) : null
-                                                                        );
-                                                                    })()}
-                                                                </>
-                                                            );
-                                                        })()}
-                                                        {(canUpdateOrderPayment || canRefundOrderPayment) && !isPaymentVoided(payment) && (
-                                                            <ActionIconButton
-                                                                label="Edit"
-                                                                className="w-8 h-8 text-violet-600 hover:bg-gray-100"
-                                                                onClick={() => {
-                                                                    if (!payment?.paymentId) return;
-                                                                    const paymentId = Number(payment?.paymentId) || 0;
-                                                                    const details = (paymentId && paymentDetailsById?.[paymentId]) || payment || {};
-                                                                    const saleTypeText = String(details.saleType || '').trim().toLowerCase();
-
-                                                                    // If the row is a Refund, edit it using the Refund modal.
-                                                                    if (saleTypeText.includes('refund')) {
-                                                                        if (!canRefundOrderPayment) {
-                                                                            toast.error("You don't have permission to refund order payments.");
-                                                                            return;
-                                                                        }
-                                                                        openRefundModal({ ...details, ...payment, orderId: order.orderId });
-                                                                        return;
-                                                                    }
-
-                                                                    openEditPaymentModal({ ...payment, orderId: order.orderId });
-                                                                }}
-                                                            >
-                                                                <Edit size={16} />
-                                                            </ActionIconButton>
-                                                        )}
-                                                        {canDeleteOrderPayment && !isPaymentVoided(payment) && (
-                                                            <ActionIconButton
-                                                                label="Delete payment"
-                                                                className="w-8 h-8 text-red-600 hover:bg-gray-100"
-                                                                variant="delete"
-                                                                onClick={() => {
-                                                                    if (!payment?.paymentId) return;
-                                                                    openDeletePaymentConfirm(payment, order);
-                                                                }}
-                                                                disabled={deletePaymentSaving}
-                                                            >
-                                                                <Trash2 size={16} />
-                                                            </ActionIconButton>
-                                                        )}
-                                                    </div>
-                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -3585,11 +3714,11 @@ const OrdersTable = () => {
                 </tr>
             );
         },
-        [columnCount, expandedOrderId, paymentDetailsById, getTemplateRowsFromPayment, isTemplateLoading, handleTemplateMenuOpen, handleSendPaymentTemplateMail, sendingTemplateMailByKey, sendingPandaDocMailByPaymentId, handleSendPandaDocMail, getPaymentStatusMeta, openShareSaleModal, openRefundModal, openEditPaymentModal, openVoidConfirm, openDeletePaymentConfirm, canViewOrderPayments, canVoidOrderPayment, canRefundOrderPayment, canUpdateOrderPayment, canDeleteOrderPayment, paymentSaving, deletePaymentSaving, orderCodesLoading]
+        [columnCount, expandedOrderId, orderPaymentsStatus, paymentDetailsById, getTemplateRowsFromPayment, isTemplateLoading, handleTemplateMenuOpen, handleSendPaymentTemplateMail, sendingTemplateMailByKey, sendingPandaDocMailByPaymentId, handleSendPandaDocMail, getPaymentStatusMeta, openShareSaleModal, openRefundModal, openEditPaymentModal, openVoidConfirm, openDeletePaymentConfirm, canViewOrderPayments, canVoidOrderPayment, canRefundOrderPayment, canUpdateOrderPayment, canDeleteOrderPayment, paymentSaving, deletePaymentSaving, orderCodesLoading]
     );
 
     return (
-        <div className="orders-table-page">
+        <div className="orders-table-page order-reference-page">
             <PageHeader title="Orders" description="Browse orders and payment details">
                 {!permissionsLoading && canAdd && (
                     <LiquidGlassButton
@@ -3606,7 +3735,7 @@ const OrdersTable = () => {
                 )}
             </PageHeader>
 
-            <TableCard>
+            <TableCard className="order-list-card">
                 {/* Order Summary Cards - now shown at the very top of the main Orders card */}
 
                 {/* <div className="px-3 py-4 border-b border-gray-200 dark:bg-gray-100 dark:border-gray-300 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -3631,7 +3760,7 @@ const OrdersTable = () => {
                                 </div>
                                 </div> */}
 
-                <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50/70 p-3 dark:border-white/10 dark:bg-white/[0.02] xl:flex-row xl:items-center">
+                <div className="order-filter-toolbar flex flex-col gap-3 border-b border-slate-200 bg-slate-50/70 p-3 dark:border-white/10 dark:bg-white/[0.02] xl:flex-row xl:items-center">
                     <div className="flex items-center justify-between gap-2 xl:shrink-0">
                         <span className="inline-flex min-w-0 shrink-0 items-center gap-2 rounded-full border border-purple-100/80 bg-white/80 px-3 py-2 text-xs text-gray-600 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-300">
                             <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-purple-500" aria-hidden="true" />
@@ -3656,7 +3785,7 @@ const OrdersTable = () => {
                     </div>
 
                     {canViewSearchBar && (
-                        <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-[150px_minmax(220px,1fr)] lg:grid-cols-[150px_minmax(240px,1fr)_auto] xl:ml-auto xl:flex xl:flex-none xl:items-center">
+                        <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-[150px_minmax(220px,1fr)] lg:grid-cols-[150px_minmax(240px,1fr)_auto] xl:flex xl:items-center">
                             <div className="w-full sm:w-[150px]">
                                 <Select value={searchFieldSelectValue} onValueChange={handleSearchFieldChange}>
                                     <SelectTrigger className={TOOLBAR_SELECT_TRIGGER_CLASS}>
@@ -3673,9 +3802,12 @@ const OrdersTable = () => {
                             </div>
 
                             {(isBrandSearch || isSalesPersonSearch) ? (
-                                <div className="w-full min-w-0 sm:min-w-[220px] xl:w-[300px]">
+                                <div className="w-full min-w-0 sm:min-w-[220px] xl:flex-1">
                                     <Select
                                         value={lookupSearchValue}
+                                        onOpenChange={(nextOpen) => {
+                                            if (!nextOpen) setLookupOptionSearch('');
+                                        }}
                                         onValueChange={(selected) => {
                                             if (selected === SEARCH_ALL_OPTION_VALUE) {
                                                 setFilters((prev) => ({ ...prev, Text: '', PageNumber: 1 }));
@@ -3723,7 +3855,7 @@ const OrdersTable = () => {
                                 </div>
                             ) : (
                                 <TableSearchField
-                                    className="relative flex h-10 w-full min-w-0 items-center gap-2 rounded-xl border border-[rgba(210,218,240,0.65)] bg-white/75 px-3 text-sm text-gray-700 backdrop-blur transition-colors hover:border-purple-300 focus-within:border-purple-400 dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-200 sm:min-w-[220px] xl:w-[300px]"
+                                    className="relative flex h-10 w-full min-w-0 items-center gap-2 rounded-xl border border-[rgba(210,218,240,0.65)] bg-white/75 px-3 text-sm text-gray-700 backdrop-blur transition-colors hover:border-purple-300 focus-within:border-purple-400 dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-200 sm:min-w-[220px] xl:flex-1"
                                     placeholder={searchPlaceholder}
                                     value={searchInput}
                                     onChange={(event) => setSearchInput(event.target.value)}
@@ -3783,9 +3915,9 @@ const OrdersTable = () => {
                 </div>
                 {canViewOrderSummary && (
                     <div className="px-3 pt-3 pb-3 bg-gray-50">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div className="order-summary-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                             <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
-                                <div className="flex items-center justify-center w-10 h-10 rounded-md bg-primary text-white">
+                                <div className="order-stat-icon flex items-center justify-center w-10 h-10 rounded-md bg-primary text-white">
                                     <Package size={20} />
                                 </div>
                                 <div className="flex flex-col">
@@ -3797,7 +3929,7 @@ const OrdersTable = () => {
                             </div>
 
                             <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
-                                <div className="flex items-center justify-center w-10 h-10 rounded-md bg-primary text-white">
+                                <div className="order-stat-icon flex items-center justify-center w-10 h-10 rounded-md bg-primary text-white">
                                     <CircleDollarSign size={20} />
                                 </div>
                                 <div className="flex flex-col">
@@ -3809,7 +3941,7 @@ const OrdersTable = () => {
                             </div>
 
                             <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
-                                <div className="flex items-center justify-center w-10 h-10 rounded-md bg-primary text-white">
+                                <div className="order-stat-icon flex items-center justify-center w-10 h-10 rounded-md bg-primary text-white">
                                     <CreditCard size={20} />
                                 </div>
                                 <div className="flex flex-col">
@@ -3821,7 +3953,7 @@ const OrdersTable = () => {
                             </div>
 
                             <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
-                                <div className="flex items-center justify-center w-10 h-10 rounded-md bg-primary text-white">
+                                <div className="order-stat-icon flex items-center justify-center w-10 h-10 rounded-md bg-primary text-white">
                                     <Gift size={20} />
                                 </div>
                                 <div className="flex flex-col">
@@ -3835,10 +3967,17 @@ const OrdersTable = () => {
                     </div>
                 )}
 
-                <div className="grid">
+                <div className="grid min-w-0 grid-cols-1">
                     <CommonTable
                         columns={columns}
+                        containerClassName="min-w-0"
+                        tableClassName="order-main-table"
                         data={data}
+                        onRowClick={canViewOrderPayments ? (order, _index, event) => {
+                            if (event?.target?.closest('button, a, input, select, textarea, [role="button"], [role="menuitem"]')) return;
+                            return toggleOrderPayments(order);
+                        } : undefined}
+                        rowClassName={(order) => expandedOrderId === order.orderId ? 'bg-indigo-50/40 dark:bg-indigo-500/5' : ''}
                         sorting={sorting}
                         onSortingChange={handleSortingChange}
                         isLoading={loading}
@@ -3871,6 +4010,11 @@ const OrdersTable = () => {
                                 <div className="p-6 overflow-y-auto flex-1">
                                     {paymentLoading ? (
                                         <div className="text-sm text-gray-600">Loading payment...</div>
+                                    ) : paymentLoadError ? (
+                                        <div role="alert" className="space-y-3 text-sm text-red-700">
+                                            <p>{paymentLoadError}</p>
+                                            <button type="button" className="rounded border px-3 py-2" onClick={() => openEditPaymentModal(paymentLoadContextRef.current)}>Retry loading payment</button>
+                                        </div>
                                     ) : (
                                         <div className="space-y-4">
                                             {/* Payment type tabs (same design as CreateOrderPage) */}
@@ -4176,7 +4320,7 @@ const OrdersTable = () => {
                                                     </div>
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                                         <div className="md:col-span-2">
-                                                            <label className={labelClass}>Name On Card</label>
+                                                            <label className={labelClass}>Payee / Account Holder Name</label>
                                                             <input className={fieldClass(inputClass, !!paymentErrors.nameOnCard)} value={paymentDraft.nameOnCard || ''} onChange={handlePaymentField('nameOnCard')} />
                                                             {paymentErrors.nameOnCard ? <p className="mt-1 text-xs text-red-600">{paymentErrors.nameOnCard}</p> : null}
                                                         </div>
@@ -4206,8 +4350,13 @@ const OrdersTable = () => {
                                                     </div>
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                                         <div className="md:col-span-2">
-                                                            <label className={labelClass}>Zelle ID</label>
-                                                            <input className={fieldClass(inputClass, !!paymentErrors.zelleId)} value={paymentDraft.zelleId || ''} onChange={handlePaymentField('zelleId')} />
+                                                            <label className={labelClass}>{paymentActiveTab === 'paypal' ? 'PayPal Account (Email / Phone)' : 'Zelle ID'}</label>
+                                                            <input
+                                                                className={fieldClass(inputClass, !!paymentErrors.zelleId)}
+                                                                value={paymentDraft.zelleId || ''}
+                                                                onChange={handlePaymentField('zelleId')}
+                                                                placeholder={paymentActiveTab === 'paypal' ? 'PayPal email or phone number' : 'Zelle email or phone number'}
+                                                            />
                                                             {paymentErrors.zelleId ? <p className="mt-1 text-xs text-red-600">{paymentErrors.zelleId}</p> : null}
                                                         </div>
                                                     </div>
@@ -4231,7 +4380,7 @@ const OrdersTable = () => {
                                     <LiquidGlassButton
                                         type="button"
                                         onClick={savePayment}
-                                        disabled={paymentSaving || paymentLoading}
+                                        disabled={paymentSaving || paymentLoading || !!paymentLoadError}
                                         className="!h-10 !px-6 text-center"
                                     >
                                         {paymentSaving ? 'Saving...' : paymentModalMode === 'edit' ? 'Update Payment' : 'Add Payment'}

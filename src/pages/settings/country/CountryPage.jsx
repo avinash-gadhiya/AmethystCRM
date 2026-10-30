@@ -13,7 +13,7 @@ import {
   ArrowDown,
   Lock,
 } from 'lucide-react';
-import { toast, Toaster } from 'sonner';
+import { toast } from 'sonner';
 
 import countryService from '@/services/countryService';
 import { resolveConfiguredPagePermissions } from '@/utils/configuredPagePermissions';
@@ -304,7 +304,7 @@ const CountryPage = () => {
 
   return (
     <div className="countries-page px-5 lg:px-10 py-5">
-      <Toaster richColors position="top-right" />
+
 
       <div className="flex flex-col gap-5 lg:gap-7.5">
         {/* Header */}

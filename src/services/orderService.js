@@ -1,7 +1,9 @@
 import apiClient from './core/apiClient';
 import { normalizePaymentGateway } from '@/lib/paymentMethod';
+import { normalizeApiRecord } from '@/lib/normalizeApiRecord';
 
 const normalizeList = (payload) => {
+  payload = normalizeApiRecord(payload);
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.data)) return payload.data;
   if (Array.isArray(payload?.items)) return payload.items;
@@ -16,25 +18,28 @@ const normalizeSummary = (payload) => {
   return payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data) ? payload.data : payload;
 };
 
+const dateBound = (value, end = false) => /^\d{4}-\d{2}-\d{2}$/.test(value || '')
+  ? `${value}T${end ? '23:59:59.999' : '00:00:00'}` : value || '';
+
 const orderQuery = (params = {}, includePaging = true) => ({
   SearchField: params.SearchField || '',
   Text: params.Text || '',
-  Date: params.Date || '',
-  FromDate: params.FromDate ?? params.fromDate ?? '',
-  ToDate: params.ToDate ?? params.toDate ?? '',
+  fromDate: dateBound(params.Date || params.FromDate || params.fromDate),
+  toDate: dateBound(params.Date || params.ToDate || params.toDate, true),
   ...(includePaging
     ? {
         PageNumber: params.PageNumber || 1,
         PageSize: params.PageSize || 10,
         SortProperty: params.SortProperty || 'orderDate',
-        IsDescending: params.IsDescending ?? true
+        IsDescending: params.IsDescending ?? true,
+        CustomerId: params.CustomerId ?? params.customerId ?? ''
       }
     : {})
 });
 
 export const orderService = {
   async getOrders(params = {}, signal) {
-    const payload = await apiClient.get('/Order', orderQuery(params), signal);
+    const payload = normalizeApiRecord(await apiClient.get('/Order', orderQuery(params), signal));
     const data = normalizeList(payload);
     return {
       data,
@@ -72,13 +77,18 @@ export const orderService = {
       query = { FromDate: params, ToDate: typeof toDateOrSignal === 'string' ? toDateOrSignal : '' };
       signal = typeof toDateOrSignal === 'string' ? maybeSignal : toDateOrSignal;
     }
-    return normalizeSummary(await apiClient.get('/Order/GetOrderSummary', orderQuery(query, false), signal));
+    const { fromDate, toDate } = orderQuery(query, false);
+    return normalizeSummary(normalizeApiRecord(await apiClient.get('/Order/GetOrderSummary', { fromDate, toDate }, signal)));
   },
 
   async getOrderById(id, signal) {
     if (!id) throw new Error('Order ID is required.');
     const payload = await apiClient.get(`/Order/${encodeURIComponent(id)}`, undefined, signal);
-    return payload?.data ?? payload;
+    let order = normalizeApiRecord(payload);
+    while (order && !Array.isArray(order) && order.data !== undefined) order = order.data;
+    if (Array.isArray(order)) order = order.find((row) => Number(row.orderId) === Number(id));
+    if (Number(order?.orderId) !== Number(id)) throw new Error('Order not found.');
+    return order;
   }
 };
 

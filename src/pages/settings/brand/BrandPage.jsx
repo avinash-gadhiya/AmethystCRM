@@ -2,7 +2,7 @@ import BrandTable from './table/BrandTable';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Award, Plus, Search, X, ArrowUpDown, ArrowUp, ArrowDown, ShieldAlert } from 'lucide-react';
-import { toast, Toaster } from 'sonner';
+import { toast } from 'sonner';
 
 import brandService from '@/services/brandService';
 import { getApiErrorMessage } from '@/lib/apiError';
@@ -102,8 +102,11 @@ const BrandPage = () => {
 
   // Optimistic Toggle Active/Inactive
   const handleToggleActive = async (brand) => {
-    if (!permissions.canUpdate || pendingIds.has(brand.brandId)) {
+    if (!permissions.canUpdate) {
       toast.error('You do not have permission to modify brand status.');
+      return;
+    }
+    if (pendingIds.has(brand.brandId)) {
       return;
     }
 
@@ -177,8 +180,6 @@ const BrandPage = () => {
 
   return (
     <div className="space-y-6">
-      <Toaster position="top-right" richColors />
-
       {loadError && (
         <div role="alert" className="p-3 rounded-lg bg-red-50 text-red-700">
           {loadError}

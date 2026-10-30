@@ -56,14 +56,9 @@ export const productService = {
     return apiClient.put('/Product', toProductDTO(productDTO));
   },
 
-  // DELETE /api/Product?id={id} with fallback to /api/Product/{id}
+  // DELETE /api/Product?id={id}
   async deleteProduct(id) {
-    try {
-      return await apiClient.delete('/Product', { id });
-    } catch (error) {
-      if (![400, 404, 405].includes(error?.status)) throw error;
-      return apiClient.delete(`/Product/${encodeURIComponent(id)}`);
-    }
+    return apiClient.delete('/Product', { id });
   },
 
   // GET /api/Product/ProductDropdown

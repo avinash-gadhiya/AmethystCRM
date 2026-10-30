@@ -312,7 +312,7 @@ export const brandService = {
   },
 
   async deleteBrandEmail(brandEmailId) {
-    const response = await apiClient.delete(`/BrandEmail/${brandEmailId}`);
+    const response = await apiClient.delete('/BrandEmail', { id: brandEmailId });
     this.clearAllCache();
     return response;
   },
@@ -454,7 +454,6 @@ export const brandService = {
     }
     if (rawGatewayId !== undefined && rawGatewayId !== null && rawGatewayId !== '') {
       queryParams.getwayId = Number(rawGatewayId);
-      queryParams.gatewayId = Number(rawGatewayId);
     }
     if (rawPaymentTypeId !== undefined && rawPaymentTypeId !== null && rawPaymentTypeId !== '') {
       queryParams.paymentTypeId = Number(rawPaymentTypeId);
@@ -467,20 +466,14 @@ export const brandService = {
       queryParams.IsDescending = Boolean(params.IsDescending);
     }
 
-    try {
-      const response = await apiClient.get('/GatewayPaymentType', queryParams);
-      return unwrapList(response);
-    } catch (error) {
-      console.warn('GatewayPaymentType fetch returned an error or empty set, falling back to empty list:', error);
-      return { success: true, data: [], totalCount: 0 };
-    }
+    const response = await apiClient.get('/GatewayPaymentType', queryParams);
+    return unwrapList(response);
   },
 
   async saveGatewayPaymentTypes(data) {
     const payload = {
       gatewayPaymentTypeId: Number(data.gatewayPaymentTypeId || 0),
       gatewayId: Number(data.gatewayId),
-      brandId: Number(data.brandId),
       gatewayName: String(data.gatewayName || '').trim(),
       paymentTypeIds: Array.isArray(data.paymentTypeIds) ? data.paymentTypeIds.map(Number) : [],
       isActive: Boolean(data.isActive ?? true)
@@ -497,9 +490,9 @@ export const brandService = {
   },
 
   async deleteGatewayPaymentType(mapping) {
-    const params = { gatewayId: mapping.gatewayId, paymentTypeId: mapping.paymentTypeId };
-    const path = mapping.gatewayPaymentTypeId ? `/GatewayPaymentType/${mapping.gatewayPaymentTypeId}` : '/GatewayPaymentType';
-    const response = await apiClient.delete(path, params);
+    const id = Number(mapping.gatewayPaymentTypeId);
+    if (!id) throw new Error('Gateway payment type ID is required.');
+    const response = await apiClient.delete('/GatewayPaymentType', { id });
     this.clearAllCache();
     return response;
   },

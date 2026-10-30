@@ -148,12 +148,7 @@ export const leadService = {
     return { data: rows, totalCount: Number(total) || rows.length };
   },
   async deleteLead(leadId) {
-    try {
-      return await apiClient.request(`/Lead/${encodeURIComponent(leadId)}`, { method: 'DELETE' });
-    } catch (error) {
-      if (![400, 404, 405].includes(error?.status)) throw error;
-      return apiClient.delete('/Lead', { id: leadId });
-    }
+    return apiClient.request(`/Lead/${encodeURIComponent(leadId)}`, { method: 'DELETE' });
   },
   async getOptions(settingKey, signal) {
     const result = normalizeResult(await apiClient.get('/SettingValue/SettingValueDropDown', { settingKey }, signal), normalizeOption);

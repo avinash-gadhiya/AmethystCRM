@@ -10,6 +10,7 @@ import { Button } from 'components/ui/Bootstrap';
 import { formatApiValue, humanizeKey, inferApiColumns, rowMatches, toCsv, unwrapApiPayload } from '@/lib/apiData';
 import { apiClient } from 'services/core/apiClient';
 import RecordDetailModal, { FieldGrid } from './RecordDetailModal';
+import { getOperationQuery } from '@/lib/apiOperationQuery';
 
 const toInputDate = (date) => {
   const offset = date.getTimezoneOffset() * 60000;
@@ -205,7 +206,7 @@ export default function ApiDataViewer({ operation, title }) {
     apiClient
       .get(
         operation.path,
-        {
+        getOperationQuery('GET', operation.path, {
           PageNumber: page,
           PageSize: pageSize,
           SortProperty: sort.sortProperty,
@@ -213,20 +214,23 @@ export default function ApiDataViewer({ operation, title }) {
           FromDate: range.from ? `${range.from}T00:00:00` : '',
           ToDate: range.to ? `${range.to}T23:59:59` : '',
           Text: search
-        },
+        }),
         controller.signal
       )
-      .then((payload) => setState({ loading: false, error: '', payload, elapsed: Math.round(performance.now() - startedAt) }))
+      .then((payload) => {
+        if (controller.signal.aborted) return;
+        setState({ loading: false, error: '', payload, elapsed: Math.round(performance.now() - startedAt) });
+      })
       .catch((error) => {
-        if (error?.name === 'AbortError') return;
+        if (controller.signal.aborted || error?.name === 'AbortError' || error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') return;
         setState({ loading: false, error: error?.message || 'Unable to load data.', payload: null, elapsed: 0 });
       });
     return () => controller.abort();
   }, [operation.path, page, pageSize, sort, range, search, reloadKey]);
 
   const unwrapped = useMemo(() => unwrapApiPayload(state.payload), [state.payload]);
-  // APIs that ignore PageSize return every row at once; page those on the client instead.
-  const serverPaged = unwrapped.rows.length <= pageSize;
+  // APIs that ignore PageSize return every row at once; only use server paging when totalCount exceeds the current slice or when beyond page 1.
+  const serverPaged = unwrapped.rows.length <= pageSize && (page > 1 || unwrapped.totalCount > unwrapped.rows.length);
 
   const server = serverPaged
     ? {

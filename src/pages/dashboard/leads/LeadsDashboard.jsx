@@ -61,7 +61,8 @@ export default function LeadsDashboard() {
     [data.group, group, draftGroup]
   );
   const filteredGroups = group ? data.group.filter((item) => textValue(item, ['groupName', 'group', 'name'], '') === group) : data.group;
-  const totalLeads = [...filteredGroups, ...data.people].reduce(
+  const leadSummaryRows = group || data.group.length > 0 ? filteredGroups : data.people;
+  const totalLeads = leadSummaryRows.reduce(
     (sum, item) => sum + numberValue(item, ['leadCount', 'totalLeads', 'leads', 'count']),
     0
   );

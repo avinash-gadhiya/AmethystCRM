@@ -129,7 +129,7 @@ export default function GatewayPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [searchInput, setSearchInput] = useState('');
   const [searchText, setSearchText] = useState('');
-  const [brandId, setBrandId] = useState('');
+  const [brandId, setBrandId] = useState(() => new URLSearchParams(location.search).get('brandId') || '');
   const [gatewayId, setGatewayId] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -149,6 +149,14 @@ export default function GatewayPage() {
   useEffect(() => {
     setActiveSection(getSectionFromPath(location.pathname));
   }, [location.pathname]);
+
+  useEffect(() => {
+    const queryBrandId = new URLSearchParams(location.search).get('brandId');
+    if (queryBrandId !== null) {
+      setBrandId(queryBrandId);
+      setPage(1);
+    }
+  }, [location.search]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -233,7 +241,20 @@ export default function GatewayPage() {
 
   const openGatewayEditor = (gateway = null) => {
     if (gateway ? !permissions.canUpdate : !permissions.canAdd) return;
-    setGatewayForm(gateway ? { ...EMPTY_GATEWAY, ...gateway, apiSecretKey: '', brandId: gateway.brandId || '' } : { ...EMPTY_GATEWAY });
+    setGatewayForm(
+      gateway
+        ? {
+            ...EMPTY_GATEWAY,
+            ...gateway,
+            gatewayName: gateway.gatewayName ?? '',
+            apiBaseUrl: gateway.apiBaseUrl ?? '',
+            apiLoginId: '',
+            apiSecretKey: '',
+            merchantSiteId: gateway.merchantSiteId ?? '',
+            brandId: gateway.brandId || ''
+          }
+        : { ...EMPTY_GATEWAY }
+    );
     setShowGatewayEditor(true);
   };
 
@@ -241,31 +262,34 @@ export default function GatewayPage() {
     event.preventDefault();
     if (gatewayForm.gatewayId ? !permissions.canUpdate : !permissions.canAdd) return;
     setError('');
-    if (!gatewayForm.gatewayName.trim() || Number(gatewayForm.brandId) <= 0) {
+    const trimmedName = String(gatewayForm.gatewayName ?? '').trim();
+    const trimmedLoginId = String(gatewayForm.apiLoginId ?? '').trim();
+    const secretKey = String(gatewayForm.apiSecretKey ?? '');
+    if (!trimmedName || Number(gatewayForm.brandId) <= 0) {
       setError('Gateway name and Brand ID are required.');
       return;
     }
-    if ((gatewayForm.apiLoginId || gatewayForm.apiSecretKey) && !(gatewayForm.apiLoginId && gatewayForm.apiSecretKey)) {
+    if ((trimmedLoginId || secretKey) && !(trimmedLoginId && secretKey)) {
       setError('API Login ID and API Secret Key must be entered together.');
       return;
     }
 
     const payload = {
       gatewayId: Number(gatewayForm.gatewayId) || 0,
-      gatewayName: gatewayForm.gatewayName.trim(),
+      gatewayName: trimmedName,
       brandId: Number(gatewayForm.brandId),
       brandName: gatewayForm.brandName || '',
       gatewayType: Number(gatewayForm.gatewayType) || 0,
-      apiBaseUrl: gatewayForm.apiBaseUrl.trim() || null,
+      apiBaseUrl: String(gatewayForm.apiBaseUrl ?? '').trim() || null,
       isActive: Boolean(gatewayForm.isActive),
       isSandbox: Boolean(gatewayForm.isSandbox),
       hasCredentials: Boolean(gatewayForm.hasCredentials),
       lastSyncedAtUtc: gatewayForm.lastSyncedAtUtc || null
     };
-    if (gatewayForm.apiLoginId && gatewayForm.apiSecretKey) {
-      payload.apiLoginId = gatewayForm.apiLoginId.trim();
-      payload.apiSecretKey = gatewayForm.apiSecretKey;
-      payload.merchantSiteId = gatewayForm.merchantSiteId.trim();
+    if (trimmedLoginId && secretKey) {
+      payload.apiLoginId = trimmedLoginId;
+      payload.apiSecretKey = secretKey;
+      payload.merchantSiteId = String(gatewayForm.merchantSiteId ?? '').trim();
       payload.hasCredentials = true;
     }
 
@@ -395,7 +419,7 @@ export default function GatewayPage() {
     gatewayId,
     ...(activeSection === 'transactions' ? [fromDate, toDate, normalizedStatus, cardLast4, transactionRef] : [])
   ].filter(Boolean).length;
-  const filtered = Boolean(searchText || (hasExtendedFilters && filterCount));
+  const filtered = Boolean(searchText || filterCount);
   const summaryCards = getGatewaySummary(activeSection, rows, totalCount).map((item) => ({
     ...item,
     value: Number(item.value).toLocaleString(),

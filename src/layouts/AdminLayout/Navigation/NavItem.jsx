@@ -21,7 +21,7 @@ export default function NavItem({ item }) {
   const isItemActive =
     item.url &&
     (currentPath === item.url.toLowerCase() ||
-      (item.url !== '/' && currentPath.startsWith(item.url.toLowerCase())) ||
+      (item.url !== '/' && currentPath.startsWith(`${item.url.toLowerCase().replace(/\/+$/, '')}/`)) ||
       matchPaths.some((path) => currentPath === path || currentPath.startsWith(`${path}/`)));
 
   const navItemClass = ['pc-item', isItemActive ? 'active' : ''].filter(Boolean).join(' ');

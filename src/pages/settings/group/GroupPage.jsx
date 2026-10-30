@@ -13,7 +13,7 @@ import {
   ArrowDown,
   ShieldAlert
 } from 'lucide-react';
-import { toast, Toaster } from 'sonner';
+import { toast } from 'sonner';
 
 import groupService from '@/services/groupService';
 import { getApiErrorMessage } from '@/lib/apiError';
@@ -352,8 +352,6 @@ const GroupPage = () => {
 
   return (
     <div className="space-y-6">
-      <Toaster position="top-right" richColors />
-
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-gray-200 dark:border-white/10">
         <div>

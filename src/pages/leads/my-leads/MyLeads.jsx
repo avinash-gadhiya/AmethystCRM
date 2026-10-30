@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { CalendarPlus, RefreshCw } from 'lucide-react';
-import { Badge, Button, Form, Spinner } from 'react-bootstrap';
+import { Badge, Button, Form, Spinner } from '@/components/ui/Bootstrap';
 import { toast } from 'sonner';
 
 import leadService from '@/services/leadService';
@@ -37,10 +37,15 @@ export default function MyLeads({ permissions, dispositions, users }) {
   useEffect(() => {
     setDrafts((old) =>
       Object.fromEntries(
-        state.data.map((lead) => [
-          lead.leadId,
-          old[lead.leadId] || { dispositionId: lead.dispositionId || '', comments: lead.comments || '' }
-        ])
+        state.data.map((lead) => {
+          const existing = old[lead.leadId];
+          const serverDraft = {
+            dispositionId: lead.dispositionId || '',
+            comments: lead.comments || '',
+            dirty: false
+          };
+          return [lead.leadId, existing?.dirty ? existing : serverDraft];
+        })
       )
     );
   }, [state.data]);
@@ -59,6 +64,10 @@ export default function MyLeads({ permissions, dispositions, users }) {
     try {
       await leadService.updateLead(lead.leadId, draft.dispositionId, draft.comments);
       toast.success('Lead updated successfully');
+      setDrafts((old) => {
+        if (!old[lead.leadId]) return old;
+        return { ...old, [lead.leadId]: { ...old[lead.leadId], dirty: false } };
+      });
       state.refresh();
     } catch (error) {
       console.error(error);
@@ -133,9 +142,19 @@ export default function MyLeads({ permissions, dispositions, users }) {
         <Form.Control
           as="textarea"
           rows={2}
-          value={drafts[lead.leadId]?.comments ?? lead.comments}
+          value={drafts[lead.leadId]?.comments ?? lead.comments ?? ''}
           disabled={!permissions.canUpdate || saving === lead.leadId}
-          onChange={(e) => setDrafts((old) => ({ ...old, [lead.leadId]: { ...old[lead.leadId], comments: e.target.value } }))}
+          onChange={(e) =>
+            setDrafts((old) => ({
+              ...old,
+              [lead.leadId]: {
+                dispositionId: old[lead.leadId]?.dispositionId ?? lead.dispositionId ?? '',
+                ...old[lead.leadId],
+                comments: e.target.value,
+                dirty: true
+              }
+            }))
+          }
           aria-label={`Comment for lead ${lead.leadId}`}
         />
       )
@@ -146,9 +165,19 @@ export default function MyLeads({ permissions, dispositions, users }) {
       cell: (lead) => (
         <Form.Select
           size="sm"
-          value={drafts[lead.leadId]?.dispositionId ?? lead.dispositionId}
+          value={drafts[lead.leadId]?.dispositionId ?? lead.dispositionId ?? ''}
           disabled={!permissions.canUpdate || saving === lead.leadId}
-          onChange={(e) => setDrafts((old) => ({ ...old, [lead.leadId]: { ...old[lead.leadId], dispositionId: e.target.value } }))}
+          onChange={(e) =>
+            setDrafts((old) => ({
+              ...old,
+              [lead.leadId]: {
+                comments: old[lead.leadId]?.comments ?? lead.comments ?? '',
+                ...old[lead.leadId],
+                dispositionId: e.target.value,
+                dirty: true
+              }
+            }))
+          }
         >
           <option value="">Select</option>
           {dispositions.map((option) => (

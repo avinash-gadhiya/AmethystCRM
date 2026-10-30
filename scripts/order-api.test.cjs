@@ -13,11 +13,12 @@ function load(file, requireDependency) {
 const paymentMethods = load('src/lib/paymentMethod.js');
 const refundMethods = load('src/lib/paymentRefund.js');
 const editor = load('src/lib/orderEditor.js');
+const normalization = load('src/lib/normalizeApiRecord.js');
 const plain = (value) => JSON.parse(JSON.stringify(value));
 function setup(handler) {
   const calls = [];
   const apiClient = Object.fromEntries(
-    ['get', 'post', 'put', 'request'].map((method) => [
+    ['get', 'post', 'put', 'delete', 'request'].map((method) => [
       method,
       async (path, data) => {
         calls.push({ method, path, data });
@@ -26,6 +27,7 @@ function setup(handler) {
     ])
   );
   const dependencies = (name) => {
+    if (name === '@/lib/normalizeApiRecord') return normalization;
     if (name === '@/lib/paymentMethod') return paymentMethods;
     if (name === '@/lib/paymentRefund') return refundMethods;
     return { __esModule: true, default: apiClient };
@@ -52,10 +54,112 @@ const sale = {
 const oldRefund = { paymentId: 38, orderId: 12, refundPaymentId: 37, amount: 100, saleType: 'Refund', paymentType: 'Card', createdBy: 1 };
 const draft = { amount: 50, paymentDate: '2026-10-26', transactionId: 'refund-test', authCode: '', isAlert: false };
 
+test('order payment reads use the Payments page route without a singular permission-code assumption', async () => {
+  const { payments, calls } = setup((_method, path) => {
+    if (path === '/Payment/37') return { data: sale };
+    if (path === '/Payment/40') return { data: { ...sale, paymentId: 40, orderId: 99 } };
+    assert.equal(path, '/Payment');
+    return { Data: [
+      { PaymentId: 37, OrderId: 12, Amount: 500, SaleType: 'Sale' },
+      oldRefund, { ...sale, paymentId: 40, orderId: 99 }, { ...sale, paymentId: 41, isDeleted: true }
+    ], TotalCount: 4 };
+  });
+  const rows = await payments.getOrderPayments(12);
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].orderId, 12);
+  assert.equal(rows[1].saleType, 'Refund');
+  assert.equal((await payments.getOrderPaymentById(37, 12)).paymentId, 37);
+  await assert.rejects(payments.getOrderPaymentById(40, 12), /not found in this order/);
+  assert.ok(calls.every((call) => !call.path.includes('GetAllPayment') && !call.path.startsWith('/Order/')));
+});
+
+test('refunds reload Payment history before saving and count existing refunds', async () => {
+  let reads = 0;
+  const { payments, calls } = setup((method, path, payload) => {
+    if (method === 'get') {
+      assert.equal(path, '/Payment', 'use the same route as the granted Payments page');
+      reads += 1;
+      return { data: [sale, oldRefund, ...(reads > 1 ? [{ ...oldRefund, paymentId: 39, amount: 300 }] : [])] };
+    }
+    return { data: { ...payload, paymentId: 42 } };
+  });
+  assert.equal((await payments.getRefundContext(37, undefined, { orderId: 12 })).availableAmount, 400);
+  await assert.rejects(payments.saveRefund({ paymentId: 37, orderId: 12, draft: { ...draft, amount: 200 }, userId: 7 }), /cannot exceed/);
+  assert.equal(calls.filter((call) => call.method === 'post').length, 0, 'a newer refund reduces the available amount before save');
+  const saved = await payments.saveRefund({ paymentId: 37, orderId: 12, draft, userId: 7 });
+  assert.equal(saved.refundPaymentId, 37);
+  assert.equal(saved.orderId, 12);
+  assert.equal(saved.amount, 50);
+});
+
+test('refund edits retain their original payment link using the order payment history', async () => {
+  const { payments, calls } = setup((method, path, payload) => {
+    if (method === 'get') {
+      assert.equal(path, '/Payment');
+      return { data: [sale, oldRefund] };
+    }
+    return { data: payload };
+  });
+  await payments.saveRefund({ paymentId: 38, orderId: 12, draft: { ...draft, amount: 450 }, userId: 7 });
+  const put = calls.find((call) => call.method === 'put');
+  assert.equal(put.path, '/Payment');
+  assert.equal(put.data.paymentId, 38);
+  assert.equal(put.data.refundPaymentId, 37);
+  assert.equal(calls.some((call) => call.method === 'post'), false);
+});
+
+test('missing history or denied Payment access blocks refunds without trying another endpoint', async () => {
+  for (const response of [{ orderId: 12 }, { orderId: 12, payments: [] }, { orderId: 99, payments: [sale] }, null]) {
+    const { payments, calls } = setup((_method, path) => {
+      assert.equal(path, '/Payment');
+      if (response === null) throw Object.assign(new Error('Order access denied'), { status: 403 });
+      return response;
+    });
+    await assert.rejects(payments.saveRefund({ paymentId: 37, orderId: 12, draft, userId: 7 }));
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].method, 'get');
+  }
+});
+
+test('order payments page through the Payment API and retain sales, refunds, and voids for the selected order only', async () => {
+  const first = Array.from({ length: 100 }, (_, index) => ({ PaymentId: index + 100, OrderId: 12, Amount: 1, SaleType: 'Sale' }));
+  const { payments, calls } = setup((_method, path, query) => {
+    assert.equal(path, '/Payment');
+    assert.equal(query.SearchField, 'OrderId');
+    assert.equal(query.Text, '12');
+    assert.equal(query.FromDate, '', 'history is not limited to the order sale period');
+    return query.PageNumber === 1
+      ? { Data: { Items: first, TotalCount: 104 } }
+      : { Data: { Items: [oldRefund, { ...sale, isVoid: true }, { ...sale, paymentId: 40, isDeleted: true }, { ...sale, paymentId: 41, orderId: 99 }], TotalCount: 104 } };
+  });
+  const rows = await payments.getOrderPayments(12);
+  assert.equal(rows.length, 102);
+  assert.ok(rows.some((row) => row.saleType === 'Refund'));
+  assert.ok(rows.some((row) => row.isVoid));
+  assert.ok(rows.every((row) => row.orderId === 12 && !row.isDeleted));
+  assert.equal(calls.length, 2);
+});
+
+test('order payments handle empty history without calling GetAllPayment', async () => {
+  const { payments, calls } = setup((_method, path) => {
+    assert.equal(path, '/Payment');
+    return { Data: [], TotalCount: 0 };
+  });
+  assert.deepEqual(plain(await payments.getOrderPayments(12)), []);
+  assert.equal(calls[0].path, '/Payment');
+  assert.equal(calls.length, 1);
+  await assert.rejects(payments.getOrderPayments(0), /Order ID/);
+});
+
+test('incomplete order payment history fails instead of displaying a partial list as complete', async () => {
+  const { payments } = setup(() => ({ data: [sale], totalCount: 2 }));
+  await assert.rejects(payments.getOrderPayments(12), /could not be fully loaded/);
+});
+
 test('new refunds read Payment detail and refund history, then POST a linked Refund DTO', async () => {
   const { payments, calls } = setup((method, path, payload) => {
     if (path === '/Payment/37') return { data: sale };
-    if (path === '/Payment/GetAllPayment') return { data: [sale, oldRefund], totalCount: 2 };
+    if (method === 'get' && path === '/Payment') return { data: [sale, oldRefund], totalCount: 2 };
     if (method === 'post') return { success: true, data: { ...payload, paymentId: 39 } };
     throw new Error('Unexpected API call');
   });
@@ -79,7 +183,7 @@ test('editing a refund PUTs its ID and keeps its original-payment relationship',
   const { payments, calls } = setup((method, path, payload) => {
     if (path === '/Payment/38') return { data: oldRefund };
     if (path === '/Payment/37') return { data: sale };
-    if (path === '/Payment/GetAllPayment') return { data: [sale, oldRefund], totalCount: 2 };
+    if (method === 'get' && path === '/Payment') return { data: [sale, oldRefund], totalCount: 2 };
     if (method === 'put') return { data: payload };
     throw new Error('Unexpected API call');
   });
@@ -140,14 +244,14 @@ test('refunds count every history page and ignore voided refunds and other order
         };
   });
   assert.equal((await payments.getRefundContext(37)).availableAmount, 400);
-  assert.equal(calls.filter((call) => call.path === '/Payment/GetAllPayment').length, 2);
+  assert.equal(calls.filter((call) => call.path === '/Payment').length, 2);
 });
 
 test('non-card refunds use a nullable gateway and canonical PascalCase payment details', async () => {
   const { payments, calls } = setup((method, path, payload) => {
     if (path === '/Payment/37')
       return { Data: { PaymentId: 37, OrderId: 12, Amount: 100, PaymentType: 'Bank', SaleType: 'Sale', BrandId: 2 } };
-    if (path === '/Payment/GetAllPayment') return { Data: [], TotalCount: 0 };
+    if (path === '/Payment') return { Data: [], TotalCount: 0 };
     if (method === 'post') return { Success: true, Data: { PaymentId: 39 } };
     throw new Error('Unexpected API call');
   });
@@ -223,4 +327,59 @@ test('brand gateway lookup excludes other brands and does not leak unassigned fa
   );
   assert.equal(calls[0].data.params.BrandId, 2);
   assert.deepEqual(plain(await gateways.getBrandGateways(0)), { data: [], totalCount: 0 });
+});
+
+test('order date filters use full-day API bounds and summary accepts date parameters only', async () => {
+  const { orders, calls } = setup(() => ({ Data: [], TotalCount: 0 }));
+  await orders.getOrders({ Date: '2026-10-30', SearchField: 'CustomerName', Text: 'Jack' });
+  assert.equal(calls[0].data.fromDate, '2026-10-30T00:00:00');
+  assert.equal(calls[0].data.toDate, '2026-10-30T23:59:59.999');
+  assert.equal('Date' in calls[0].data, false);
+  await orders.getOrderSummary({ FromDate: '2026-10-01', ToDate: '2026-10-30', Text: 'Jack' });
+  assert.deepEqual(plain(calls[1].data), { fromDate: '2026-10-01T00:00:00', toDate: '2026-10-30T23:59:59.999' });
+});
+
+test('PascalCase status strings are normalized without treating false as true', async () => {
+  const { payments } = setup(() => ({ Data: [{ PaymentId: 37, OrderId: 12, IsVoid: 'false', IsDeleted: '0', IsAlert: 'true' }], TotalCount: 1 }));
+  const rows = await payments.getOrderPayments(12);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].isVoid, false);
+  assert.equal(rows[0].isDeleted, false);
+  assert.equal(rows[0].isAlert, true);
+});
+
+test('order detail unwraps PascalCase envelopes and rejects a different order ID', async () => {
+  const { orders } = setup((_method, path) => ({ Data: { OrderId: path === '/Order/12' ? 12 : 99, IsFulfilled: 'false' } }));
+  assert.equal((await orders.getOrderById(12)).isFulfilled, false);
+  await assert.rejects(orders.getOrderById(13), /Order not found/);
+});
+
+test('refunds reject incomplete original-payment links before writing', async () => {
+  const { payments, calls } = setup(() => ({ data: [sale, { ...oldRefund, refundPaymentId: 0 }] }));
+  await assert.rejects(payments.saveRefund({ paymentId: 37, orderId: 12, draft, userId: 7 }), /missing original payment links/);
+  assert.equal(calls.some((call) => call.method === 'post' || call.method === 'put'), false);
+});
+
+test('payment deletion and mail actions use their exact documented API arguments', async () => {
+  const { payments, orders, calls } = setup(() => ({ success: true }));
+  await payments.deletePayment(37);
+  await orders.deleteOrder(12);
+  await payments.sendPaymentMail({ paymentId: 37, brandEmailTempleteId: 8 });
+  await payments.sendPandaDocMail(37);
+  assert.deepEqual(plain(calls), [
+    { method: 'delete', path: '/Payment/37' },
+    { method: 'delete', path: '/Order', data: { id: 12 } },
+    { method: 'get', path: '/Payment/SendMail', data: { paymentId: 37, brandEmailTempleteId: 8 } },
+    { method: 'get', path: '/Payment/SendPandaDocMail', data: { paymentId: 37 } }
+  ]);
+});
+
+test('Payment list envelopes preserve API rows and reject malformed responses instead of showing empty success', async () => {
+  const valid = setup(() => ({ Result: { Items: [{ PaymentId: 43, OrderId: 42, Amount: 90.99, AuthCode: '86868', PaymentType: 'Card', IsVoid: 'false' }], TotalCount: 1 } }));
+  const rows = await valid.payments.getOrderPayments(42);
+  assert.equal(rows[0].paymentId, 43);
+  assert.equal(rows[0].authCode, '86868');
+  assert.equal(rows[0].amount, 90.99);
+  const invalid = setup(() => ({ unexpected: 'not a payment collection' }));
+  await assert.rejects(invalid.payments.getOrderPayments(42), /invalid payment list/);
 });

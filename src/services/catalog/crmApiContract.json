@@ -1,0 +1,2058 @@
+{
+  "source": "https://demoapi.enstasol.com/swagger/v1/swagger.json",
+  "operations": {
+    "GET /AttendanceReport/Register": {
+      "query": [
+        "FromDate",
+        "ToDate",
+        "UserId",
+        "RoleId",
+        "LocationId",
+        "GroupId",
+        "CellMode",
+        "StrictSalesAgentRule",
+        "LeadsInShiftOnly",
+        "IncludeInactiveUsers",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending",
+        "Text"
+      ]
+    },
+    "GET /AttendanceReport/DayWise": {
+      "query": [
+        "FromDate",
+        "ToDate",
+        "UserId",
+        "RoleId",
+        "LocationId",
+        "GroupId",
+        "CellMode",
+        "StrictSalesAgentRule",
+        "LeadsInShiftOnly",
+        "IncludeInactiveUsers",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending",
+        "Text"
+      ]
+    },
+    "GET /BlockIp": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "POST /BlockIp": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "id",
+        "ip"
+      ],
+      "bodyArray": false
+    },
+    "PUT /BlockIp": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "id",
+        "ip"
+      ],
+      "bodyArray": false
+    },
+    "DELETE /BlockIp": {
+      "query": [
+        "id"
+      ]
+    },
+    "GET /BlueCoreContact": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "GET /BlueCoreContact/GetLeads": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "GET /BlueCoreContact/MyLead": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "PUT /BlueCoreContact/UpdateComment": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "leadId",
+        "dispositionId",
+        "comments"
+      ],
+      "bodyArray": false
+    },
+    "PUT /BlueCoreContact/UpdateDisposition": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "leadId",
+        "dispositionId",
+        "comments"
+      ],
+      "bodyArray": false
+    },
+    "PUT /BlueCoreContact/AssignLead/{id}": {
+      "query": []
+    },
+    "PUT /BlueCoreContact/TransferLead": {
+      "query": [
+        "leadId",
+        "transferUserId"
+      ]
+    },
+    "DELETE /BlueCoreContact/{id}": {
+      "query": []
+    },
+    "GET /Brand": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "POST /Brand": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "brandId",
+        "brandName",
+        "brandDisplayName",
+        "isActive",
+        "docAPIKey",
+        "docTemplateId",
+        "docRole",
+        "isDocAPILive",
+        "address",
+        "supportEmail",
+        "tollfree",
+        "altTollFree",
+        "logoUrl",
+        "refundPolicyUrl"
+      ],
+      "bodyArray": false
+    },
+    "PUT /Brand": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "brandId",
+        "brandName",
+        "brandDisplayName",
+        "isActive",
+        "docAPIKey",
+        "docTemplateId",
+        "docRole",
+        "isDocAPILive",
+        "address",
+        "supportEmail",
+        "tollfree",
+        "altTollFree",
+        "logoUrl",
+        "refundPolicyUrl"
+      ],
+      "bodyArray": false
+    },
+    "DELETE /Brand": {
+      "query": [
+        "id"
+      ]
+    },
+    "GET /Brand/BrandDropDown": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "GET /BrandEmail": {
+      "query": [
+        "BrandId",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending",
+        "Text"
+      ]
+    },
+    "POST /BrandEmail": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "brandEmailId",
+        "brandId",
+        "email",
+        "userName",
+        "host",
+        "sslEnable",
+        "port",
+        "isActive",
+        "brandName",
+        "password"
+      ],
+      "bodyArray": false
+    },
+    "PUT /BrandEmail": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "brandEmailId",
+        "brandId",
+        "email",
+        "userName",
+        "host",
+        "sslEnable",
+        "port",
+        "isActive",
+        "brandName",
+        "password"
+      ],
+      "bodyArray": false
+    },
+    "DELETE /BrandEmail": {
+      "query": [
+        "id"
+      ]
+    },
+    "GET /BrandEmailTemplates": {
+      "query": [
+        "BrandId",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending",
+        "Text"
+      ]
+    },
+    "POST /BrandEmailTemplates": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "brandEmailTemplateId",
+        "templateName",
+        "templateId",
+        "saleTypeId",
+        "saleTypeName",
+        "brandId",
+        "brandName",
+        "fromEmailId",
+        "fromEmailName",
+        "ccEmail",
+        "bccEmail",
+        "subject",
+        "isActive"
+      ],
+      "bodyArray": false
+    },
+    "PUT /BrandEmailTemplates": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "brandEmailTemplateId",
+        "templateName",
+        "templateId",
+        "saleTypeId",
+        "saleTypeName",
+        "brandId",
+        "brandName",
+        "fromEmailId",
+        "fromEmailName",
+        "ccEmail",
+        "bccEmail",
+        "subject",
+        "isActive"
+      ],
+      "bodyArray": false
+    },
+    "DELETE /BrandEmailTemplates": {
+      "query": [
+        "id"
+      ]
+    },
+    "GET /Callback": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "POST /Callback": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "callbackId",
+        "leadId",
+        "name",
+        "email",
+        "phone",
+        "assignedTo",
+        "assignedToName",
+        "assignDate",
+        "completionNotes",
+        "completedDateTime",
+        "completedBy",
+        "completedByName",
+        "createdBy",
+        "createdByName",
+        "despositionId",
+        "despositionName",
+        "entDate"
+      ],
+      "bodyArray": false
+    },
+    "PUT /Callback": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "callbackId",
+        "leadId",
+        "name",
+        "email",
+        "phone",
+        "assignedTo",
+        "assignedToName",
+        "assignDate",
+        "completionNotes",
+        "completedDateTime",
+        "completedBy",
+        "completedByName",
+        "createdBy",
+        "createdByName",
+        "despositionId",
+        "despositionName",
+        "entDate"
+      ],
+      "bodyArray": false
+    },
+    "GET /Callback/CallBackHistory/{leadId}": {
+      "query": []
+    },
+    "GET /Chat/history": {
+      "query": [
+        "user1",
+        "user2"
+      ]
+    },
+    "POST /Chat": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "chatMessageId",
+        "fromUserId",
+        "toUserId",
+        "message",
+        "sentAtUtc"
+      ],
+      "bodyArray": false
+    },
+    "GET /Country": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "POST /Country": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "countryId",
+        "countryName"
+      ],
+      "bodyArray": false
+    },
+    "PUT /Country": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "countryId",
+        "countryName"
+      ],
+      "bodyArray": false
+    },
+    "DELETE /Country/{id}": {
+      "query": []
+    },
+    "GET /Country/CountryDropdown": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "GET /Customer": {
+      "query": [
+        "SearchField",
+        "fromDate",
+        "toDate",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending",
+        "Text"
+      ]
+    },
+    "POST /Customer": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "customerId",
+        "name",
+        "email",
+        "phone",
+        "phone2",
+        "address",
+        "city",
+        "stateId",
+        "stateName",
+        "zipCode",
+        "countryId",
+        "countryName",
+        "isActive",
+        "createdBy",
+        "createdByName",
+        "createdDate",
+        "salesPerson",
+        "salesPersonName",
+        "leadId",
+        "getOrderListDTOs",
+        "getTicketListDTOs"
+      ],
+      "bodyArray": false
+    },
+    "PUT /Customer": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "customerId",
+        "name",
+        "email",
+        "phone",
+        "phone2",
+        "address",
+        "city",
+        "stateId",
+        "stateName",
+        "zipCode",
+        "countryId",
+        "countryName",
+        "isActive",
+        "createdBy",
+        "createdByName",
+        "createdDate",
+        "salesPerson",
+        "salesPersonName",
+        "leadId",
+        "getOrderListDTOs",
+        "getTicketListDTOs"
+      ],
+      "bodyArray": false
+    },
+    "GET /Customer/search": {
+      "query": [
+        "searchText",
+        "pageNumber",
+        "pageSize"
+      ]
+    },
+    "POST /Customer/index/rebuild": {
+      "query": []
+    },
+    "PUT /Customer/CanDisableCustomer": {
+      "query": [
+        "id"
+      ]
+    },
+    "DELETE /Customer/{customerId}": {
+      "query": []
+    },
+    "GET /Customer/{id}": {
+      "query": [
+        "ip"
+      ]
+    },
+    "GET /Customer/GetCustomerView": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "GET /Dashboard/MonthlyFinancialData": {
+      "query": [
+        "fromdate",
+        "todate"
+      ]
+    },
+    "GET /Dashboard/LocationWiseMonthlyTotalSales": {
+      "query": [
+        "fromdate",
+        "todate"
+      ]
+    },
+    "GET /Dashboard/DayWiseSalesAndRPL": {
+      "query": [
+        "fromDate",
+        "toDate",
+        "userId"
+      ]
+    },
+    "GET /Dashboard/UserWiseSummary": {
+      "query": [
+        "fromDate",
+        "toDate",
+        "userId"
+      ]
+    },
+    "GET /Dashboard/DailyLocationWiseSales": {
+      "query": [
+        "fromdate",
+        "todate"
+      ]
+    },
+    "GET /Dashboard/GroupWiseLeads": {
+      "query": [
+        "fromdate",
+        "todate",
+        "Group"
+      ]
+    },
+    "GET /Dashboard/SalesPersonWiseLeads": {
+      "query": [
+        "fromdate",
+        "todate",
+        "userId"
+      ]
+    },
+    "GET /Dashboard/ServiceManagerDashBoard": {
+      "query": [
+        "fromdate",
+        "todate",
+        "userId",
+        "pageNo",
+        "PageSize"
+      ]
+    },
+    "GET /Gateway": {
+      "query": [
+        "Text",
+        "BrandId",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "POST /Gateway": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "gatewayId",
+        "gatewayName",
+        "brandId",
+        "brandName",
+        "isActive",
+        "gatewayType",
+        "apiBaseUrl",
+        "isSandbox",
+        "lastSyncedAtUtc",
+        "hasCredentials",
+        "apiLoginId",
+        "apiSecretKey",
+        "merchantSiteId"
+      ],
+      "bodyArray": false
+    },
+    "PUT /Gateway": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "gatewayId",
+        "gatewayName",
+        "brandId",
+        "brandName",
+        "isActive",
+        "gatewayType",
+        "apiBaseUrl",
+        "isSandbox",
+        "lastSyncedAtUtc",
+        "hasCredentials",
+        "apiLoginId",
+        "apiSecretKey",
+        "merchantSiteId"
+      ],
+      "bodyArray": false
+    },
+    "DELETE /Gateway": {
+      "query": [
+        "id"
+      ]
+    },
+    "GET /Gateway/GatewayDropdown": {
+      "query": [
+        "Text",
+        "BrandId",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "GET /GatewayPaymentType": {
+      "query": [
+        "Text",
+        "brandId",
+        "getwayId",
+        "paymentTypeId",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "POST /GatewayPaymentType": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "gatewayPaymentTypeId",
+        "gatewayId",
+        "isActive",
+        "paymentTypeName",
+        "gatewayName",
+        "paymentTypeIds"
+      ],
+      "bodyArray": false
+    },
+    "PUT /GatewayPaymentType": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "gatewayPaymentTypeId",
+        "gatewayId",
+        "isActive",
+        "paymentTypeName",
+        "gatewayName",
+        "paymentTypeIds"
+      ],
+      "bodyArray": false
+    },
+    "DELETE /GatewayPaymentType": {
+      "query": [
+        "id"
+      ]
+    },
+    "POST /GatewayTransaction/Sync": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "brandId",
+        "fromDate",
+        "toDate",
+        "gatewayIds"
+      ],
+      "bodyArray": false
+    },
+    "GET /GatewayTransaction": {
+      "query": [
+        "BrandId",
+        "GatewayId",
+        "FromDate",
+        "ToDate",
+        "NormalizedStatus",
+        "CardLast4",
+        "GatewayTransactionRef",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending",
+        "Text"
+      ]
+    },
+    "GET /GatewayTransaction/SyncLog": {
+      "query": [
+        "BrandId",
+        "GatewayId",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending",
+        "Text"
+      ]
+    },
+    "GET /Group": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "POST /Group": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "groupId",
+        "groupName",
+        "isActive"
+      ],
+      "bodyArray": false
+    },
+    "PUT /Group": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "groupId",
+        "groupName",
+        "isActive"
+      ],
+      "bodyArray": false
+    },
+    "DELETE /Group": {
+      "query": [
+        "id"
+      ]
+    },
+    "GET /Group/GroupDropdown": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "GET /GroupEmail": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "POST /GroupEmail": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "groupEmailId",
+        "email",
+        "nameOnEmail",
+        "location",
+        "groupId",
+        "groupName",
+        "isActive"
+      ],
+      "bodyArray": false
+    },
+    "PUT /GroupEmail": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "groupEmailId",
+        "email",
+        "nameOnEmail",
+        "location",
+        "groupId",
+        "groupName",
+        "isActive"
+      ],
+      "bodyArray": false
+    },
+    "DELETE /GroupEmail": {
+      "query": [
+        "id"
+      ]
+    },
+    "GET /Lead": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "GET /Lead/GetLeads": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "GET /Lead/search": {
+      "query": [
+        "searchText",
+        "pageNumber",
+        "pageSize"
+      ]
+    },
+    "POST /Lead/index/rebuild": {
+      "query": []
+    },
+    "GET /Lead/MyLead": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "PUT /Lead/UpdateComment": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "leadId",
+        "dispositionId",
+        "comments"
+      ],
+      "bodyArray": false
+    },
+    "PUT /Lead/UpdateDisposition": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "leadId",
+        "dispositionId",
+        "comments"
+      ],
+      "bodyArray": false
+    },
+    "PUT /Lead/AssignLead/{id}": {
+      "query": []
+    },
+    "PUT /Lead/TransferLead": {
+      "query": [
+        "leadId",
+        "transferUserId"
+      ]
+    },
+    "DELETE /Lead/{id}": {
+      "query": []
+    },
+    "GET /LeadReport/Leads": {
+      "query": [
+        "SalesPersonId",
+        "GroupId",
+        "LocationId",
+        "VendorId",
+        "FromDate",
+        "ToDate",
+        "Text",
+        "DispositionId",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "GET /LeadReport/ExportLeads": {
+      "query": [
+        "SalesPersonId",
+        "GroupId",
+        "LocationId",
+        "VendorId",
+        "FromDate",
+        "ToDate",
+        "Text",
+        "DispositionId",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "GET /LeadReport/LeadsByDisposition": {
+      "query": [
+        "userId",
+        "vendorId",
+        "fromdate",
+        "todate"
+      ]
+    },
+    "GET /LeadReport/LeadsReport": {
+      "query": [
+        "fromdate",
+        "todate"
+      ]
+    },
+    "GET /LeadReport/LeadPickByUsers": {
+      "query": [
+        "groupId",
+        "fromdate",
+        "todate"
+      ]
+    },
+    "GET /LeadScheduler": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "POST /LeadScheduler": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "leadSchedulerId",
+        "isActive",
+        "groupId",
+        "groupName",
+        "shiftStartTime",
+        "shiftEndTime",
+        "createdDate",
+        "updatedDate",
+        "createdBy",
+        "createdByName",
+        "updatedBy",
+        "updatedByName"
+      ],
+      "bodyArray": false
+    },
+    "PUT /LeadScheduler": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "leadSchedulerId",
+        "isActive",
+        "groupId",
+        "groupName",
+        "shiftStartTime",
+        "shiftEndTime",
+        "createdDate",
+        "updatedDate",
+        "createdBy",
+        "createdByName",
+        "updatedBy",
+        "updatedByName"
+      ],
+      "bodyArray": false
+    },
+    "DELETE /LeadScheduler/{id}": {
+      "query": []
+    },
+    "GET /Location": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "POST /Location": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "locationId",
+        "name",
+        "isActive"
+      ],
+      "bodyArray": false
+    },
+    "PUT /Location": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "locationId",
+        "name",
+        "isActive"
+      ],
+      "bodyArray": false
+    },
+    "DELETE /Location": {
+      "query": [
+        "id"
+      ]
+    },
+    "GET /Location/LocationDropdown": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "POST /Login": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "userName",
+        "password",
+        "loginIp"
+      ],
+      "bodyArray": false
+    },
+    "GET /Login": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "GET /Menu": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "POST /Menu": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "menuId",
+        "menuName",
+        "menuDisplayName",
+        "menuIcon",
+        "menuOrder",
+        "menuUrl",
+        "isActive"
+      ],
+      "bodyArray": false
+    },
+    "PUT /Menu": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "menuId",
+        "menuName",
+        "menuDisplayName",
+        "menuIcon",
+        "menuOrder",
+        "menuUrl",
+        "isActive"
+      ],
+      "bodyArray": false
+    },
+    "DELETE /Menu": {
+      "query": [
+        "id"
+      ]
+    },
+    "GET /Order": {
+      "query": [
+        "SearchField",
+        "Text",
+        "fromDate",
+        "toDate",
+        "CustomerId",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "POST /Order": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "orderId",
+        "customerId",
+        "salesPersonId",
+        "saleDate",
+        "subtotal",
+        "discountAmount",
+        "discountType",
+        "totalAmount",
+        "orderStatus",
+        "isFulfilled",
+        "notes",
+        "createdBy",
+        "isDeleted",
+        "discountCode",
+        "shareTypeId",
+        "orderItems",
+        "payment",
+        "sharePayments"
+      ],
+      "bodyArray": false
+    },
+    "PUT /Order": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "orderId",
+        "customerId",
+        "salesPersonId",
+        "saleDate",
+        "subtotal",
+        "discountAmount",
+        "discountType",
+        "discountCode",
+        "totalAmount",
+        "isFulfilled",
+        "notes",
+        "shareTypeId",
+        "orderItems"
+      ],
+      "bodyArray": false
+    },
+    "DELETE /Order": {
+      "query": [
+        "id"
+      ]
+    },
+    "GET /Order/GetCustomerOrders": {
+      "query": [
+        "customerId",
+        "ip"
+      ]
+    },
+    "GET /Order/GetOrderSummary": {
+      "query": [
+        "fromDate",
+        "toDate"
+      ]
+    },
+    "GET /Order/{id}": {
+      "query": []
+    },
+    "GET /Page": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "POST /Page": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "pageId",
+        "menuId",
+        "pageName",
+        "pageDisplayName",
+        "pageUrl",
+        "pageIcon",
+        "pageOrder",
+        "parentPageId",
+        "isActive"
+      ],
+      "bodyArray": false
+    },
+    "PUT /Page": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "pageId",
+        "menuId",
+        "pageName",
+        "pageDisplayName",
+        "pageUrl",
+        "pageIcon",
+        "pageOrder",
+        "parentPageId",
+        "isActive"
+      ],
+      "bodyArray": false
+    },
+    "DELETE /Page": {
+      "query": [
+        "id"
+      ]
+    },
+    "GET /PagePermission": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "POST /PagePermission": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "pagePermissionId",
+        "pageId",
+        "pageName",
+        "permissionName",
+        "permissionCode",
+        "permissionDescription",
+        "permissionOrder",
+        "isActive"
+      ],
+      "bodyArray": false
+    },
+    "PUT /PagePermission": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "pagePermissionId",
+        "pageId",
+        "pageName",
+        "permissionName",
+        "permissionCode",
+        "permissionDescription",
+        "permissionOrder",
+        "isActive"
+      ],
+      "bodyArray": false
+    },
+    "DELETE /PagePermission/{id}": {
+      "query": []
+    },
+    "PUT /Payment": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "paymentId",
+        "orderId",
+        "paymentType",
+        "cardType",
+        "cardNumber",
+        "cardExpiryDate",
+        "cvv",
+        "nameOnCard",
+        "transactionId",
+        "authCode",
+        "gatewayId",
+        "gatewayName",
+        "brandId",
+        "brandName",
+        "amount",
+        "saleType",
+        "isVoid",
+        "isChargeBack",
+        "isRetrieval",
+        "isAlert",
+        "paymentDate",
+        "createdAt",
+        "createdBy",
+        "updatedAt",
+        "updatedBy",
+        "isDeleted",
+        "isChequeCleared",
+        "chequeRoutingNo",
+        "chequeNo",
+        "chequeTrackingNo",
+        "zelleId",
+        "refundPaymentId",
+        "entIp",
+        "udpIp",
+        "bMailTempletes",
+        "sharePayments"
+      ],
+      "bodyArray": false
+    },
+    "GET /Payment": {
+      "query": [
+        "Text",
+        "SearchField",
+        "FromDate",
+        "ToDate",
+        "PaymentStatus",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "POST /Payment": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "paymentId",
+        "orderId",
+        "paymentType",
+        "cardType",
+        "cardNumber",
+        "cardExpiryDate",
+        "cvv",
+        "nameOnCard",
+        "transactionId",
+        "authCode",
+        "gatewayId",
+        "gatewayName",
+        "brandId",
+        "brandName",
+        "amount",
+        "saleType",
+        "isVoid",
+        "isChargeBack",
+        "isRetrieval",
+        "isAlert",
+        "paymentDate",
+        "createdAt",
+        "createdBy",
+        "updatedAt",
+        "updatedBy",
+        "isDeleted",
+        "isChequeCleared",
+        "chequeRoutingNo",
+        "chequeNo",
+        "chequeTrackingNo",
+        "zelleId",
+        "refundPaymentId",
+        "entIp",
+        "udpIp",
+        "bMailTempletes",
+        "sharePayments"
+      ],
+      "bodyArray": false
+    },
+    "DELETE /Payment/{id}": {
+      "query": []
+    },
+    "GET /Payment/{id}": {
+      "query": []
+    },
+    "GET /Payment/GetAllPayment": {
+      "query": [
+        "Text",
+        "SearchField",
+        "FromDate",
+        "ToDate",
+        "PaymentStatus",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "POST /Payment/UploadExcel": {
+      "query": [],
+      "contentType": "multipart/form-data",
+      "formFields": [
+        "file"
+      ],
+      "fileField": {
+        "name": "file",
+        "multiple": false
+      }
+    },
+    "GET /Payment/SendMail": {
+      "query": [
+        "paymentId",
+        "brandEmailTempleteId"
+      ]
+    },
+    "GET /Payment/SendPandaDocMail": {
+      "query": [
+        "paymentId"
+      ]
+    },
+    "GET /PaymentType": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "POST /PaymentType": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "paymentTypeId",
+        "name",
+        "isActive"
+      ],
+      "bodyArray": false
+    },
+    "PUT /PaymentType": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "paymentTypeId",
+        "name",
+        "isActive"
+      ],
+      "bodyArray": false
+    },
+    "DELETE /PaymentType/{id}": {
+      "query": []
+    },
+    "GET /Permission": {
+      "query": [
+        "roleId"
+      ]
+    },
+    "POST /Permission": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "roleId",
+        "assignPermissionDTOs"
+      ],
+      "bodyArray": false
+    },
+    "GET /Product": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "POST /Product": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "productId",
+        "name",
+        "description",
+        "price",
+        "productType",
+        "photo",
+        "isActive",
+        "createdBy",
+        "createdByName",
+        "createdDate"
+      ],
+      "bodyArray": false
+    },
+    "PUT /Product": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "productId",
+        "name",
+        "description",
+        "price",
+        "productType",
+        "photo",
+        "isActive",
+        "createdBy",
+        "createdByName",
+        "createdDate"
+      ],
+      "bodyArray": false
+    },
+    "DELETE /Product": {
+      "query": [
+        "id"
+      ]
+    },
+    "GET /Product/ProductDropdown": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "GET /Report/SalesReport": {
+      "query": [
+        "fromDate",
+        "toDate",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending",
+        "Text"
+      ]
+    },
+    "GET /Report/TicketStatusReport": {
+      "query": [
+        "fromDate",
+        "toDate"
+      ]
+    },
+    "GET /Report/ServiceReport": {
+      "query": [
+        "fromDate",
+        "toDate",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending",
+        "Text"
+      ]
+    },
+    "GET /Report/GetUserPerformanceReport": {
+      "query": [
+        "fromDate",
+        "toDate"
+      ]
+    },
+    "GET /Report/RenewalReport": {
+      "query": [
+        "fromDate",
+        "toDate",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending",
+        "Text"
+      ]
+    },
+    "GET /Role": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "POST /Role": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "roleId",
+        "roleName",
+        "roleDescription",
+        "isSystemRole",
+        "isActive"
+      ],
+      "bodyArray": false
+    },
+    "PUT /Role": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "roleId",
+        "roleName",
+        "roleDescription",
+        "isSystemRole",
+        "isActive"
+      ],
+      "bodyArray": false
+    },
+    "DELETE /Role": {
+      "query": [
+        "id"
+      ]
+    },
+    "GET /Role/RoleDropdown": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "GET /Role/{id}": {
+      "query": []
+    },
+    "GET /Setting": {
+      "query": [
+        "text"
+      ]
+    },
+    "POST /Setting": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "settingId",
+        "settingName",
+        "settingKey",
+        "isActive",
+        "settingValueDTOs"
+      ],
+      "bodyArray": false
+    },
+    "PUT /Setting": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "settingId",
+        "settingName",
+        "settingKey",
+        "isActive",
+        "settingValueDTOs"
+      ],
+      "bodyArray": false
+    },
+    "DELETE /Setting": {
+      "query": [
+        "id"
+      ]
+    },
+    "GET /SettingValue": {
+      "query": [
+        "settingKey"
+      ]
+    },
+    "POST /SettingValue": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "settingValueId",
+        "settingId",
+        "settingValueText",
+        "isActive"
+      ],
+      "bodyArray": false
+    },
+    "PUT /SettingValue": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "settingValueId",
+        "settingId",
+        "settingValueText",
+        "isActive"
+      ],
+      "bodyArray": false
+    },
+    "DELETE /SettingValue/{id}": {
+      "query": []
+    },
+    "GET /SettingValue/SettingValueDropDown": {
+      "query": [
+        "settingKey"
+      ]
+    },
+    "GET /SharePayment": {
+      "query": [
+        "PaymentId",
+        "ShareWithId",
+        "ShareTypeId"
+      ]
+    },
+    "POST /SharePayment": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "id",
+        "paymentId",
+        "shareWithId",
+        "shareWithName",
+        "shareTypeId",
+        "shareTypeName",
+        "amount",
+        "createdDate",
+        "updatedDate",
+        "entIp",
+        "udpIp",
+        "createdBy",
+        "updatedBy"
+      ],
+      "bodyArray": true
+    },
+    "PUT /SharePayment": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "id",
+        "paymentId",
+        "shareWithId",
+        "shareWithName",
+        "shareTypeId",
+        "shareTypeName",
+        "amount",
+        "createdDate",
+        "updatedDate",
+        "entIp",
+        "udpIp",
+        "createdBy",
+        "updatedBy"
+      ],
+      "bodyArray": true
+    },
+    "DELETE /SharePayment": {
+      "query": [
+        "id"
+      ]
+    },
+    "GET /State": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "POST /State": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "stateId",
+        "stateName",
+        "countryId",
+        "countryName"
+      ],
+      "bodyArray": false
+    },
+    "PUT /State": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "stateId",
+        "stateName",
+        "countryId",
+        "countryName"
+      ],
+      "bodyArray": false
+    },
+    "DELETE /State/{id}": {
+      "query": []
+    },
+    "GET /State/StateDropdown": {
+      "query": [
+        "Text",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending"
+      ]
+    },
+    "GET /Template": {
+      "query": [
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending",
+        "Text"
+      ]
+    },
+    "POST /Template": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "templateId",
+        "templateName",
+        "emailTypeId",
+        "emailTypeName",
+        "body",
+        "isActive",
+        "createdById",
+        "updatedById",
+        "createdDate",
+        "updatedDate"
+      ],
+      "bodyArray": false
+    },
+    "PUT /Template": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "templateId",
+        "templateName",
+        "emailTypeId",
+        "emailTypeName",
+        "body",
+        "isActive",
+        "createdById",
+        "updatedById",
+        "createdDate",
+        "updatedDate"
+      ],
+      "bodyArray": false
+    },
+    "DELETE /Template": {
+      "query": [
+        "id"
+      ]
+    },
+    "GET /Ticket": {
+      "query": [
+        "SearchField",
+        "CustomerId",
+        "FromDate",
+        "ToDate",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending",
+        "Text"
+      ]
+    },
+    "POST /Ticket": {
+      "query": [],
+      "contentType": "multipart/form-data",
+      "formFields": [
+        "TicketId",
+        "Subject",
+        "TicketStatus",
+        "RemoteAccessCode",
+        "RemoteAccessMethod",
+        "OS",
+        "OSPassword",
+        "CaseNotes",
+        "T_StartDate",
+        "T_EndDate",
+        "IsNewTicket",
+        "AssignedTo",
+        "CustomerId",
+        "CreatedDate",
+        "CreatedBy",
+        "UpdatedDate",
+        "UpdatedBy",
+        "Qualitytech",
+        "IsQualityCheckCompleted",
+        "QualityCheckDate",
+        "QualityComment",
+        "IsDeleted",
+        "BrandId",
+        "TicketType",
+        "OrderId",
+        "files",
+        "awsFileDetails"
+      ],
+      "fileField": {
+        "name": "files",
+        "multiple": true
+      }
+    },
+    "PUT /Ticket": {
+      "query": [],
+      "contentType": "multipart/form-data",
+      "formFields": [
+        "TicketId",
+        "Subject",
+        "TicketStatus",
+        "RemoteAccessCode",
+        "RemoteAccessMethod",
+        "OS",
+        "OSPassword",
+        "CaseNotes",
+        "T_StartDate",
+        "T_EndDate",
+        "IsNewTicket",
+        "AssignedTo",
+        "CustomerId",
+        "CreatedDate",
+        "CreatedBy",
+        "UpdatedDate",
+        "UpdatedBy",
+        "Qualitytech",
+        "IsQualityCheckCompleted",
+        "QualityCheckDate",
+        "QualityComment",
+        "IsDeleted",
+        "BrandId",
+        "TicketType",
+        "OrderId",
+        "files",
+        "awsFileDetails"
+      ],
+      "fileField": {
+        "name": "files",
+        "multiple": true
+      }
+    },
+    "GET /Ticket/{ticketId}": {
+      "query": []
+    },
+    "GET /Ticket/getTicketActivity/{ticketId}": {
+      "query": []
+    },
+    "GET /Ticket/GetFullUrl": {
+      "query": [
+        "fileName",
+        "TicketId"
+      ]
+    },
+    "GET /User": {
+      "query": [
+        "RoleIds",
+        "LocationId",
+        "isActive",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending",
+        "Text"
+      ]
+    },
+    "POST /User": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "userId",
+        "username",
+        "email",
+        "passwordHash",
+        "firstName",
+        "lastName",
+        "isBlockedBy2FA",
+        "lastLoginDate",
+        "roleId",
+        "roleName",
+        "isActive",
+        "groupName",
+        "locationId",
+        "locationName",
+        "salesTarget",
+        "rplTarget",
+        "isLeadOn"
+      ],
+      "bodyArray": false
+    },
+    "PUT /User": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "userId",
+        "username",
+        "email",
+        "passwordHash",
+        "firstName",
+        "lastName",
+        "isBlockedBy2FA",
+        "lastLoginDate",
+        "roleId",
+        "roleName",
+        "isActive",
+        "groupName",
+        "locationId",
+        "locationName",
+        "salesTarget",
+        "rplTarget",
+        "isLeadOn"
+      ],
+      "bodyArray": false
+    },
+    "DELETE /User": {
+      "query": [
+        "id"
+      ]
+    },
+    "GET /User/UserDropDown": {
+      "query": [
+        "RoleIds",
+        "LocationId",
+        "isActive",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending",
+        "Text"
+      ]
+    },
+    "PUT /User/LeadON": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "userId",
+        "firstName",
+        "lastName",
+        "isLeadOn",
+        "username",
+        "isActive"
+      ],
+      "bodyArray": false
+    },
+    "GET /User/GetLeadOn": {
+      "query": [
+        "RoleIds",
+        "LocationId",
+        "isActive",
+        "PageNumber",
+        "PageSize",
+        "SortProperty",
+        "IsDescending",
+        "Text"
+      ]
+    },
+    "GET /User/GetUserLeadOn": {
+      "query": []
+    },
+    "PUT /User/UserLeadON": {
+      "query": []
+    },
+    "PUT /User/ChangeProfile": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "firstName",
+        "lastName",
+        "email"
+      ],
+      "bodyArray": false
+    },
+    "PUT /User/ChangePassword": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "oldPassword",
+        "newPassword"
+      ],
+      "bodyArray": false
+    },
+    "PUT /User/ReviseSalesTargets": {
+      "query": []
+    },
+    "GET /UserGroup": {
+      "query": [
+        "id"
+      ]
+    },
+    "PUT /UserGroup": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "userGroupId",
+        "userId",
+        "userName",
+        "groupId",
+        "groupName"
+      ],
+      "bodyArray": false
+    },
+    "GET /UserPermission": {
+      "query": [
+        "userId"
+      ]
+    },
+    "POST /UserPermission": {
+      "query": [],
+      "contentType": "application/json",
+      "bodyFields": [
+        "userId",
+        "assignPermissionDTOs"
+      ],
+      "bodyArray": false
+    }
+  }
+}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as LucideIcons from 'lucide-react';
 import { Search, Check } from 'lucide-react';
 
@@ -6,12 +6,14 @@ import { Search, Check } from 'lucide-react';
 // The "Feather" route now shows Lucide icons (Feather is the predecessor of Lucide)
 
 const allIcons = Object.entries(LucideIcons)
-  .filter(([name, comp]) => typeof comp === 'function' && name !== 'default' && name !== 'createLucideIcon')
+  .filter(([name, comp]) => /^[A-Z]/.test(name) && name !== 'Icon' && comp && (typeof comp === 'function' || (typeof comp === 'object' && '$$typeof' in comp)))
   .map(([name]) => name);
 
 export default function Feather() {
   const [query, setQuery] = useState('');
   const [copied, setCopied] = useState('');
+  const copyTimerRef = useRef(null);
+  useEffect(() => () => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); }, []);
 
   const filtered = query
     ? allIcons.filter((n) => n.toLowerCase().includes(query.toLowerCase()))
@@ -20,7 +22,8 @@ export default function Feather() {
   const handleCopy = (name) => {
     navigator.clipboard.writeText(`<${name} size={20} />`).catch(() => {});
     setCopied(name);
-    setTimeout(() => setCopied(''), 2000);
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = setTimeout(() => setCopied(''), 2000);
   };
 
   return (

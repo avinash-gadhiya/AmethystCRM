@@ -1,6 +1,6 @@
 # DashboardKit CRM
 
-Modern, scalable, and responsive CRM & Business Management Frontend Application built with React 18, Vite, Bootstrap 5, Highcharts, and Tailwind CSS utilities.
+CRM & Business Management Frontend Application built with React 18, Vite, Tailwind CSS, and Highcharts.
 
 ---
 
@@ -15,7 +15,7 @@ Modern, scalable, and responsive CRM & Business Management Frontend Application 
 - **Core Framework**: React 18.3.1
 - **Build Tool**: Vite 5.4.1
 - **Routing**: React Router v6
-- **Styling**: Bootstrap 5.3.3 + Custom Modern CSS + Tailwind CSS utilities
+- **Styling**: Tailwind CSS + application component styles; no Bootstrap runtime or stylesheet dependency
 - **Charts & Data Visualization**: Highcharts 13.1.1 + ApexCharts
 - **Icons**: Lucide React + Feather Icons
 - **HTTP Client**: Axios with centralized error handling & auth interceptors
@@ -94,6 +94,23 @@ VITE_APP_BASE_NAME = /DashboardKit
 npm run dev
 ```
 
+Vite starts on port **3000**. If it is occupied, it automatically tries **3001**,
+**3002**, and so on. Run `npm run dev` in another terminal to start another local
+instance, and open the exact URL Vite prints (including the configured base path).
+
+To choose a starting port explicitly:
+
+```bash
+npm run dev -- --port 3001
+npm run dev -- --port 3002
+```
+
+The app already uses the Vite entry point `index.html` → `src/main.jsx`. Tailwind
+is processed through PostCSS in `vite.config.mjs` and configured in
+`tailwind.config.js`. Shared React controls live in `src/components/ui`; the
+`Bootstrap.jsx` filename preserves existing imports, but contains local components
+and does not import Bootstrap.
+
 ### Local HTTPS for card autofill
 
 The browser disables saved-card autofill on an insecure HTTP page. Serve the
@@ -111,8 +128,9 @@ npm run dev:https
 directory and trusts that certificate for your current Windows user. It does not
 install a certificate authority. Approve the Windows certificate confirmation
 for **CRM local development**. Restart the browser if it was already open,
-then visit **https://localhost:3000/DashboardKit/**. Stop the previous HTTP dev
-server before starting HTTPS on the same port. Use `npm run dev:https` for HTTPS;
+then open the HTTPS URL printed by Vite, normally **https://localhost:3000/DashboardKit/**.
+If that port is occupied, Vite chooses the next available port. HTTP and HTTPS
+instances can run together on different ports. Use `npm run dev:https` for HTTPS;
 `npm run dev` continues to use HTTP. Set `DEV_HTTPS=true` in `.env.local` to make
 HTTPS the default after trusting the certificate.
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle, CalendarDays, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
-import { Badge, Button, Col, Form, Modal, Row, Spinner } from 'react-bootstrap';
+import { Badge, Button, Col, Form, Modal, Row, Spinner } from '@/components/ui/Bootstrap';
 import { toast } from 'sonner';
 
 import CommonTable from '@/components/common/CommonTable';
@@ -9,7 +9,7 @@ import leadService from '@/services/leadService';
 
 const PAGE_SIZES = [10, 25, 50, 100];
 
-const getMessage = (error, fallback) => error?.message || error?.response?.data?.message || fallback;
+const getMessage = (error, fallback) => error?.response?.data?.message || error?.message || fallback;
 const currentUser = () => authService.getUser() || {};
 const userName = () => currentUser().displayName || currentUser().userName || currentUser().email || '';
 const hasPermissionCode = (code) =>
@@ -17,7 +17,7 @@ const hasPermissionCode = (code) =>
     String(typeof permission === 'string' ? permission : permission?.permissionCode)
       .trim()
       .toLowerCase()
-      .includes(String(code).toLowerCase())
+      === String(code).trim().toLowerCase()
   );
 const ymd = (date = new Date()) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -408,7 +408,7 @@ function validateCallback(form, mode) {
   const limit = new Date();
   limit.setDate(limit.getDate() + 365);
   if (appointment > limit) return 'Callback date cannot be more than 365 days ahead.';
-  if ((mode === 'edit' || mode === 'reschedule') && !Number(form.assignedTo)) return 'Assigned user is required.';
+  if (!Number(form.assignedTo)) return 'Assigned user is required.';
   if (mode === 'reschedule' && form.date < ymd()) return 'The rescheduled date cannot be in the past.';
   if (mode === 'reschedule' && form.time && appointment <= new Date()) return 'The rescheduled time must be in the future.';
   if (form.completionNotes.length > 500) return 'Completion notes cannot exceed 500 characters.';

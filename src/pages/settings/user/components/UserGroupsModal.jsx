@@ -102,12 +102,25 @@ const UserGroupsModal = ({ open, user, onClose, onSuccess }) => {
     });
   };
 
+  const filteredGroups = groups.filter((g) => {
+    const name = String(g.groupName || g.name || '').toLowerCase();
+    return name.includes(searchTerm.toLowerCase());
+  });
+
+  const allFilteredSelected =
+    filteredGroups.length > 0 &&
+    filteredGroups.every((g) => selectedIds.has(Number(g.groupId ?? g.id)));
+
   const handleSelectAll = () => {
-    if (selectedIds.size === filteredGroups.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(filteredGroups.map((g) => Number(g.groupId ?? g.id))));
-    }
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allFilteredSelected) {
+        filteredGroups.forEach((g) => next.delete(Number(g.groupId ?? g.id)));
+      } else {
+        filteredGroups.forEach((g) => next.add(Number(g.groupId ?? g.id)));
+      }
+      return next;
+    });
   };
 
   const handleSave = async () => {
@@ -135,11 +148,6 @@ const UserGroupsModal = ({ open, user, onClose, onSuccess }) => {
       setSaving(false);
     }
   };
-
-  const filteredGroups = groups.filter((g) => {
-    const name = String(g.groupName || g.name || '').toLowerCase();
-    return name.includes(searchTerm.toLowerCase());
-  });
 
   const displayName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username;
 
@@ -189,7 +197,7 @@ const UserGroupsModal = ({ open, user, onClose, onSuccess }) => {
               onClick={handleSelectAll}
               className="px-2.5 py-1.5 text-xs font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 rounded-lg transition-colors shrink-0"
             >
-              {selectedIds.size === filteredGroups.length ? 'Deselect All' : 'Select All'}
+              {allFilteredSelected ? 'Deselect All' : 'Select All'}
             </button>
           )}
         </div>

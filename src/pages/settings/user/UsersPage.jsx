@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Users, UserPlus, Search, X, ShieldCheck, Pencil, Copy, Check, Filter } from 'lucide-react';
-import { toast, Toaster } from 'sonner';
+import { toast } from 'sonner';
 
 import userService from '@/services/userService';
 import authService from '@/services/authService';
@@ -394,6 +394,11 @@ const UsersPage = () => {
         assignPermissionDTOs
       });
 
+      if (Number(permissionModalUser.userId) === Number(currentUserId)) {
+        try {
+          permissionService.clearCache();
+        } catch {}
+      }
       toast.success('User permissions updated successfully');
       setPermissionModalOpen(false);
       setPermissionModalUser(null);
@@ -409,7 +414,7 @@ const UsersPage = () => {
 
   return (
     <div className="users-page px-5 lg:px-10 py-5">
-      <Toaster richColors position="top-right" />
+
 
       <div className="flex flex-col gap-5 lg:gap-7.5">
         {/* Header */}

@@ -733,7 +733,21 @@ export default function CustomerFormModal({
     const userId = Number(user.userId) || 0;
     const userName = user.displayName || [user.firstName, user.lastName].filter(Boolean).join(' ') || user.userName || '';
 
-    const seed = { ...emptyForm, ...(initialValues || {}) };
+    const raw = initialValues || {};
+    const seed = {
+      ...emptyForm,
+      ...raw,
+      name: raw.name ?? '',
+      email: raw.email ?? '',
+      phone: raw.phone ?? '',
+      phone2: raw.phone2 ?? '',
+      address: raw.address ?? '',
+      city: raw.city ?? '',
+      stateName: raw.stateName ?? '',
+      zipCode: raw.zipCode ?? '',
+      countryName: raw.countryName ?? 'USA',
+      salesPersonName: raw.salesPersonName ?? '',
+    };
 
     // Country is fixed to USA. Never let an empty initialValues blank it out.
     if (!String(seed.countryName || '').trim()) seed.countryName = 'USA';
@@ -766,6 +780,7 @@ export default function CustomerFormModal({
     setShowValidationErrors(false);
     setLeadSearch('');
     setSalesPersonSearchText('');
+    setStateSearchText('');
     setLeadPickerOpen(false);
 
     setAddressSearch('');
@@ -1256,7 +1271,13 @@ export default function CustomerFormModal({
             <Field label="Sales Person" required error={showValidationErrors && formErrors.salesPerson}>
               <Select
                 value={formData.salesPerson ? String(formData.salesPerson) : ''}
-                onValueChange={handleSalesPersonChange}
+                onValueChange={(value) => {
+                  setSalesPersonSearchText('');
+                  handleSalesPersonChange(value);
+                }}
+                onOpenChange={(nextOpen) => {
+                  if (!nextOpen) setSalesPersonSearchText('');
+                }}
                 disabled={!canPickSalesPerson || saving || salesPersonsLoading}
               >
                 <SelectTrigger

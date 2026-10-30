@@ -23,7 +23,9 @@ const toArray = (value) => {
 
 const numberFrom = (item, keys) => {
   for (const key of keys) {
-    const value = Number(item?.[key]);
+    const raw = item?.[key];
+    if (raw === null || raw === undefined || raw === '' || typeof raw === 'boolean') continue;
+    const value = Number(raw);
     if (Number.isFinite(value)) return value;
   }
   return 0;

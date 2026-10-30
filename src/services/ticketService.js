@@ -12,8 +12,8 @@ const buildQuery = (params = {}) => {
   return query.toString();
 };
 
-const readResponse = async (response, fallbackMessage) => {
-  if (response.status === 401) handleSessionExpired();
+const readResponse = async (response, fallbackMessage, requestToken) => {
+  if (response.status === 401) handleSessionExpired(requestToken);
   let payload;
   try {
     payload = await response.json();
@@ -44,7 +44,7 @@ const request = async (path, { method = 'GET', params, body, signal } = {}) => {
     signal
   });
 
-  return readResponse(response, 'Ticket request failed');
+  return readResponse(response, 'Ticket request failed', token);
 };
 
 const append = (formData, key, value) => {

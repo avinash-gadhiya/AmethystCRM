@@ -58,12 +58,14 @@ const MenusPage = () => {
 
   // Search Debouncing
   useEffect(() => {
+    const trimmed = searchTerm.trim();
+    if (trimmed === debouncedSearch) return undefined;
     const timer = setTimeout(() => {
-      setDebouncedSearch(searchTerm.trim());
+      setDebouncedSearch(trimmed);
       setCurrentPage(1);
     }, 350);
     return () => clearTimeout(timer);
-  }, [searchTerm]);
+  }, [searchTerm, debouncedSearch]);
 
   // Fetch Menus Data
   const abortControllerRef = useRef(null);
@@ -95,16 +97,19 @@ const MenusPage = () => {
         controller.signal
       );
 
+      if (abortControllerRef.current !== controller) return;
       setMenus(res.data);
       setTotalCount(res.totalCount);
     } catch (err) {
-      if (err?.name === 'CanceledError' || err?.name === 'AbortError') return;
+      if (err?.name === 'CanceledError' || err?.name === 'AbortError' || abortControllerRef.current !== controller) return;
       const msg = getApiErrorMessage(err, 'Failed to fetch menus.');
       toast.error(msg);
       setMenus([]);
       setTotalCount(0);
     } finally {
-      setLoading(false);
+      if (abortControllerRef.current === controller) {
+        setLoading(false);
+      }
     }
   }, [perms.canView, debouncedSearch, currentPage, pageSize, sortProperty, isDescending]);
 

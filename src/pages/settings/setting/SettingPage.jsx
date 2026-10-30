@@ -16,7 +16,7 @@ import {
   XCircle,
   Key
 } from 'lucide-react';
-import { toast, Toaster } from 'sonner';
+import { toast } from 'sonner';
 
 import settingService from '@/services/settingService';
 import { resolveConfiguredPagePermissions } from '@/utils/configuredPagePermissions';
@@ -364,7 +364,7 @@ const SettingPage = () => {
 
   return (
     <div className="settings-management-page px-5 lg:px-10 py-5">
-      <Toaster richColors position="top-right" />
+
 
       <div className="flex flex-col gap-5 lg:gap-7.5">
         {/* Header */}
@@ -424,7 +424,7 @@ const SettingPage = () => {
                   placeholder="Search settings by name or key..."
                   value={searchText}
                   onChange={(e) => setSearchText(e.target.value)}
-                  className="w-full pl-9.5 pr-8 py-2 text-sm rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50/50 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500 transition-all"
+                  className="w-full pl-10 pr-8 py-2 text-sm rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50/50 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500 transition-all"
                 />
                 {searchText && (
                   <button

@@ -13,6 +13,7 @@ function load(file, requireDependency, globals = {}) {
 }
 const methods = load('src/lib/paymentMethod.js');
 const orderEditor = load('src/lib/orderEditor.js');
+const normalization = load('src/lib/normalizeApiRecord.js');
 const plain = (value) => JSON.parse(JSON.stringify(value));
 
 test('switching away from Card clears gateway and card details while keeping the brand and amount', () => {
@@ -53,7 +54,7 @@ test('saving non-card payments strips historical gateway details in both payment
       }
     ])
   );
-  const dependency = (name) => (name === './core/apiClient' ? { __esModule: true, default: api } : methods);
+  const dependency = (name) => name === '@/lib/normalizeApiRecord' ? normalization : (name === './core/apiClient' ? { __esModule: true, default: api } : methods);
   const paymentService = load('src/services/paymentService.js', dependency).default;
   const orderService = load('src/services/orderService.js', dependency).default;
   for (const paymentType of ['Bank', 'Cheque', 'Zelle', 'PayPal']) {
@@ -89,6 +90,8 @@ test('order summaries hide legacy non-card gateways and select the card gateway 
 // data, the situation that used to hide Card after selecting a gateway.
 function component(file, options = {}) {
   let cursor = 0;
+  let refCursor = 0;
+  const refs = [];
   const state = [];
   const navigations = [];
   const effects = [];
@@ -110,9 +113,13 @@ function component(file, options = {}) {
     },
     useMemo: (fn) => fn(),
     useCallback: (fn) => fn,
-    useRef: (current) => ({ current })
+    useRef: (current) => refs[refCursor++] ||= { current }
   };
-  const permissionHook = () => ({ loading: false, canView: true, canAdd: true, canUpdate: true, canDelete: true, has: () => true });
+  const permissionHook = (settings = {}) => ({ loading: options.permissionsLoading === true, canView: options.canView !== false, canAdd: true, canUpdate: true, canDelete: true,
+    has: (code) => {
+      const codes = settings.path === '/Orders/Payments' ? options.paymentPermissionCodes ?? options.permissionCodes : options.permissionCodes;
+      return codes === undefined || codes.includes(code);
+    } });
   const uiModules = new Map();
   function ui(name) {
     if (!uiModules.has(name))
@@ -123,6 +130,7 @@ function component(file, options = {}) {
     file,
     (name) => {
       if (name === 'react') return hookReact;
+      if (name === '@/services/authService') return { __esModule: true, default: { getUser: () => options.user || { roleName: 'Agent' } } };
       if (name === 'react-router-dom')
         return {
           useLocation: () => ({ state: options.state || null }),
@@ -142,12 +150,14 @@ function component(file, options = {}) {
       if (name === '@/services')
         return new Proxy(
           {},
-          { get: (_target, service) => options.services?.[service] || new Proxy({}, { get: () => async () => ({ data: [] }) }) }
+          { get: (_target, service) => new Proxy(options.services?.[service] || {}, {
+            get: (target, method) => target[method] || (method === 'getOrderPayments' ? async () => [] : async () => ({ data: [] }))
+          }) }
         );
       if (name.includes('usePageCrudPermissions')) return { usePageCrudPermissions: permissionHook };
       if (name.includes('usePagePermissionCodes'))
         return { __esModule: true, default: permissionHook, usePagePermissionCodes: permissionHook };
-      if (name.includes('useSearchFieldFetchGuard')) return { useSearchFieldFetchGuard: () => ({ current: false }) };
+      if (name.includes('useSearchFieldFetchGuard')) return { useSearchFieldFetchGuard: () => () => false };
       if (name.includes('permissionService')) return { __esModule: true, default: { getUserPermissionCodes: () => [] } };
       if (name === '@/lib/utils') return { cn: (...classes) => classes.filter(Boolean).join(' ') };
       if (name === 'sonner') return { toast: { success() {}, error() {} } };
@@ -159,6 +169,7 @@ function component(file, options = {}) {
       AbortController,
       setTimeout,
       clearTimeout,
+      window: { setTimeout, clearTimeout },
       localStorage: { getItem: (key) => (key === 'userId' ? '1' : '') }
     }
   );
@@ -170,6 +181,7 @@ function component(file, options = {}) {
     },
     render: () => {
       cursor = 0;
+      refCursor = 0;
       return (exports.default || exports.CreateOrderPage || exports.OrdersTable)();
     }
   };
@@ -234,6 +246,286 @@ test('the order action opens Edit Order on the Create Order route with a persist
   assert.equal(page.navigations[0][0], '/Orders/CreateOrder?orderId=36&mode=edit');
   assert.equal(page.navigations[0][1].state.editOrderMode, true);
   assert.deepEqual(plain(page.navigations[0][1].state.orderData), order);
+});
+
+test('order side actions contain only Edit and Delete while the arrow opens payment actions below', async () => {
+  const page = component('src/pages/order/table/OrdersTable.jsx', { services: { paymentService: { getOrderPayments: async () => order.payments } } });
+  let table = nodes(page.render()).find((node) => Array.isArray(node.props?.columns));
+  const order = { orderId: 42, payments: [{ paymentId: 17, saleType: 'Sale', amount: 90 }] };
+  const column = table.props.columns.find((column) => column.id === 'actions');
+  const actions = column.cell({ row: { original: order } });
+  assert.deepEqual(nodes(actions).filter((node) => node.props?.label).map((node) => node.props.label), ['Edit order', 'Delete order']);
+  assert.equal(nodes(actions).some((node) => node.props?.onSelect), false, 'the parent row has no extra action menu');
+  assert.equal(column.sticky, 'right', 'Edit and Delete stay visible when the table scrolls');
+  const idCell = table.props.columns.find((column) => column.id === 'orderId').cell({ row: { original: order } });
+  await nodes(idCell).find((node) => node.props?.['aria-label'] === 'Expand payments').props.onClick();
+  table = nodes(page.render()).find((node) => Array.isArray(node.props?.columns));
+  const expanded = table.props.renderSubRows(order);
+  assert.ok(expanded);
+  assert.ok(nodes(expanded).some((node) => node.props?.label === 'Refund'));
+});
+
+test('expanded orders expose the full payment actions and open Refund, Void, and Delete for the selected payment', async () => {
+  const requested = [];
+  const payment = { paymentId: 17, orderId: 42, saleType: 'Sale', amount: 90 };
+  const order = { orderId: 42, payments: [payment] };
+  const page = component('src/pages/order/table/OrdersTable.jsx', {
+    services: { paymentService: { getOrderPayments: async () => [payment], getRefundContext: async (id) => {
+      requested.push(id);
+      return { payment, availableAmount: 90 };
+    } } }
+  });
+  const getTable = () => nodes(page.render()).find((node) => Array.isArray(node.props?.columns));
+  let table = getTable();
+  const idCell = table.props.columns.find((column) => column.id === 'orderId').cell({ row: { original: order } });
+  await nodes(idCell).find((node) => node.props?.['aria-label'] === 'Expand payments').props.onClick();
+  table = getTable();
+  const expanded = table.props.renderSubRows(order);
+  assert.equal(text(nodes(expanded).find((node) => node.type === 'th')), 'Action');
+  const group = nodes(expanded).find((node) => node.props?.['aria-label'] === 'Actions for payment 17');
+  for (const label of ['Panda Doc Mail', 'Void payment', 'Refund', 'Edit', 'Delete payment']) {
+    assert.ok(nodes(group).some((node) => node.props?.label === label), label + ' is available directly');
+  }
+  assert.ok(nodes(group).some((node) => node.props?.['aria-label'] === 'Payment templates'));
+  assert.ok(nodes(group).some((node) => node.props?.onSelect && text(node).includes('Share Payment')), 'Share Payment remains available in the dropdown');
+  nodes(group).find((node) => node.props?.label === 'Void payment').props.onClick();
+  let modal = nodes(page.render()).find((node) => node.props?.title === 'Void Payment');
+  assert.equal(modal.props.open, true);
+  assert.equal(modal.props.itemName, 'Payment #17');
+  modal.props.onCancel();
+  nodes(group).find((node) => node.props?.label === 'Delete payment').props.onClick();
+  modal = nodes(page.render()).find((node) => node.props?.title === 'Delete Payment');
+  assert.equal(modal.props.open, true);
+  assert.equal(modal.props.itemName, 'Payment #17');
+  modal.props.onCancel();
+  nodes(group).find((node) => node.props?.label === 'Refund').props.onClick();
+  await new Promise(setImmediate);
+  assert.deepEqual(requested, [17]);
+  assert.match(text(page.render()), /Save Refund/);
+});
+
+test('orders without embedded payments load from Payment API and can collapse', async () => {
+  const requested = [];
+  const page = component('src/pages/order/table/OrdersTable.jsx', {
+    services: { paymentService: { getOrderPayments: async (id) => {
+      requested.push(id);
+      return [];
+    } } }
+  });
+  const order = { orderId: 42, paidAmount: 90 };
+  const getTable = () => nodes(page.render()).find((node) => Array.isArray(node.props?.columns));
+  const getToggle = (table) => nodes(table.props.columns.find((column) => column.id === 'orderId')
+    .cell({ row: { original: order } })).find((node) => node.type === 'button');
+  let table = getTable();
+  assert.ok(getToggle(table), 'the arrow is visible without embedded payment rows');
+  const pending = getToggle(table).props.onClick();
+  table = getTable();
+  assert.equal(getToggle(table).props['aria-expanded'], true);
+  assert.match(text(table.props.renderSubRows(order)), /Loading payments/);
+  await pending;
+  table = getTable();
+  assert.deepEqual(requested, [42]);
+  assert.match(text(table.props.renderSubRows(order)), /No payments found/);
+  await getToggle(table).props.onClick();
+  table = getTable();
+  assert.equal(table.props.renderSubRows(order), null);
+  assert.deepEqual(requested, [42], 'collapsing does not fetch again');
+});
+
+test('orders hydrate payment types and expanded sale/refund rows from the Payment API', async () => {
+  const requested = [];
+  const sale = { paymentId: 17, orderId: 42, amount: 90, saleType: 'Sale', paymentType: 'Card', cardType: 'Visa',
+    cardNumber: '4111111111112628', transactionId: 'TX123', authCode: '938845', brandName: 'Example', gatewayName: 'Card gateway' };
+  const refund = { ...sale, paymentId: 18, refundPaymentId: 17, amount: 20, saleType: 'Refund' };
+  const order = { orderId: 42, customerName: 'Jack Smith', customerEmail: 'jack@example.test', customerPhone: '1234567890', payments: [] };
+  const page = component('src/pages/order/table/OrdersTable.jsx', {
+    effects: true,
+    services: {
+      orderService: { getOrders: async () => ({ data: [order], totalCount: 1 }), getOrderSummary: async () => ({}) },
+      paymentService: { getOrderPayments: async (id) => { requested.push(id); return [sale, refund]; } }
+    }
+  });
+  const getTable = () => nodes(page.render()).find((node) => Array.isArray(node.props?.columns));
+  getTable();
+  await page.flushEffects();
+  let table = getTable();
+  assert.deepEqual(requested, [], 'browsing orders does not fetch payment history before expansion');
+  const initial = table.props.data[0];
+  await table.props.onRowClick(initial, 0, { target: { closest: () => null } });
+  table = getTable();
+  assert.deepEqual(requested, [42]);
+  const loaded = table.props.data[0];
+  assert.equal(loaded.payments.length, 2, 'empty Order payments do not hide Payment API data');
+  const methodCell = table.props.columns.find((column) => column.id === 'paymentType').cell({ row: { original: loaded } });
+  assert.match(text(methodCell), /Visa2628Trans id: TX123Auth: 938845/);
+  assert.equal(text(methodCell).includes('4111111111112628'), false, 'only the last four card digits are displayed');
+  assert.equal(text(methodCell).match(/938845/g).length, 1, 'refund rows do not duplicate the payment method');
+  const customer = table.props.columns.find((column) => column.id === 'customerName').cell({ row: { original: loaded } });
+  assert.match(text(customer), /Jack Smithjack@example.test1234567890/);
+  const expanded = table.props.renderSubRows(loaded);
+  assert.ok(nodes(expanded).some((node) => node.props?.['aria-label'] === 'Actions for payment 17'));
+  assert.ok(nodes(expanded).some((node) => node.props?.['aria-label'] === 'Actions for payment 18'));
+  assert.match(text(expanded), /Refund/);
+  await table.props.onRowClick(loaded, 0, { target: { closest: () => ({ tagName: 'BUTTON' }) } });
+  assert.ok(getTable().props.renderSubRows(loaded), 'action clicks do not also toggle the order');
+  assert.deepEqual(requested, [42], 'action clicks do not reload payment history');
+});
+
+test('failed order payment loads show an error and retry on re-expansion', async () => {
+  let attempts = 0;
+  const order = { orderId: 42, payments: [] };
+  const page = component('src/pages/order/table/OrdersTable.jsx', {
+    services: { paymentService: { getOrderPayments: async () => {
+      attempts += 1;
+      if (attempts === 1) throw new Error('Payment request failed');
+      return [];
+    } } }
+  });
+  const table = () => nodes(page.render()).find((node) => Array.isArray(node.props?.columns));
+  const toggle = () => nodes(table().props.columns.find((column) => column.id === 'orderId').cell({ row: { original: order } }))
+    .find((node) => node.props?.['aria-label']?.includes('payments'));
+  await toggle().props.onClick();
+  assert.match(text(table().props.renderSubRows(order)), /Unable to load payments/);
+  await toggle().props.onClick();
+  await toggle().props.onClick();
+  assert.match(text(table().props.renderSubRows(order)), /No payments found/);
+  assert.equal(attempts, 2);
+});
+
+test('expanded refund actions target the selected original payment and exclude voided and refund rows', async () => {
+  const requested = [];
+  const page = component('src/pages/order/table/OrdersTable.jsx', {
+    services: { paymentService: { getOrderPayments: async () => order.payments, getRefundContext: async (id) => {
+      requested.push(id);
+      return { payment: { paymentId: id, orderId: 42, saleType: 'Sale' }, availableAmount: 90 };
+    } } }
+  });
+  const getTable = () => nodes(page.render()).find((node) => Array.isArray(node.props?.columns));
+  const order = { orderId: 42, payments: [
+    { paymentId: 17, saleType: 'Sale' }, { paymentId: 18, saleType: 'Sale' },
+    { paymentId: 19, saleType: 'Refund' }, { paymentId: 20, saleType: 'Sale', isVoid: true }
+  ] };
+  const idCell = getTable().props.columns.find((column) => column.id === 'orderId').cell({ row: { original: order } });
+  await nodes(idCell).find((node) => node.props?.['aria-label'] === 'Expand payments').props.onClick();
+  const groups = nodes(getTable().props.renderSubRows(order)).filter((node) => node.props?.['aria-label']?.startsWith('Actions for payment '));
+  assert.equal(groups.filter((group) => nodes(group).some((node) => node.props?.label === 'Refund')).length, 2);
+  const selected = groups.find((group) => group.props['aria-label'] === 'Actions for payment 18');
+  nodes(selected).find((node) => node.props?.label === 'Refund').props.onClick();
+  await new Promise(setImmediate);
+  assert.deepEqual(requested, [18]);
+});
+
+test('order payment actions respect View and Refund permissions', () => {
+  for (const [permissionCodes, expectedExpand] of [[['View_Order'], false], [['View_Order', 'View_Order_Payment'], true]]) {
+    const page = component('src/pages/order/table/OrdersTable.jsx', { permissionCodes });
+    const table = nodes(page.render()).find((node) => Array.isArray(node.props?.columns));
+    const actions = table.props.columns.find((column) => column.id === 'actions').cell({ row: { original: { orderId: 42, payments: [{ paymentId: 17, saleType: 'Sale' }] } } });
+    assert.equal(nodes(actions).some((node) => node.props?.['aria-label'] === 'Refund payment'), false);
+    assert.equal(nodes(actions).some((node) => node.props?.['aria-label'] === 'More order options'), false);
+    const idCell = table.props.columns.find((column) => column.id === 'orderId').cell({ row: { original: { orderId: 42 } } });
+    assert.equal(nodes(idCell).some((node) => node.props?.['aria-label'] === 'Expand payments'), expectedExpand);
+  }
+});
+
+test('privileged order viewers can expand payments and use actions when dedicated payment codes are missing', async () => {
+  for (const roleName of ['Developer', 'Admin', 'Super Admin']) {
+    const page = component('src/pages/order/table/OrdersTable.jsx', {
+      user: { roleName }, permissionCodes: ['View_Order'], services: { paymentService: { getOrderPayments: async () => [{ paymentId: 17, orderId: 42, saleType: 'Sale', amount: 90 }] } }
+    });
+    const order = { orderId: 42, payments: [{ paymentId: 17, orderId: 42, saleType: 'Sale', amount: 90 }] };
+    const table = () => nodes(page.render()).find((node) => Array.isArray(node.props?.columns));
+    const toggle = () => nodes(table().props.columns.find((column) => column.id === 'orderId')
+      .cell({ row: { original: order } })).find((node) => node.props?.['aria-label']?.includes('payments'));
+    assert.ok(toggle(), roleName + ' sees the expand arrow');
+    await toggle().props.onClick();
+    assert.equal(toggle().props['aria-expanded'], true);
+    const expanded = table().props.renderSubRows(order);
+    assert.ok(expanded, roleName + ' can open payment details');
+    for (const label of ['Refund', 'Void payment', 'Edit', 'Delete payment']) {
+      assert.ok(nodes(expanded).some((node) => node.props?.label === label), roleName + ' can see ' + label);
+    }
+    await toggle().props.onClick();
+    assert.equal(table().props.renderSubRows(order), null);
+  }
+});
+
+test('personal permission overrides and pending page permissions cannot inherit privileged payment access', () => {
+  for (const options of [
+    { user: { roleName: 'Developer', isAssignPersonalPermission: true } },
+    { user: { roleName: 'Admin', isAssignPersonalPermission: 'true' } },
+    { user: { roleName: 'Developer' }, permissionsLoading: true },
+    { user: { roleName: 'Developer' }, canView: false }
+  ]) {
+    const page = component('src/pages/order/table/OrdersTable.jsx', { ...options, permissionCodes: ['View_Order'] });
+    const table = nodes(page.render()).find((node) => Array.isArray(node.props?.columns));
+    const cell = table.props.columns.find((column) => column.id === 'orderId')
+      .cell({ row: { original: { orderId: 42, payments: [{ paymentId: 17 }] } } });
+    assert.equal(nodes(cell).some((node) => node.props?.['aria-label'] === 'Expand payments'), false);
+  }
+});
+
+test('the granted View_Payments code exposes order payment details without granting refund actions', async () => {
+  const page = component('src/pages/order/table/OrdersTable.jsx', {
+    permissionCodes: ['View_Order'], paymentPermissionCodes: ['View_Payments'], user: { roleName: 'Agent' }
+  });
+  const order = { orderId: 42, payments: [{ paymentId: 17, orderId: 42, saleType: 'Sale', amount: 90 }] };
+  const table = () => nodes(page.render()).find((node) => Array.isArray(node.props?.columns));
+  assert.equal(typeof table().props.onRowClick, 'function');
+  await table().props.onRowClick(order, 0, { target: { closest: () => null } });
+  const expanded = table().props.renderSubRows(order);
+  assert.ok(expanded);
+  assert.equal(nodes(expanded).some((node) => node.props?.label === 'Refund'), false);
+  assert.equal(nodes(expanded).some((node) => node.props?.label === 'Delete payment'), false);
+  await table().props.onRowClick(order, 0, { target: { closest: () => null } });
+  assert.equal(table().props.renderSubRows(order), null);
+});
+
+test('personal viewers can expand granted payments without seeing ungranted refund actions', async () => {
+  const page = component('src/pages/order/table/OrdersTable.jsx', {
+    user: { roleName: 'Developer', isAssignPersonalPermission: true },
+    permissionCodes: ['View_Order', 'View_Order_Payment']
+  });
+  const order = { orderId: 42, payments: [{ paymentId: 17, saleType: 'Sale', amount: 90 }] };
+  const table = () => nodes(page.render()).find((node) => Array.isArray(node.props?.columns));
+  const cell = table().props.columns.find((column) => column.id === 'orderId').cell({ row: { original: order } });
+  await nodes(cell).find((node) => node.props?.['aria-label'] === 'Expand payments').props.onClick();
+  const expanded = table().props.renderSubRows(order);
+  assert.ok(expanded);
+  assert.equal(nodes(expanded).some((node) => node.props?.label === 'Refund'), false);
+  assert.equal(nodes(expanded).some((node) => node.props?.label === 'Delete payment'), false);
+});
+
+test('order overview shows supplied customer contacts and payment references while masking the card number', () => {
+  const page = component('src/pages/order/table/OrdersTable.jsx');
+  const table = nodes(page.render()).find((node) => Array.isArray(node.props?.columns));
+  const order = { orderId: 42, customerName: 'Test Customer', customerEmail: 'customer@example.test', customerPhone: '2025550123',
+    payments: [{ paymentId: 17, paymentType: 'Card', cardType: 'Visa', cardNumber: '4111111111112628',
+      transactionId: '12376689964', authCode: '938845', saleType: 'Sale', isVoid: 'false', isDeleted: 'false' }] };
+  const cell = (id) => table.props.columns.find((column) => column.id === id).cell({ row: { original: order } });
+  assert.match(text(cell('customerName')), /Test Customer/);
+  assert.match(text(cell('customerName')), /customer@example.test/);
+  assert.match(text(cell('customerName')), /2025550123/);
+  const paymentText = text(cell('paymentType'));
+  for (const value of ['Card', 'Visa', '2628', '12376689964', '938845']) assert.ok(paymentText.includes(value), value);
+  assert.equal(paymentText.includes('4111111111112628'), false);
+});
+
+test('expanded payment rows span every parent column and keep the action toolbar in one row', async () => {
+  const page = component('src/pages/order/table/OrdersTable.jsx', { services: { paymentService: { getOrderPayments: async () => [{ paymentId: 17, orderId: 42, paymentType: 'Card', saleType: 'Sale', amount: 199.99 }] } } });
+  const getTable = () => nodes(page.render()).find((node) => Array.isArray(node.props?.columns));
+  const order = { orderId: 42, payments: [{ paymentId: 17, paymentType: 'Card', saleType: 'Sale', amount: 199.99 }] };
+  const cell = getTable().props.columns.find((column) => column.id === 'orderId').cell({ row: { original: order } });
+  await nodes(cell).find((node) => node.props?.['aria-label'] === 'Expand payments').props.onClick();
+  const table = getTable();
+  const expanded = table.props.renderSubRows(order);
+  assert.equal(nodes(expanded).find((node) => node.type === 'td').props.colSpan, table.props.columns.length);
+  assert.equal(text(nodes(expanded).find((node) => node.type === 'th')), 'Action');
+  const toolbar = nodes(expanded).find((node) => node.props?.['aria-label'] === 'Actions for payment 17');
+  assert.match(toolbar.props.className, /flex-nowrap/);
+  assert.equal(nodes(expanded).some((node) => node.type === 'th' && text(node) === 'Payment Type'), false, 'single-method orders use the parent payment summary');
+  order.payments.push({ paymentId: 18, paymentType: 'Bank', saleType: 'Sale', amount: 100 });
+  const mixed = getTable().props.renderSubRows(order);
+  assert.equal(nodes(mixed).some((node) => node.type === 'th' && text(node) === 'Payment Type'), true, 'mixed-method rows retain their individual payment types');
 });
 
 test('gateway options are disabled and empty until a brand is selected', () => {
@@ -333,4 +625,103 @@ test('a failed order load shows an error and blocks saving', async () => {
   assert.equal(save.props.disabled, true);
   await save.props.onClick();
   assert.equal(writes, 0);
+});
+
+test('failed Void stays open for retry and successful retry preserves payment details', async () => {
+  let attempts = 0;
+  const writes = [];
+  const payment = { paymentId: 17, orderId: 42, saleType: 'Sale', paymentType: 'Bank', amount: 90, transactionId: 'TX-17' };
+  const order = { orderId: 42, payments: [payment] };
+  const page = component('src/pages/order/table/OrdersTable.jsx', {
+    services: {
+      orderService: { getOrders: async () => ({ data: [order], totalCount: 1 }), getOrderSummary: async () => ({}) },
+      paymentService: {
+        getOrderPayments: async () => [payment], getOrderPaymentById: async () => payment,
+        updatePayment: async (payload) => { attempts++; if (attempts === 1) throw new Error('Void denied'); writes.push(payload); }
+      }
+    }
+  });
+  const table = () => nodes(page.render()).find((node) => Array.isArray(node.props?.columns));
+  await nodes(table().props.columns.find((column) => column.id === 'orderId').cell({ row: { original: order } }))
+    .find((node) => node.props?.['aria-label'] === 'Expand payments').props.onClick();
+  nodes(table().props.renderSubRows(order)).find((node) => node.props?.label === 'Void payment').props.onClick();
+  const modal = () => nodes(page.render()).find((node) => node.props?.title === 'Void Payment');
+  await modal().props.onConfirm();
+  assert.equal(modal().props.open, true, 'a failed PUT does not close the confirmation');
+  await modal().props.onConfirm();
+  assert.equal(modal().props.open, false);
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0].isVoid, true);
+  assert.equal(writes[0].transactionId, 'TX-17');
+});
+
+test('failed payment edit cannot save a new payment and can reload using Retry', async () => {
+  let attempts = 0;
+  let writes = 0;
+  const payment = { paymentId: 17, orderId: 42, saleType: 'Sale', paymentType: 'Bank', amount: 90 };
+  const order = { orderId: 42, payments: [payment] };
+  const page = component('src/pages/order/table/OrdersTable.jsx', {
+    services: { paymentService: {
+      getOrderPayments: async () => [payment],
+      getOrderPaymentById: async () => { if (++attempts === 1) throw new Error('Payment unavailable'); return payment; },
+      createPayment: async () => { writes++; }, updatePayment: async () => { writes++; }
+    } }
+  });
+  const table = () => nodes(page.render()).find((node) => Array.isArray(node.props?.columns));
+  await nodes(table().props.columns.find((column) => column.id === 'orderId').cell({ row: { original: order } }))
+    .find((node) => node.props?.['aria-label'] === 'Expand payments').props.onClick();
+  await nodes(table().props.renderSubRows(order)).find((node) => node.props?.label === 'Edit').props.onClick();
+  await new Promise(setImmediate);
+  let tree = page.render();
+  assert.match(text(tree), /Payment unavailable/);
+  const save = nodes(tree).find((node) => node.props?.onClick && text(node) === 'Update Payment');
+  assert.ok(save.props.disabled);
+  await save.props.onClick();
+  assert.equal(writes, 0);
+  await nodes(tree).find((node) => node.type === 'button' && text(node) === 'Retry loading payment').props.onClick();
+  tree = page.render();
+  assert.equal(text(tree).includes('Retry loading payment'), false);
+  assert.equal(attempts, 2);
+});
+
+test('View payments uses the expand arrow and waits for the Payment API', async () => {
+  let resolve;
+  const pending = new Promise(done => { resolve = done; });
+  const order = { orderId: 42, payments: [{ paymentId: 17, saleType: 'Sale', amount: 90 }] };
+  const page = component('src/pages/order/table/OrdersTable.jsx', { services: { paymentService: { getOrderPayments: () => pending } } });
+  const table = () => nodes(page.render()).find(node => Array.isArray(node.props?.columns));
+  const toggle = nodes(table().props.columns.find(column => column.id === 'orderId').cell({ row: { original: order } }))
+    .find(node => node.props?.['aria-label'] === 'Expand payments');
+  const request = toggle.props.onClick();
+  assert.match(text(table().props.renderSubRows(order)), /Loading payments/);
+  assert.equal(nodes(table().props.renderSubRows(order)).some(node => node.props?.label === 'Refund'), false);
+  resolve(order.payments);
+  await request;
+  assert.ok(nodes(table().props.renderSubRows(order)).some(node => node.props?.label === 'Refund'));
+});
+
+
+test('View payments hides stale Order data on API failure and Retry displays the Payment API response', async () => {
+  let attempts = 0;
+  const stale = { paymentId: 17, orderId: 42, authCode: 'OLD-AUTH', amount: 10, saleType: 'Sale', paymentType: 'Card' };
+  const current = { paymentId: 43, orderId: 42, authCode: '86868', amount: 90.99, saleType: 'Sale', paymentType: 'Card', brandName: 'Current brand', gatewayName: 'Current gateway' };
+  const order = { orderId: 42, payments: [stale] };
+  const page = component('src/pages/order/table/OrdersTable.jsx', { effects: true, services: {
+    orderService: { getOrders: async () => ({ data: [order], totalCount: 1 }), getOrderSummary: async () => ({}) },
+    paymentService: { getOrderPayments: async () => { if (++attempts === 1) throw new Error('Payment unavailable'); return [current]; } }
+  } });
+  const table = () => nodes(page.render()).find(node => Array.isArray(node.props?.columns));
+  table(); await page.flushEffects();
+  await table().props.onRowClick(table().props.data[0], 0, { target: { closest: () => null } });
+  let expanded = table().props.renderSubRows(table().props.data[0]);
+  assert.match(text(expanded), /Unable to load payments/);
+  assert.equal(text(expanded).includes('OLD-AUTH'), false);
+  assert.equal(nodes(expanded).some(node => node.props?.label === 'Refund'), false);
+  await nodes(expanded).find(node => node.type === 'button' && text(node) === 'Retry payments').props.onClick();
+  expanded = table().props.renderSubRows(table().props.data[0]);
+  assert.match(text(expanded), /86868/);
+  assert.match(text(expanded), /90.99/);
+  assert.match(text(expanded), /Current gateway/);
+  assert.equal(text(expanded).includes('OLD-AUTH'), false);
+  assert.ok(nodes(expanded).some(node => node.props?.['aria-label'] === 'Actions for payment 43'));
 });

@@ -9,6 +9,21 @@ const getApiBaseUrl = () => {
 const inFlightRequests = new Map();
 const settingsCache = new Map();
 
+const pageResult = (result, params) => {
+  let rows = [...result.data];
+  const text = String(params.Text || '').trim().toLowerCase();
+  if (text) rows = rows.filter((row) => Object.values(row).some((value) => typeof value === 'string' && value.toLowerCase().includes(text)));
+  if (params.SettingId) rows = rows.filter((row) => Number(row.settingId) === Number(params.SettingId));
+  if (params.SortProperty) {
+    const key = params.SortProperty;
+    const direction = params.IsDescending === false ? 1 : -1;
+    rows.sort((left, right) => String(left[key] ?? '').localeCompare(String(right[key] ?? ''), undefined, { numeric: true }) * direction);
+  }
+  const page = Math.max(1, Number(params.PageNumber) || 1);
+  const size = Math.max(1, Number(params.PageSize) || 1000);
+  return { ...result, totalCount: rows.length, data: rows.slice((page - 1) * size, page * size) };
+};
+
 const normalizeBoolean = (value, fallback = true) => {
   if (value === true || value === false) return value;
   if (value === 1 || value === 0) return value === 1;
@@ -101,23 +116,19 @@ export const settingService = {
   async getSettings(params = {}, signal) {
     const API_URL = getApiBaseUrl();
     const queryParams = {
-      Text: params.Text || '',
-      PageNumber: params.PageNumber || 1,
-      PageSize: params.PageSize || 10000,
-      SortProperty: params.SortProperty || 'settingId',
-      IsDescending: params.IsDescending ?? true
+      text: params.Text || ''
     };
 
     const cacheKey = `settings:${JSON.stringify(queryParams)}`;
 
     // Return cached data if present (unless force refresh requested)
     if (!params.force && settingsCache.has(cacheKey)) {
-      return settingsCache.get(cacheKey);
+      return pageResult(settingsCache.get(cacheKey), params);
     }
 
     // In-flight deduplication
     if (inFlightRequests.has(cacheKey)) {
-      return inFlightRequests.get(cacheKey);
+      return inFlightRequests.get(cacheKey).then((result) => pageResult(result, params));
     }
 
     const requestPromise = (async () => {
@@ -141,7 +152,7 @@ export const settingService = {
     })();
 
     inFlightRequests.set(cacheKey, requestPromise);
-    return requestPromise;
+    return requestPromise.then((result) => pageResult(result, params));
   },
 
   // POST /Setting
@@ -202,35 +213,18 @@ export const settingService = {
     const API_URL = getApiBaseUrl();
     this.clearCache();
 
-    // Dual-strategy deletion: query param first as requested by backend spec, then REST path fallback
-    try {
-      const response = await axios.delete(`${API_URL}/Setting`, {
-        headers: getAuthHeaders(),
-        params: { id: settingId }
-      });
-      return response.data;
-    } catch (error) {
-      const status = error?.response?.status;
-      if (status === 404 || status === 405) {
-        const fallbackRes = await axios.delete(`${API_URL}/Setting/${settingId}`, {
-          headers: getAuthHeaders()
-        });
-        return fallbackRes.data;
-      }
-      throw error;
-    }
+    const response = await axios.delete(`${API_URL}/Setting`, {
+      headers: getAuthHeaders(),
+      params: { id: settingId }
+    });
+    return response.data;
   },
 
   // GET /SettingValue
   async getSettingValues(params = {}, signal) {
     const API_URL = getApiBaseUrl();
     const queryParams = {
-      Text: params.Text || '',
-      PageNumber: params.PageNumber || 1,
-      PageSize: params.PageSize || 1000,
-      SortProperty: params.SortProperty || 'settingValueId',
-      IsDescending: params.IsDescending ?? true,
-      SettingId: params.SettingId || ''
+      settingKey: params.settingKey || params.SettingKey || ''
     };
 
     const response = await axios.get(`${API_URL}/SettingValue`, {
@@ -239,7 +233,7 @@ export const settingService = {
       signal
     });
 
-    return normalizeSettingValuesList(response.data);
+    return pageResult(normalizeSettingValuesList(response.data), params);
   },
 
   // POST /SettingValue

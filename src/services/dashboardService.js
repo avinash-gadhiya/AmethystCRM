@@ -26,7 +26,7 @@ const requestDashboard = async (endpoint, params, signal) => {
     signal
   });
 
-  if (response.status === 401) handleSessionExpired();
+  if (response.status === 401) handleSessionExpired(token);
   let payload;
   try {
     payload = await response.json();
@@ -45,12 +45,9 @@ const requestDashboard = async (endpoint, params, signal) => {
   };
 };
 
-const createDateParams = (fromDate, toDate, userId) => ({
-  fromdate: fromDate,
-  todate: toDate,
-  fromDate,
-  toDate,
-  userId
+const createDateParams = (fromDate, toDate, userId, camelCase = false) => ({
+  ...(camelCase ? { fromDate, toDate } : { fromdate: fromDate, todate: toDate }),
+  ...(userId != null ? { userId } : {})
 });
 
 export const dashboardService = {
@@ -63,11 +60,11 @@ export const dashboardService = {
   },
 
   getDayWiseSalesAndRPL(fromDate, toDate, userId, signal) {
-    return requestDashboard('DayWiseSalesAndRPL', createDateParams(fromDate, toDate, userId), signal);
+    return requestDashboard('DayWiseSalesAndRPL', createDateParams(fromDate, toDate, userId, true), signal);
   },
 
   getUserWiseSummary(fromDate, toDate, userId, signal) {
-    return requestDashboard('UserWiseSummary', createDateParams(fromDate, toDate, userId), signal);
+    return requestDashboard('UserWiseSummary', createDateParams(fromDate, toDate, userId, true), signal);
   },
 
   getDailyLocationWiseSales(fromDate, toDate, signal) {
@@ -88,9 +85,7 @@ export const dashboardService = {
       {
         ...createDateParams(fromDate, toDate, userId),
         pageNo: options.pageNo || 1,
-        PageNumber: options.pageNo || 1,
-        PageSize: options.pageSize || 100,
-        Text: options.text || undefined
+        PageSize: options.pageSize || 100
       },
       signal
     );

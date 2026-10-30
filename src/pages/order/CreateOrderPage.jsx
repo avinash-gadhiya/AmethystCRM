@@ -953,17 +953,21 @@ const CreateOrderPage = () => {
     let cancelled = false;
 
     const fetchPaymentGateways = async () => {
+      const brandId = Number(payment?.brandId) || 0;
+
+      // No brand picked: the lookup fetch already holds the unfiltered list,
+      // so reuse it instead of firing the same request a second time.
+      if (brandId <= 0) {
+        if (!cancelled) {
+          setGateways(allGatewaysRef.current || []);
+          setLoadingBrandGateways(false);
+        }
+        return;
+      }
+
       setGateways([]);
       setLoadingBrandGateways(true);
       try {
-        const brandId = Number(payment?.brandId) || 0;
-
-        // No brand picked: the lookup fetch already holds the unfiltered list,
-        // so reuse it instead of firing the same request a second time.
-        if (brandId <= 0) {
-          return;
-        }
-
         // Only this brand's gateways (exact brandId match from the Gateway records).
         const response = await gatewayService.getBrandGateways(brandId);
 
@@ -1169,7 +1173,14 @@ const CreateOrderPage = () => {
 
     const customLines = customItems.map((item) => ({
       ...item,
-      subscriptionMonths: isOrderEditMode && Number(item.productId) > 0 && Number(subscriptionMonths) !== originalSubscriptionMonths ? Number(subscriptionMonths) || 0 : item.subscriptionMonths,
+      subscriptionMonths:
+        isOrderEditMode &&
+        Number(item.productId) > 0 &&
+        String(subscriptionMonths).trim() !== '' &&
+        Number(subscriptionMonths) > 0 &&
+        Number(subscriptionMonths) !== originalSubscriptionMonths
+          ? Number(subscriptionMonths)
+          : item.subscriptionMonths,
       totalPrice: (item.quantity || 0) * (item.price || 0),
     }));
 
@@ -1758,6 +1769,8 @@ const CreateOrderPage = () => {
       const monthsValue = Number(subscriptionMonths);
       if (!isOrderEditMode && (String(subscriptionMonths).trim() === '' || !Number.isFinite(monthsValue) || monthsValue <= 0)) {
         nextErrors.subscriptionMonths = 'Subscription months is required.';
+      } else if (isOrderEditMode && String(subscriptionMonths).trim() !== '' && (!Number.isFinite(monthsValue) || monthsValue <= 0)) {
+        nextErrors.subscriptionMonths = 'Subscription months must be greater than 0.';
       }
     }
 
@@ -2342,6 +2355,7 @@ const CreateOrderPage = () => {
   const handleProductPriceOverrideClick = (productId) => {
     setProductPriceOverrides((prev) => {
       const current = prev && typeof prev === 'object' ? prev : {};
+      if (Object.prototype.hasOwnProperty.call(current, productId)) return current;
       return { ...current, [productId]: '' };
     });
   };
@@ -2490,10 +2504,10 @@ const CreateOrderPage = () => {
   }, [payment.paymentDate]);
 
   const chequeAmount = useMemo(() => {
-    if (isEditMode) return Number(payment.amount) || 0;
+    if (isEditMode || isAddPaymentMode) return Number(payment.amount) || 0;
     if (orderLines.length > 0) return Number(orderSummary.total) || 0;
     return 0;
-  }, [isEditMode, payment.amount, orderLines.length, orderSummary.total]);
+  }, [isEditMode, isAddPaymentMode, payment.amount, orderLines.length, orderSummary.total]);
 
   const chequePreview = useMemo(() => {
     const payee = (payment.nameOnCard || '').trim();
@@ -2709,7 +2723,7 @@ const CreateOrderPage = () => {
                   onClick={() => setShowCustomerDetailsModal(false)}
                   aria-label="Close customer details modal"
                 >
-                  âœ•
+                  ✕
                 </button>
               </div>
               <div className="px-4 py-3 text-sm">
@@ -2726,10 +2740,10 @@ const CreateOrderPage = () => {
                 </div>
 
                 {selectedCustomer.email && (
-                  <div className="mt-2 text-xs text-gray-600">âœ‰ {selectedCustomer.email}</div>
+                  <div className="mt-2 text-xs text-gray-600">✉ {selectedCustomer.email}</div>
                 )}
                 {selectedCustomer.phone && (
-                  <div className="mt-1 text-xs text-gray-600">ðŸ“ž {selectedCustomer.phone}</div>
+                  <div className="mt-1 text-xs text-gray-600">📞 {selectedCustomer.phone}</div>
                 )}
 
                 {(selectedCustomer.address || selectedCustomer.city || selectedCustomer.stateName || selectedCustomer.state || selectedCustomer.zipCode || selectedCustomer.zip || selectedCustomer.countryName || selectedCustomer.country) && (
@@ -2785,7 +2799,7 @@ const CreateOrderPage = () => {
                   onClick={() => setCustomerModalOpen(false)}
                   aria-label="Close select customer modal"
                 >
-                  âœ•
+                  ✕
                 </button>
               </div>
 
@@ -2982,7 +2996,7 @@ const CreateOrderPage = () => {
                   onClick={() => setProductsModalOpen(false)}
                   aria-label="Close browse products modal"
                 >
-                  âœ•
+                  ✕
                 </button>
               </div>
 
@@ -3129,7 +3143,7 @@ const CreateOrderPage = () => {
                   onClick={() => setCustomItemModalOpen(false)}
                   aria-label="Close add custom item modal"
                 >
-                  âœ•
+                  ✕
                 </button>
               </div>
 
@@ -3234,6 +3248,9 @@ const CreateOrderPage = () => {
                       <Select
                         value={selectedProductDropdownId}
                         onValueChange={handleProductDropdownSelect}
+                        onOpenChange={(nextOpen) => {
+                          if (!nextOpen) setProductSelectSearchText('');
+                        }}
                         disabled={loadingProductDropdown}
                       >
                         <SelectTrigger className={selectTriggerCompactClass}>
@@ -3950,8 +3967,24 @@ const CreateOrderPage = () => {
                       <FieldError errorKey="payment.gatewayId" />
                     </div>)}
 
+                    {(isEditMode || isAddPaymentMode) && (
+                      <div className={cn('min-w-0 space-y-1.5', activeTab === 'card' && 'sm:col-span-2')}>
+                        <label htmlFor="payment-amount" className={labelClass}>Amount ($)<RequiredMark /></label>
+                        <input
+                          id="payment-amount"
+                          type="text"
+                          inputMode="decimal"
+                          value={payment.amount === 0 ? '' : (payment.amount ?? '')}
+                          onChange={handlePaymentField('amount')}
+                          placeholder="0.00"
+                          className={withErrorClass(inputClass, getError('payment.amount'))}
+                        />
+                        <FieldError errorKey="payment.amount" />
+                      </div>
+                    )}
+
                   </div>
-                  {getError('payment.amount') && <div className="mt-2"><FieldError errorKey="payment.amount" /></div>}
+                  {!(isEditMode || isAddPaymentMode) && getError('payment.amount') && <div className="mt-2"><FieldError errorKey="payment.amount" /></div>}
                 </div>
 
                 {/* Tab-specific fields styled like real cards */}
@@ -4695,6 +4728,9 @@ const CreateOrderPage = () => {
                         clearError('salesPersonId');
                         setSalesPersonSearchText('');
                         setSelectedSalesPersonId(Number(value) || 0);
+                      }}
+                      onOpenChange={(nextOpen) => {
+                        if (!nextOpen) setSalesPersonSearchText('');
                       }}
                     >
                       <SelectTrigger className={withErrorClass(selectTriggerCompactClass, getError('salesPersonId'))}>

@@ -18,7 +18,9 @@ export default function SessionExpiryHandler() {
 
       isExpiring = true;
       authService.logout();
-      redirectTimer = window.setTimeout(redirectToLogin, 750);
+      redirectTimer = window.setTimeout(() => {
+        if (!authService.getToken()) redirectToLogin();
+      }, 750);
       try {
         toast.error('Session expired. Please sign in again.');
       } catch {
@@ -31,6 +33,8 @@ export default function SessionExpiryHandler() {
 
       const token = authService.getToken();
       if (!token) return;
+      window.clearTimeout(redirectTimer);
+      isExpiring = false;
 
       const expirationTime = authService.getExpirationTime();
       if (expirationTime === null) return;

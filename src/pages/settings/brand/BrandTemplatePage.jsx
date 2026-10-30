@@ -50,12 +50,14 @@ const BrandTemplatePage = () => {
   const latestRequestRef = useRef(0);
 
   useEffect(() => {
+    const trimmed = search.trim();
+    if (trimmed === debouncedSearch) return undefined;
     const timer = window.setTimeout(() => {
-      setDebouncedSearch(search.trim());
+      setDebouncedSearch(trimmed);
       setPage(1);
     }, 350);
     return () => window.clearTimeout(timer);
-  }, [search]);
+  }, [search, debouncedSearch]);
 
   useEffect(() => {
     if (!(permissions.canView || permissions.canAdd || permissions.canUpdate)) {

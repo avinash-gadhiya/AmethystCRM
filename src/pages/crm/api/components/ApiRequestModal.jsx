@@ -4,20 +4,22 @@ import { useMemo, useState } from 'react';
 import { Alert, Badge, Button, Col, Form, Modal, Row, Spinner } from 'components/ui/Bootstrap';
 import { apiClient } from 'services/core/apiClient';
 import { ApiPayloadView } from './ApiDataViewer';
+import { getOperationContract, getOperationQuery } from '@/lib/apiOperationQuery';
+import { buildOperationBody } from '@/lib/apiOperationBody';
 
 const METHOD_TONES = { GET: 'success', POST: 'primary', PUT: 'warning', DELETE: 'danger' };
 
-const createDefaultQuery = () => {
+const createDefaultQuery = (operation) => {
   const today = new Date();
   const fromDate = new Date(today.getFullYear(), today.getMonth(), 1);
   return JSON.stringify(
-    {
+    getOperationQuery(operation.method, operation.path, {
       PageNumber: 1,
       PageSize: 10,
       IsDescending: true,
       FromDate: fromDate.toISOString(),
       ToDate: today.toISOString()
-    },
+    }),
     null,
     2
   );
@@ -35,19 +37,24 @@ const parseJson = (value, label) => {
 export default function ApiRequestModal({ operation, show, onHide }) {
   const parameterNames = useMemo(() => [...operation.path.matchAll(/{([^}]+)}/g)].map((match) => match[1]), [operation.path]);
   const [pathValues, setPathValues] = useState({});
-  const [queryText, setQueryText] = useState(() => (operation.method === 'GET' ? createDefaultQuery() : '{}'));
+  const [queryText, setQueryText] = useState(() => (operation.method === 'GET' ? createDefaultQuery(operation) : '{}'));
   const [bodyText, setBodyText] = useState('{}');
   const [confirmed, setConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [response, setResponse] = useState(null);
   const [responseView, setResponseView] = useState('table');
-  const isMutation = operation.method !== 'GET';
+  const isMutation = operation.method !== 'GET' || /\/(SendMail|SendPandaDocMail)$/.test(operation.path);
+  const contract = getOperationContract(operation.method, operation.path);
+  const acceptsBody = !!contract?.contentType;
+  const isMultipart = contract?.contentType === 'multipart/form-data';
+  const [uploadFiles, setUploadFiles] = useState([]);
 
   const execute = async () => {
     setError('');
     setResponse(null);
     try {
+      if (isMutation && !confirmed) throw new Error('Review and confirm this request before executing it.');
       let path = operation.path;
       parameterNames.forEach((name) => {
         const value = String(pathValues[name] ?? '').trim();
@@ -55,7 +62,9 @@ export default function ApiRequestModal({ operation, show, onHide }) {
         path = path.replace(`{${name}}`, encodeURIComponent(value));
       });
       const params = parseJson(queryText, 'Query parameters');
-      const data = isMutation ? parseJson(bodyText, 'Request body') : undefined;
+      const unknown = Object.keys(params || {}).filter((key) => contract && !contract.query.includes(key));
+      if (unknown.length) throw new Error(`Unsupported query parameters: ${unknown.join(', ')}. Use: ${contract.query.join(', ') || 'none'}.`);
+      const data = buildOperationBody(operation.method, operation.path, acceptsBody ? parseJson(bodyText, 'Request body') : undefined, uploadFiles);
       setLoading(true);
       const payload = await apiClient.request(path, { method: operation.method, params, data });
       setResponse(payload);
@@ -79,7 +88,7 @@ export default function ApiRequestModal({ operation, show, onHide }) {
       <Modal.Header closeButton>
         <Modal.Title className="d-flex align-items-center gap-2">
           <Badge bg={METHOD_TONES[operation.method]}>{operation.method}</Badge>
-          <code className="small text-dark">/api{operation.path}</code>
+          <code className="small text-slate-800 dark:text-slate-200">/api{operation.path}</code>
         </Modal.Title>
       </Modal.Header>
       <Modal.Body className="max-h-[75vh] overflow-y-auto">
@@ -107,11 +116,11 @@ export default function ApiRequestModal({ operation, show, onHide }) {
             onChange={(event) => setQueryText(event.target.value)}
             spellCheck="false"
           />
-          <Form.Text>Example: {`{ "PageNumber": 1, "PageSize": 10 }`}</Form.Text>
+          <Form.Text>Supported parameters: {contract?.query.join(', ') || 'none'}</Form.Text>
         </Form.Group>
-        {isMutation && (
+        {acceptsBody && (!isMultipart || contract.formFields?.some((name) => name !== contract.fileField?.name)) && (
           <Form.Group>
-            <Form.Label>Request body (JSON)</Form.Label>
+            <Form.Label>{isMultipart ? 'Form fields (JSON)' : 'Request body (JSON)'}</Form.Label>
             <Form.Control
               as="textarea"
               rows={9}
@@ -121,6 +130,7 @@ export default function ApiRequestModal({ operation, show, onHide }) {
             />
           </Form.Group>
         )}
+        {isMultipart && <Form.Group><Form.Label>{contract.fileField?.multiple ? 'Files' : 'File'}</Form.Label><Form.Control type="file" multiple={contract.fileField?.multiple} onChange={(event) => setUploadFiles(Array.from(event.target.files || []))} /></Form.Group>}
         {isMutation && (
           <Form.Check
             id="confirm-api-mutation"
