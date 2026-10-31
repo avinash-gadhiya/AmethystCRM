@@ -349,7 +349,7 @@ test('orders hydrate payment types and expanded sale/refund rows from the Paymen
   getTable();
   await page.flushEffects();
   let table = getTable();
-  assert.deepEqual(requested, [], 'browsing orders does not fetch payment history before expansion');
+  assert.deepEqual(requested, [42], 'parent summaries load their current details from the Payment API');
   const initial = table.props.data[0];
   await table.props.onRowClick(initial, 0, { target: { closest: () => null } });
   table = getTable();
@@ -369,6 +369,46 @@ test('orders hydrate payment types and expanded sale/refund rows from the Paymen
   await table.props.onRowClick(loaded, 0, { target: { closest: () => ({ tagName: 'BUTTON' }) } });
   assert.ok(getTable().props.renderSubRows(loaded), 'action clicks do not also toggle the order');
   assert.deepEqual(requested, [42], 'action clicks do not reload payment history');
+});
+
+test('every collapsed order shows card, brand, and gateway details on the first list load', async () => {
+  const requested = [];
+  const orders = [
+    { orderId: 42, customerName: 'First', brandName: '', payments: [] },
+    { orderId: 41, customerName: 'Second', brandName: '-', payments: [] },
+    { orderId: 40, customerName: 'Third', brandName: 'Saved brand', payments: [] }
+  ];
+  const page = component('src/pages/order/table/OrdersTable.jsx', { effects: true, services: {
+    orderService: { getOrders: async () => ({ data: orders, totalCount: 3 }), getOrderSummary: async () => ({}) },
+    paymentService: { getOrderPayments: async (id) => {
+      requested.push(id);
+      return [{ paymentId: id + 100, orderId: id, paymentType: 'Card', saleType: 'Sale', cardType: 'Mastercard',
+        cardNumber: `411111111111${id === 42 ? '6666' : id === 41 ? '4444' : '2222'}`,
+        transactionId: `TX-${id}`, authCode: `AUTH-${id}`, brandName: `Payment brand ${id}`, gatewayName: `Gateway ${id}` }];
+    } }
+  } });
+  const table = () => nodes(page.render()).find((node) => Array.isArray(node.props?.columns));
+  table();
+  await page.flushEffects();
+  const loaded = table();
+  assert.deepEqual(requested, [42, 41, 40]);
+  for (const order of loaded.props.data) {
+    assert.equal(loaded.props.renderSubRows(order), null, 'payment actions remain collapsed');
+    const card = text(loaded.props.columns.find((column) => column.id === 'paymentType').cell({ row: { original: order } }));
+    const brand = text(loaded.props.columns.find((column) => column.id === 'brand').cell({ row: { original: order } }));
+    assert.ok(card.includes('Mastercard'));
+    assert.ok(card.includes(`TX-${order.orderId}`));
+    assert.ok(card.includes(`AUTH-${order.orderId}`));
+    assert.ok(brand.includes(order.orderId === 40 ? 'Saved brand' : `Payment brand ${order.orderId}`));
+    assert.ok(brand.includes(`Gateway ${order.orderId}`));
+    assert.equal(card.includes('411111111111'), false);
+  }
+  const order = loaded.props.data[2];
+  await loaded.props.onRowClick(order, 0, { target: { closest: () => null } });
+  await table().props.onRowClick(order, 0, { target: { closest: () => null } });
+  assert.equal(table().props.renderSubRows(order), null);
+  assert.ok(text(table().props.columns.find((column) => column.id === 'paymentType').cell({ row: { original: table().props.data[2] } })).includes('2222'));
+  assert.deepEqual(requested, [42, 41, 40], 'opening and closing the actions does not reload or clear parent details');
 });
 
 test('failed order payment loads show an error and retry on re-expansion', async () => {
@@ -708,7 +748,7 @@ test('View payments hides stale Order data on API failure and Retry displays the
   const order = { orderId: 42, payments: [stale] };
   const page = component('src/pages/order/table/OrdersTable.jsx', { effects: true, services: {
     orderService: { getOrders: async () => ({ data: [order], totalCount: 1 }), getOrderSummary: async () => ({}) },
-    paymentService: { getOrderPayments: async () => { if (++attempts === 1) throw new Error('Payment unavailable'); return [current]; } }
+    paymentService: { getOrderPayments: async () => { if (++attempts <= 2) throw new Error('Payment unavailable'); return [current]; } }
   } });
   const table = () => nodes(page.render()).find(node => Array.isArray(node.props?.columns));
   table(); await page.flushEffects();
@@ -724,4 +764,37 @@ test('View payments hides stale Order data on API failure and Retry displays the
   assert.match(text(expanded), /Current gateway/);
   assert.equal(text(expanded).includes('OLD-AUTH'), false);
   assert.ok(nodes(expanded).some(node => node.props?.['aria-label'] === 'Actions for payment 43'));
+});
+
+test('Orders honors explicitly granted Payments-page actions without granting unassigned actions', async () => {
+  const payment = { paymentId: 17, orderId: 42, saleType: 'Sale', paymentType: 'Card', amount: 90 };
+  const order = { orderId: 42, payments: [payment] };
+  for (const [grant, label] of [['Refund_Payments', 'Refund'], ['Void_Payment', 'Void payment'], ['Update_Payment', 'Edit'], ['Delete_Payments', 'Delete payment']]) {
+    const page = component('src/pages/order/table/OrdersTable.jsx', {
+      user: { roleName: 'Agent', isAssignPersonalPermission: true }, permissionCodes: ['View_Order'],
+      paymentPermissionCodes: ['View_Payments', grant], services: { paymentService: { getOrderPayments: async () => [payment] } }
+    });
+    const table = () => nodes(page.render()).find(node => Array.isArray(node.props?.columns));
+    await nodes(table().props.columns.find(column => column.id === 'orderId').cell({ row: { original: order } }))
+      .find(node => node.props?.['aria-label'] === 'Expand payments').props.onClick();
+    const expanded = table().props.renderSubRows(order);
+    assert.ok(nodes(expanded).some(node => node.props?.label === label), grant);
+    if (label !== 'Delete payment') assert.equal(nodes(expanded).some(node => node.props?.label === 'Delete payment'), false);
+    if (label !== 'Void payment') assert.equal(nodes(expanded).some(node => node.props?.label === 'Void payment'), false);
+  }
+});
+
+test('order rows appear before payment history finishes and history errors remain visible', async () => {
+  let resolve;
+  const pending = new Promise(done => { resolve = done; });
+  const order = { orderId: 42, customerName: 'Visible Customer', payments: [] };
+  const page = component('src/pages/order/table/OrdersTable.jsx', { effects: true, services: {
+    orderService: { getOrders: async () => ({ data: [order], totalCount: 1 }), getOrderSummary: async () => ({}) },
+    paymentService: { getOrderPayments: () => pending }
+  } });
+  const table = () => nodes(page.render()).find(node => Array.isArray(node.props?.columns));
+  table(); const effects = page.flushEffects(); await new Promise(setImmediate);
+  assert.equal(table().props.isLoading, false);
+  assert.equal(table().props.data[0].customerName, 'Visible Customer');
+  resolve([]); await effects;
 });

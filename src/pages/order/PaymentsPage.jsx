@@ -3,7 +3,7 @@ import { PageWrapper } from '@/components/common/page-card';
 
 const PaymentsPage = () => {
   return (
-    <PageWrapper>
+    <PageWrapper className="payments-page-wrapper">
       <PaymentsTable />
     </PageWrapper>
   );

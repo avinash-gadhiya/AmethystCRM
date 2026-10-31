@@ -7,7 +7,7 @@ import { ConfigContext } from 'providers/ConfigProvider';
 import * as actionType from 'store/actions';
 
 // assets
-import logoDark from 'assets/images/logo-dark.svg';
+import crmLogo from 'assets/images/crm-brain-logo.png';
 
 // -----------------------|| MOBILE HEADER ||-----------------------//
 
@@ -27,7 +27,10 @@ export default function MobileHeader() {
   return (
     <div className="pc-mob-header">
       <div className="pcm-logo">
-        <img src={logoDark} alt="DashboardKit" className="logo logo-lg" />
+        <span className="sidebar-brand-mark" aria-hidden="true">
+          <img src={crmLogo} alt="" width={40} height={40} className="mobile-crm-logo" />
+        </span>
+        <span className="sidebar-brand-name">CRM</span>
       </div>
       <div className="pcm-toolbar">
         <button type="button" className="pc-head-link" id="mobile-collapse" onClick={navToggleHandler} aria-label="Open navigation">

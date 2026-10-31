@@ -153,6 +153,21 @@ the Vite development certificate is only for local development.
 npm run build
 ```
 
+Production builds use `.env.production` to serve the app at `/`. Local development
+continues to use `/DashboardKit` from `.env`.
+
+### Vercel Deployment
+
+Import this repository with its root directory set to the folder containing
+`package.json` and `vercel.json`. The checked-in Vercel configuration builds the
+Vite app into `dist`, sets `VITE_APP_BASE_NAME=/` for both asset URLs and React
+Router, and serves `index.html` for client-side routes such as `/login`.
+
+Commit and push these configuration files, then deploy the new commit. Redeploying
+an older commit will keep its old configuration. The Vercel build command sets
+the root base path explicitly, including when a project environment variable
+still contains the old `/DashboardKit` value.
+
 ---
 
 ## Features

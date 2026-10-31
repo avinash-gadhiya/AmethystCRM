@@ -16,6 +16,15 @@ export const normalizePaymentGateway = (payment) => {
   return { ...payment, gatewayId: null, gatewayName: '' };
 };
 
+export const getOrderBrandName = (order) => {
+  const name = (value) => String(value || '').trim().replace(/^-$/, '');
+  if (name(order.brandName)) return name(order.brandName);
+  const payments = (Array.isArray(order.payments) ? order.payments : []).filter((payment) => !payment.isDeleted);
+  const sales = payments.filter((payment) => !/refund/i.test(payment.saleType || ''));
+  const names = [...new Set((sales.length ? sales : payments).map((payment) => name(payment.brandName)).filter(Boolean))];
+  return names.join(', ') || '-';
+};
+
 export const getOrderGatewayName = (order) => {
   const cardPayments = (Array.isArray(order.payments) ? order.payments : []).filter((payment) => isCardPayment(payment.paymentType));
   const names = [...new Set(cardPayments.map((payment) => payment.gatewayName).filter(Boolean))];

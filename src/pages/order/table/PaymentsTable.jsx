@@ -1,9 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CreditCard, Download, TriangleAlert, Upload } from 'lucide-react';
+import { CreditCard, Clock3, Download, Loader2, TriangleAlert, Upload } from 'lucide-react';
 import { format } from 'date-fns';
 import CommonTable from '@/components/common/CommonTable';
-import TableRefreshButton from '@/components/common/TableRefreshButton';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { paymentService } from '@/services';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { isCardPayment } from '@/lib/paymentMethod';
@@ -12,32 +10,10 @@ import { usePageCrudPermissions } from '@/hooks/usePageCrudPermissions';
 import usePagePermissionCodes from '@/hooks/usePagePermissionCodes';
 import { useSearchFieldFetchGuard } from '@/hooks/useSearchFieldFetchGuard';
 import { TableCard, PageHeader } from '@/components/common/page-card';
-import TableSearchField from '@/components/common/TableSearchField';
-import { LiquidGlassDatePicker } from '@/components/common/LiquidGlassDatePicker';
 import { Button } from '@/components/ui/button';
-import LiquidGlassButton from '@/components/ui/LiquidGlassButton';
-import GlassSegmentedControl from '@/components/common/GlassSegmentedControl';
+import PaymentsToolbar from './PaymentsToolbar';
+import './PaymentsTable.css';
 import { toast } from 'sonner';
-
-// Matches the frosted look of .tbl-glass-search so the toolbar controls all
-// read as one row. It has to be Tailwind rather than a CSS class:
-// SelectTrigger's own rounded-md / border-input come from the utilities
-// layer, which outranks anything in @layer components.
-const TOOLBAR_SELECT_TRIGGER_CLASS =
-  'h-10 w-full rounded-xl border border-[rgba(210,218,240,0.65)] bg-white/75 px-3 text-sm text-gray-700 backdrop-blur '
-  + 'hover:border-purple-300 focus:border-purple-400 data-[state=open]:border-purple-400 '
-  + 'dark:border-white/10 dark:bg-white/[0.06] dark:text-gray-200 dark:hover:border-white/20';
-
-// Same look, plus the fixed width the quick-date preset select needs so it
-// doesn't stretch with the rest of the filter row.
-const TOOLBAR_QUICK_DATE_TRIGGER_CLASS =
-  `${TOOLBAR_SELECT_TRIGGER_CLASS} sm:w-[160px] sm:shrink-0`;
-
-const PAYMENT_STATUS_SEGMENTS = [
-  { label: 'Sales', value: 'Sale' },
-  { label: 'All', value: '' },
-  { label: 'Refunds', value: 'Refund' },
-];
 
 const DOWNLOAD_PAGE_SIZE = 1000;
 const REFUND_DEMO_FILE_PATH = '/media/PDF/PaymentUploadDemo.xlsx';
@@ -116,123 +92,6 @@ const getStatusBadge = (payment) => {
   return { label, color };
 };
 
-const Toolbar = ({
-  searchInput,
-  searchField,
-  searchPlaceholder,
-  fromDate,
-  toDate,
-  paymentStatus,
-  onPaymentStatusChange,
-  onSearchFieldChange,
-  onSearchChange,
-  onDateRangeChange,
-  onDateClear,
-  onRefresh,
-  loading,
-  onDownload,
-  downloadDisabled,
-  onClearSearch,
-  total,
-  shown,
-}) => (
-  /* Two strips that collapse into one line at 1600px. This toolbar carries the
-     most controls of any table page - a Sale/All/Refund segment, a field
-     select, search, the date cluster and two action buttons - so it needs more
-     room than the others before a single row is honest:
-       >=1600     count | segment | field | search | dates | actions
-       ~1100-1599 count + actions / segment + field + search + dates
-       640-1099   count + actions / segment + field + search / dates
-       <640       fully stacked */
-  <div className="tbl-glass-toolbar is-stacked min-[1600px]:!flex-row min-[1600px]:!flex-wrap min-[1600px]:!items-center min-[1600px]:!gap-2">
-    <div className="flex items-start justify-between gap-2 min-[1600px]:contents">
-      <span className="order-1 inline-flex min-w-0 shrink-0 items-center gap-2 rounded-full border border-purple-100/80 bg-white/70 px-3 py-1.5 text-xs text-gray-600 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/[0.06] dark:text-gray-300">
-        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-purple-500" aria-hidden="true" />
-        <span className="truncate whitespace-nowrap">
-          <strong className="font-semibold text-gray-900 dark:text-white">{shown}</strong>
-          {' of '}
-          <strong className="font-semibold text-gray-900 dark:text-white">{total}</strong>
-          {' Payments'}
-        </span>
-      </span>
-
-      <div className="order-2 flex shrink-0 items-center gap-2 min-[1600px]:order-6">
-        <TableRefreshButton
-          className="shrink-0 dark:text-gray-200 dark:bg-gray-800"
-          title="Refresh"
-          onClick={onRefresh}
-          loading={loading}
-        />
-        <Button
-          variant="outline"
-          size="icon"
-          className="report-download-btn"
-          title="Download payments"
-          onClick={onDownload}
-          disabled={downloadDisabled}
-        >
-          <Download className={`h-4 w-4 ${downloadDisabled ? 'animate-pulse' : ''}`} />
-        </Button>
-      </div>
-    </div>
-
-    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-2.5 min-[1600px]:contents">
-      {/* ml-auto sits on the first filter so the slack on a wide screen falls
-          after the count, keeping filters/dates/actions together on the right. */}
-      <GlassSegmentedControl
-        className="order-3 shrink-0 min-[1600px]:order-2 min-[1600px]:ml-auto"
-        ariaLabel="Payment type"
-        options={PAYMENT_STATUS_SEGMENTS}
-        value={paymentStatus}
-        onChange={onPaymentStatusChange}
-      />
-
-      <div className="order-4 w-full shrink-0 sm:w-[150px] min-[1600px]:order-3">
-        <Select value={searchField} onValueChange={onSearchFieldChange}>
-          <SelectTrigger className={TOOLBAR_SELECT_TRIGGER_CLASS}>
-            <SelectValue placeholder="All Payments" />
-          </SelectTrigger>
-          <SelectContent position="popper" sideOffset={4} className="min-w-[var(--radix-select-trigger-width)]">
-            {PAYMENT_SEARCH_FIELDS.map((field) => (
-              <SelectItem key={field.value} value={field.value}>{field.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Small basis so it packs onto the shared line rather than forcing a
-          wrap; grow then hands it the slack, capped so it can't balloon. */}
-      <TableSearchField
-        className="order-5 w-full min-w-0 sm:grow sm:shrink sm:basis-32 sm:max-w-[420px] min-[1600px]:order-4"
-        placeholder={searchPlaceholder}
-        value={searchInput}
-        onChange={onSearchChange}
-        onClear={onClearSearch}
-      />
-
-      {/* No `stretch`: the picker's own default already fills the row on a phone
-          and collapses to content width from 640 up, which keeps the range pill
-          from becoming a half-metre-wide bar on a tablet. */}
-      <LiquidGlassDatePicker
-        key={`payments-date-${fromDate || ''}-${toDate || ''}`}
-        initialFromDate={fromDate || ''}
-        initialToDate={toDate || ''}
-        showQuickDateDropdown={true}
-        showDayStepButtons={true}
-        // The toolbar already has a refresh button, so the picker's own reset is hidden.
-        showClearButton={false}
-        onChange={(from, to, isSingle) => {
-          if (isSingle) onDateRangeChange(from, from);
-          else onDateRangeChange(from, to);
-        }}
-        onClear={onDateClear}
-        quickDateTriggerClassName={TOOLBAR_QUICK_DATE_TRIGGER_CLASS}
-        className="order-6 shrink-0 min-[1600px]:order-5"
-      />
-    </div>
-  </div>
-);
-
 const getColumns = () => [
   {
     id: 'paymentId',
@@ -246,7 +105,7 @@ const getColumns = () => [
   {
     id: 'paymentType',
     header: 'Payment Type',
-    meta: { headerClassName: 'text-center', cellClassName: 'text-center' },
+    meta: { headerClassName: 'text-left', cellClassName: 'text-left' },
     enableSorting: false,
     cell: ({ row }) => {
       const p = row.original;
@@ -268,7 +127,7 @@ const getColumns = () => [
         secondaryValue = p.transactionId || '-';
       }
       return (
-        <div className="flex flex-col gap-0.5">
+        <div className="payments-method flex flex-col gap-0.5">
           <span className="font-semibold text-sm text-gray-900">{paymentTypeText}</span>
           <span className="text-xs text-gray-600">{secondaryLabel}: {secondaryValue}</span>
           <span className="text-xs text-gray-600">Trans: {p.transactionId || '-'}</span>
@@ -281,9 +140,9 @@ const getColumns = () => [
     id: 'brandGateway',
     header: 'Brand & Gateway',
     enableSorting: false,
-    meta: { headerClassName: 'text-center', cellClassName: 'text-center' },
+    meta: { headerClassName: 'text-left', cellClassName: 'text-left' },
     cell: ({ row }) => (
-      <div className="flex flex-col gap-0.5">
+      <div className="payments-brand flex flex-col gap-0.5">
         <span className="text-sm font-semibold text-gray-900">{row.original.brandName || '-'}</span>
         {isCardPayment(row.original.paymentType) && row.original.gatewayName && (
           <span className="text-xs text-gray-600">{row.original.gatewayName}</span>
@@ -311,46 +170,35 @@ const getColumns = () => [
     id: 'amount',
     header: 'Amount',
     enableSorting: false,
-    meta: { headerClassName: 'text-center', cellClassName: 'text-center' },
+    meta: { headerClassName: 'text-right', cellClassName: 'text-right tabular-nums whitespace-nowrap' },
     cell: ({ row }) => (
       <span className="text-sm font-semibold text-gray-900">{formatCurrency(row.original.amount)}</span>
     ),
   },
-    {
+  {
     id: 'paymentDate',
     header: 'Date',
     enableSorting: false,
-    meta: { headerClassName: 'text-center w-72', cellClassName: 'text-center' },
+    meta: { headerClassName: 'text-left w-80', cellClassName: 'text-left' },
     cell: ({ row }) => {
       const p = row.original;
       if (!p.paymentDate && !p.createdAt) return <span className="text-xs text-gray-500 ">-</span>;
       return (
-        <div className="rounded-lg border border-gray-200 p-3 shadow-sm bg-white ">
-          <div className="flex flex-col gap-2">
+        <div className="payments-date">
             {p.paymentDate && (
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-7 h-7 rounded-full bg-green-100 flex-shrink-0">
-                  <CreditCard size={14} className="text-green-600" />
-                </div>
-                <div className="flex flex-col leading-tight">
-                  <span className="text-xs font-semibold text-green-600 flex">Payment</span>
-                  <span className="text-xs text-slate-700 whitespace-nowrap">{formatDateTime(p.paymentDate)}</span>
-                </div>
+              <div className="payments-date__row">
+                <span className="payments-date__icon bg-green-100 text-green-600"><CreditCard size={13} aria-hidden="true" /></span>
+                <span className="font-medium text-green-700">Payment</span>
+                <time dateTime={p.paymentDate}>{formatDateTime(p.paymentDate)}</time>
               </div>
             )}
-            {p.paymentDate && p.createdAt && <div className="border-t border-gray-200" />}
             {p.createdAt && (
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-7 h-7 rounded-full bg-violet-50 flex-shrink-0">
-                  <CreditCard size={14} className="text-violet-500" />
-                </div>
-                <div className="flex flex-col leading-tight">
-                  <span className="text-xs font-semibold text-violet-500 flex">Created</span>
-                  <span className="text-xs text-slate-700 whitespace-nowrap">{formatDateTime(p.createdAt)}</span>
-                </div>
+              <div className="payments-date__row">
+                <span className="payments-date__icon bg-violet-50 text-violet-500"><Clock3 size={13} aria-hidden="true" /></span>
+                <span className="font-medium text-violet-600">Created</span>
+                <time dateTime={p.createdAt}>{formatDateTime(p.createdAt)}</time>
               </div>
             )}
-          </div>
         </div>
       );
     },
@@ -635,28 +483,27 @@ const PaymentsTable = () => {
   return (
     <div className="payments-table-page">
       <PageHeader title="Payments" description="View and manage all payment transactions.">
-        <div className="flex flex-col gap-2 sm:items-end">
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Secondary action stays the outline Button so the primary one
-                keeps its contrast - same pairing the modals use. */}
+        <div className="payments-header-actions">
+          <div className="payments-header-buttons">
             <Button
               type="button"
               variant="outline"
+              className="payments-action-button"
               onClick={() => window.open(toAbsoluteUrl(REFUND_DEMO_FILE_PATH), '_blank', 'noopener,noreferrer')}
             >
+              <Download className="h-4 w-4" aria-hidden="true" />
               Demo Refund File
             </Button>
-            {/* LiquidGlassButton sets its own 14px/24px padding, so the size
-                is forced back to the h-10 the outline Button next to it uses. */}
-            <LiquidGlassButton
+            <Button
               type="button"
               onClick={handleUploadRefundClick}
               disabled={uploadingRefund}
-              className="!h-10 !px-4 !py-2 !text-sm text-center"
+              className="payments-action-button payments-upload-button"
+              aria-busy={uploadingRefund || undefined}
             >
-              <Upload className="w-4 h-4 liquid-glass-btn__icon" />
+              {uploadingRefund ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Upload className="h-4 w-4" aria-hidden="true" />}
               {uploadingRefund ? 'Uploading...' : 'Upload Refund'}
-            </LiquidGlassButton>
+            </Button>
             <input
               ref={refundFileInputRef}
               type="file"
@@ -666,21 +513,20 @@ const PaymentsTable = () => {
             />
           </div>
 
-          {/* The sheet is uploaded blind - there is no per-row feedback before
-              it is sent - so the one hard requirement is stated up front. */}
-          <p className="inline-flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] font-medium text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+          <p className="payments-upload-note">
             <TriangleAlert className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             <span>Note: Refund ID is mandatory in the uploaded file.</span>
           </p>
         </div>
       </PageHeader>
 
-      <TableCard>
+      <TableCard className="payments-list-card">
 
         {/* Toolbar */}
-        <Toolbar
+        <PaymentsToolbar
           searchInput={searchTerm}
           searchField={searchField}
+          searchFields={PAYMENT_SEARCH_FIELDS}
           searchPlaceholder={getPaymentSearchPlaceholder(searchField)}
           fromDate={fromDate}
           toDate={toDate}
@@ -700,8 +546,11 @@ const PaymentsTable = () => {
         />
 
         {/* Table */}
-        <div className="grid">
+        <div className="grid min-w-0 grid-cols-1">
           <CommonTable
+            containerClassName="payments-table-container"
+            tableClassName="payments-data-table"
+            rowKey="paymentId"
             columns={columns}
             data={payments}
             sorting={sorting}

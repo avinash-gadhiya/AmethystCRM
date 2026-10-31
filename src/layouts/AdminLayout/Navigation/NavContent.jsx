@@ -8,12 +8,13 @@ import { ConfigContext } from 'providers/ConfigProvider';
 import * as actionType from 'store/actions';
 
 // third party
-import { Blocks, ChevronLeft, ChevronRight, LogOut, UserCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogOut, UserCircle } from 'lucide-react';
 import SimpleBar from 'simplebar-react';
 import 'simplebar-react/dist/simplebar.min.css';
 
 // assets
 import authService from 'services/authService';
+import crmLogo from 'assets/images/crm-brain-logo.png';
 
 // -----------------------|| NAV CONTENT ||-----------------------//
 
@@ -51,11 +52,11 @@ export default function NavContent({ navigation }) {
   return (
     <>
       <div className="m-header">
-        <Link to={firstNavigationPath || '/MyProfile'} className="b-brand">
+        <Link to={firstNavigationPath || '/MyProfile'} className="b-brand" aria-label="CRM home">
           <span className="sidebar-brand-mark" aria-hidden="true">
-            <Blocks size={23} strokeWidth={2.2} />
+            <img src={crmLogo} alt="" width={40} height={40} />
           </span>
-          <span className="sidebar-brand-name"></span>
+          <span className="sidebar-brand-name">CRM</span>
         </Link>
         <button
           type="button"

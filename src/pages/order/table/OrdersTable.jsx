@@ -25,7 +25,7 @@ import { brandService, gatewayService, orderLookupService, orderService, payment
 import { getCurrentLoginIpv4 } from '@/services/clientIpService';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/apiError';
-import { changePaymentMethod, isCardPayment, getOrderGatewayName } from '@/lib/paymentMethod';
+import { changePaymentMethod, isCardPayment, getOrderGatewayName, getOrderBrandName } from '@/lib/paymentMethod';
 import { usePageCrudPermissions } from '@/hooks/usePageCrudPermissions';
 import usePagePermissionCodes from '@/hooks/usePagePermissionCodes';
 import authService from '@/services/authService';
@@ -371,15 +371,18 @@ const OrdersTable = () => {
     // tree omits the separate Order Payment codes. Personal grants stay exact.
     const hasPaymentPermission = (code) => !permissionsLoading && !orderCodesLoading &&
         (hasOrderCode(code) || hasFullOrderAccess);
+    const hasPaymentPageAction = (action) => !permissionsLoading && !orderCodesLoading &&
+        !paymentCodesLoading && canViewOrders &&
+        (hasPaymentCode(`${action}_Payment`) || hasPaymentCode(`${action}_Payments`));
     const canViewOrderPayments = hasPaymentPermission('View_Order_Payment') ||
         (!permissionsLoading && !orderCodesLoading && !paymentCodesLoading && canViewOrders &&
             (hasPaymentCode('View_Payments') || hasPaymentCode('View_Payment')));
 
-    const canAddOrderPayment = hasPaymentPermission('Add_Order_Payment');
-    const canUpdateOrderPayment = hasPaymentPermission('Update_Order_Payment');
-    const canDeleteOrderPayment = hasPaymentPermission('Delete_Order_Payment');
-    const canVoidOrderPayment = hasPaymentPermission('Void_Order_Payment');
-    const canRefundOrderPayment = hasPaymentPermission('Refund_Order_Payment');
+    const canAddOrderPayment = hasPaymentPermission('Add_Order_Payment') || hasPaymentPageAction('Add');
+    const canUpdateOrderPayment = hasPaymentPermission('Update_Order_Payment') || hasPaymentPageAction('Update');
+    const canDeleteOrderPayment = hasPaymentPermission('Delete_Order_Payment') || hasPaymentPageAction('Delete');
+    const canVoidOrderPayment = hasPaymentPermission('Void_Order_Payment') || hasPaymentPageAction('Void');
+    const canRefundOrderPayment = hasPaymentPermission('Refund_Order_Payment') || hasPaymentPageAction('Refund');
     const [filters, setFilters] = useState({
         SearchField: null,
         Text: '',
@@ -407,6 +410,7 @@ const OrdersTable = () => {
     };
     const finishAction = (key) => activeActionsRef.current.delete(key);
     const [orderPaymentsStatus, setOrderPaymentsStatus] = useState({});
+    const [orderPaymentErrors, setOrderPaymentErrors] = useState({});
     const [summary, setSummary] = useState(null);
     const [summaryLoading, setSummaryLoading] = useState(false);
     const latestOrdersFetchIdRef = useRef(0);
@@ -813,23 +817,49 @@ const OrdersTable = () => {
             const orders = response.data || [];
             setData(orders);
             setTotal(response.totalCount || 0);
+            // Payment history loads independently; do not hold every order
+            // behind the table skeleton while later batches are pending.
+            setLoading(false);
             setPaymentDetailsById({});
             setOrderPaymentsStatus({});
+            setOrderPaymentErrors({});
             const activeId = expandedOrderIdRef.current;
-            if (canViewOrderPayments && activeId && orders.some((order) => Number(order.orderId) === Number(activeId))) {
-                setOrderPaymentsStatus({ [activeId]: 'loading' });
-                try {
-                    const payments = await paymentService.getOrderPayments(activeId);
-                    if (latestOrdersFetchIdRef.current !== requestId) return;
-                    setData(orders.map((order) => Number(order.orderId) === Number(activeId) ? { ...order, payments } : order));
-                    setPaymentDetailsById(Object.fromEntries(payments.map((payment) => [payment.paymentId, payment])));
-                    setOrderPaymentsStatus({ [activeId]: 'loaded' });
-                } catch {
-                    if (latestOrdersFetchIdRef.current === requestId) setOrderPaymentsStatus({ [activeId]: 'error' });
-                }
-            } else if (activeId) {
+            if (activeId && (!canViewOrderPayments || !orders.some((order) => Number(order.orderId) === Number(activeId)))) {
                 expandedOrderIdRef.current = null;
                 setExpandedOrderId(null);
+            }
+            if (canViewOrderPayments && orders.length > 0) {
+                // Parent rows need payment details even while collapsed. Limit
+                // concurrent requests so larger pages do not flood the API.
+                setOrderPaymentsStatus(Object.fromEntries(orders.map((order) => [order.orderId, 'loading'])));
+                const hydratedOrders = [...orders];
+                const paymentDetails = {};
+                const statuses = Object.fromEntries(orders.map((order) => [order.orderId, 'loading']));
+                const errors = {};
+                for (let offset = 0; offset < orders.length; offset += 4) {
+                    if (latestOrdersFetchIdRef.current !== requestId) return;
+                    const batch = orders.slice(offset, offset + 4);
+                    const results = await Promise.allSettled(batch.map((order) => paymentService.getOrderPayments(order.orderId)));
+                    if (latestOrdersFetchIdRef.current !== requestId) return;
+                    results.forEach((result, index) => {
+                        const order = batch[index];
+                        statuses[order.orderId] = result.status === 'fulfilled' ? 'loaded' : 'error';
+                        if (result.status === 'fulfilled') {
+                            hydratedOrders[offset + index] = { ...order, payments: result.value };
+                            for (const payment of result.value) paymentDetails[payment.paymentId] = payment;
+                        } else {
+                            errors[order.orderId] = getApiErrorMessage(result.reason, 'Failed to load payments.');
+                        }
+                    });
+                    // Show completed batches immediately while later orders load.
+                    setData([...hydratedOrders]);
+                    setPaymentDetailsById({ ...paymentDetails });
+                    setOrderPaymentsStatus({ ...statuses });
+                    setOrderPaymentErrors({ ...errors });
+                }
+                setData(hydratedOrders);
+                setPaymentDetailsById(paymentDetails);
+                setOrderPaymentsStatus(statuses);
             }
         } catch (err) {
             if (latestOrdersFetchIdRef.current !== requestId) return;
@@ -2844,6 +2874,7 @@ const OrdersTable = () => {
 
         const listRequestId = latestOrdersFetchIdRef.current;
         setOrderPaymentsStatus((previous) => ({ ...previous, [orderId]: 'loading' }));
+        setOrderPaymentErrors((previous) => ({ ...previous, [orderId]: '' }));
         try {
             const payments = await paymentService.getOrderPayments(orderId);
             if (latestOrdersFetchIdRef.current !== listRequestId) return;
@@ -2855,6 +2886,7 @@ const OrdersTable = () => {
         } catch (error) {
             if (latestOrdersFetchIdRef.current !== listRequestId) return;
             setOrderPaymentsStatus((previous) => ({ ...previous, [orderId]: 'error' }));
+            setOrderPaymentErrors((previous) => ({ ...previous, [orderId]: getApiErrorMessage(error, 'Failed to load payments.') }));
             toast.error(getApiErrorMessage(error, 'Failed to load order payments'));
         } finally {
             finishAction(actionKey);
@@ -2921,7 +2953,7 @@ const OrdersTable = () => {
                         <div className="flex flex-col text-sm text-gray-800">
                             <div className="flex items-center gap-2 font-medium text-gray-900">
                                 <CorporateFareIcon sx={{ fontSize: '14px' }} />
-                                <span className="truncate">{order.brandName || '-'}</span>
+                                <span className="truncate">{getOrderBrandName(order)}</span>
                             </div>
                             {gatewayName && <div className="flex items-center gap-2 text-xs text-gray-600">
                                 <LocalGroceryStoreIcon sx={{ fontSize: '14px' }} />
@@ -3408,6 +3440,9 @@ const OrdersTable = () => {
                                     : status !== 'loaded' ? 'Loading payments...'
                                         : 'No payments found for this order.'}
                             </div>
+                            {status === 'error' && orderPaymentErrors[order.orderId] && (
+                                <p className="mt-2 text-sm text-red-700">{orderPaymentErrors[order.orderId]}</p>
+                            )}
                             {status === 'error' && (
                                 <button type="button" className="mt-3 rounded-lg border border-violet-200 bg-white px-4 py-2 text-violet-700" onClick={() => toggleOrderPayments(order, true)}>Retry payments</button>
                             )}
@@ -3714,7 +3749,7 @@ const OrdersTable = () => {
                 </tr>
             );
         },
-        [columnCount, expandedOrderId, orderPaymentsStatus, paymentDetailsById, getTemplateRowsFromPayment, isTemplateLoading, handleTemplateMenuOpen, handleSendPaymentTemplateMail, sendingTemplateMailByKey, sendingPandaDocMailByPaymentId, handleSendPandaDocMail, getPaymentStatusMeta, openShareSaleModal, openRefundModal, openEditPaymentModal, openVoidConfirm, openDeletePaymentConfirm, canViewOrderPayments, canVoidOrderPayment, canRefundOrderPayment, canUpdateOrderPayment, canDeleteOrderPayment, paymentSaving, deletePaymentSaving, orderCodesLoading]
+        [columnCount, expandedOrderId, orderPaymentsStatus, orderPaymentErrors, toggleOrderPayments, paymentDetailsById, getTemplateRowsFromPayment, isTemplateLoading, handleTemplateMenuOpen, handleSendPaymentTemplateMail, sendingTemplateMailByKey, sendingPandaDocMailByPaymentId, handleSendPandaDocMail, getPaymentStatusMeta, openShareSaleModal, openRefundModal, openEditPaymentModal, openVoidConfirm, openDeletePaymentConfirm, canViewOrderPayments, canVoidOrderPayment, canRefundOrderPayment, canUpdateOrderPayment, canDeleteOrderPayment, paymentSaving, deletePaymentSaving, orderCodesLoading]
     );
 
     return (

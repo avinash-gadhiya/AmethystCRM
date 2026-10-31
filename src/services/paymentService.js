@@ -33,6 +33,9 @@ const paymentCount = (payload) => {
   return count != null && Number.isFinite(Number(count)) ? Number(count) : null;
 };
 
+const paymentReadSignal = (signal) => signal ||
+  (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(15000) : undefined);
+
 export const paymentService = {
   async getPayments(params = {}, signal) {
     const payload = normalizeFields(await apiClient.get(
@@ -60,7 +63,7 @@ export const paymentService = {
 
   async getPayment(id, signal) {
     if (!id) throw new Error('Payment ID is required.');
-    const payload = await apiClient.get(`/Payment/${encodeURIComponent(id)}`, undefined, signal);
+    const payload = await apiClient.get(`/Payment/${encodeURIComponent(id)}`, undefined, paymentReadSignal(signal));
     return unwrapPayment(payload);
   },
 
@@ -102,7 +105,7 @@ export const paymentService = {
     for (let page = 1; page <= 1000; page += 1) {
       const result = await this.getPayments(
         { SearchField: 'OrderId', Text: String(id), PageNumber: page, PageSize: 100 },
-        signal
+        paymentReadSignal(signal)
       );
       const totalCount = paymentCount(result.raw);
       let added = 0;

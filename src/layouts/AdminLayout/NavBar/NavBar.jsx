@@ -20,6 +20,7 @@ export default function NavBar() {
 
   return (
     <header className={headerClass}>
+      <span className="header-glass-rim" aria-hidden="true" />
       <div className="header-wrapper flex items-center justify-between gap-4">
         <div className={`flex-1 min-w-0 pc-mob-drp${collapseTabMenu ? ' mob-drp-active' : ''}`}>
           <NavLeft />
