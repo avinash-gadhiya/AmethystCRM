@@ -6,7 +6,7 @@ import LiquidGlassSurface from '@/components/common/LiquidGlassSurface';
 import LiquidGlassDatePicker from '@/components/common/LiquidGlassDatePicker';
 import { getMonthToDateRange, toInputDate } from 'utils/dateUtils';
 
-export default function DashboardRangeToolbar({ range, onRangeChange, onApply, onReset, loading, children }) {
+export default function DashboardRangeToolbar({ range, onRangeChange, onApply, onReset, loading, showActions = true, children }) {
   const [preset, setPreset] = useState('monthToDate');
 
   const selectPreset = (value) => {
@@ -29,8 +29,10 @@ export default function DashboardRangeToolbar({ range, onRangeChange, onApply, o
   return (
     <LiquidGlassSurface allowOverflow className="relative z-40 mb-4 rounded-2xl p-4 sm:p-5">
       <form
-        onSubmit={onApply}
-        className="grid grid-cols-1 items-end gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(180px,1fr)_minmax(150px,0.7fr)_minmax(300px,1.4fr)_auto]"
+        onSubmit={onApply || ((event) => event.preventDefault())}
+        className={`grid grid-cols-1 items-end gap-4 sm:grid-cols-2 ${showActions
+          ? 'xl:grid-cols-[minmax(180px,1fr)_minmax(150px,0.7fr)_minmax(300px,1.4fr)_auto]'
+          : 'xl:grid-cols-[minmax(180px,1fr)_minmax(150px,0.7fr)_minmax(300px,1.4fr)]'}`}
       >
         {children}
         <div className="min-w-0">
@@ -66,7 +68,7 @@ export default function DashboardRangeToolbar({ range, onRangeChange, onApply, o
             }}
           />
         </div>
-        <div className="flex h-10 items-stretch gap-2">
+        {showActions && <div className="flex h-10 items-stretch gap-2">
           <button
             type="submit"
             disabled={loading}
@@ -87,7 +89,7 @@ export default function DashboardRangeToolbar({ range, onRangeChange, onApply, o
           >
             <X size={18} />
           </button>
-        </div>
+        </div>}
       </form>
     </LiquidGlassSurface>
   );
@@ -96,8 +98,9 @@ export default function DashboardRangeToolbar({ range, onRangeChange, onApply, o
 DashboardRangeToolbar.propTypes = {
   range: PropTypes.shape({ fromDate: PropTypes.string.isRequired, toDate: PropTypes.string.isRequired }).isRequired,
   onRangeChange: PropTypes.func.isRequired,
-  onApply: PropTypes.func.isRequired,
-  onReset: PropTypes.func.isRequired,
-  loading: PropTypes.bool.isRequired,
+  onApply: PropTypes.func,
+  onReset: PropTypes.func,
+  loading: PropTypes.bool,
+  showActions: PropTypes.bool,
   children: PropTypes.node
 };

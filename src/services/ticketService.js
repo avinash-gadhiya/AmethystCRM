@@ -1,5 +1,6 @@
 import authService from './authService';
 import { handleSessionExpired } from './http';
+import { normalizeApiRecord } from '@/lib/normalizeApiRecord';
 
 const API_BASE_URL = (import.meta.env.VITE_APP_API_URL || 'https://demoapi.enstasol.com/api').replace(/\/$/, '');
 
@@ -21,9 +22,9 @@ const readResponse = async (response, fallbackMessage, requestToken) => {
     throw new Error(`${fallbackMessage} (${response.status}).`);
   }
 
-  if (!response.ok || payload?.success === false) {
+  if (!response.ok || payload?.success === false || payload?.Success === false) {
     const validationMessage = payload?.errors ? Object.values(payload.errors).flat().join(', ') : '';
-    throw new Error(payload?.message || validationMessage || `${fallbackMessage} (${response.status}).`);
+    throw new Error(payload?.message || payload?.Message || validationMessage || `${fallbackMessage} (${response.status}).`);
   }
 
   return payload;
@@ -91,23 +92,37 @@ const buildTicketFormData = (ticket = {}) => {
 
 export const ticketService = {
   async getTickets(params = {}, signal) {
-    const payload = await request('/Ticket', {
-      params: {
-        Text: params.Text || '',
-        SearchField: params.SearchField || '',
-        FromDate: params.FromDate || '',
-        ToDate: params.ToDate || '',
-        PageNumber: params.PageNumber || 1,
-        PageSize: params.PageSize || 10,
-        SortProperty: params.SortProperty || 'TicketId',
-        IsDescending: params.IsDescending !== false
-      },
-      signal
-    });
+    const payload = normalizeApiRecord(
+      await request('/Ticket', {
+        params: {
+          CustomerId: params.CustomerId ?? params.customerId ?? '',
+          Text: params.Text || '',
+          SearchField: params.SearchField || '',
+          FromDate: params.FromDate || '',
+          ToDate: params.ToDate || '',
+          PageNumber: params.PageNumber || 1,
+          PageSize: params.PageSize || 10,
+          SortProperty: params.SortProperty || 'TicketId',
+          IsDescending: params.IsDescending !== false
+        },
+        signal
+      })
+    );
 
+    let list = payload;
+    while (list && !Array.isArray(list) && typeof list === 'object') {
+      if (Array.isArray(list.items)) {
+        list = list.items;
+        break;
+      }
+      if (!Object.prototype.hasOwnProperty.call(list, 'data')) break;
+      list = list.data;
+    }
+    if (!Array.isArray(list)) throw new Error('The Ticket API returned an invalid ticket list. Please retry.');
     return {
-      data: Array.isArray(payload?.data) ? payload.data : [],
-      totalCount: Number(payload?.totalCount) || 0
+      data: list,
+      totalCount: Number(payload?.totalCount ?? payload?.data?.totalCount ?? payload?.totalRecords ?? list.length),
+      raw: payload
     };
   },
 

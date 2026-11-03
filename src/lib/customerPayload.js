@@ -2,6 +2,35 @@ const id = (value) => (Number.isInteger(Number(value)) && Number(value) > 0 ? Nu
 const text = (value) => String(value ?? '').trim();
 const digits = (value) => text(value).replace(/\D/g, '');
 
+export const isCustomerActive = (value) =>
+  value == null || value === true || value === 1 || ['true', '1'].includes(text(value).toLowerCase());
+
+export const customerSaveMismatches = (expected, actual) => {
+  const fields = [
+    'name',
+    'email',
+    'phone',
+    'phone2',
+    'address',
+    'city',
+    'stateId',
+    'stateName',
+    'zipCode',
+    'countryId',
+    'countryName',
+    'salesPerson',
+    'salesPersonName'
+  ];
+  return fields.filter((key) => {
+    const wanted = expected[key];
+    if (wanted == null || text(wanted) === '' || (['stateId', 'countryId', 'salesPerson'].includes(key) && !Number(wanted))) return false;
+    const labelId = { stateName: 'stateId', countryName: 'countryId', salesPersonName: 'salesPerson' }[key];
+    if (labelId && Number(expected[labelId]) > 0 && Number(expected[labelId]) === Number(actual?.[labelId])) return false;
+    if (key === 'phone' || key === 'phone2') return digits(wanted) !== digits(actual?.[key]);
+    return text(wanted).toLowerCase() !== text(actual?.[key]).toLowerCase();
+  });
+};
+
 export const buildCustomerPayload = (customer, { isCreate = false, user = {}, now = new Date() } = {}) => {
   const customerId = isCreate ? 0 : id(customer.customerId);
   if (!isCreate && !customerId) throw new Error('Customer ID is required.');

@@ -53,7 +53,7 @@ export function PageWrapper({ children, className }) {
  */
 export function PageHeader({ title, description, children }) {
   return (
-    <div className="app-page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+    <div className="app-page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 b-5">
       <div className="flex items-start gap-3">
         <span className="app-page-header-icon" aria-hidden="true">
           <PanelsTopLeft />

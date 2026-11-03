@@ -25,6 +25,7 @@ import {
 import DailySalesReportCharts from './DailySalesReportCharts';
 import DailySalesReportTable from './DailySalesReportTable';
 import DailySalesSummary from './DailySalesSummary';
+import './daily-sales-glass.css';
 
 const EMPTY_REPORT = { userSalePayments: [], userLeads: [] };
 
@@ -127,26 +128,26 @@ export default function DailySalesReportPage() {
   const selectedLocationName = locationOptions.find((location) => String(location.locationId) === String(selectedLocationId))?.name;
 
   return (
-    <div className="dashboard-glass daily-sales-report space-y-5 p-3 sm:p-5 lg:p-6">
+    <div className="dashboard-glass daily-sales-report space-y-5">
       <PageHeader
         title="Daily Sales Report"
         description={`${formatDailySalesDateRange(range)} · ${selectedLocationName || 'All Locations'}`}
       >
-        <LiquidGlassButton onClick={exportCsv} disabled={loading || !!error || !sortedRows.length} className="w-full sm:w-auto">
+        <LiquidGlassButton onClick={exportCsv} disabled={loading || !!error || !sortedRows.length} className="daily-sales-export w-full sm:w-auto">
           <Download size={16} />
           Export CSV
         </LiquidGlassButton>
       </PageHeader>
 
-      <TableCard>
-        <div className="flex flex-col gap-3 bg-slate-50/70 p-3 dark:bg-white/[0.02] xl:flex-row xl:items-center">
-          <span className="inline-flex shrink-0 items-center gap-2 self-start rounded-full border border-purple-100/80 bg-white/80 px-3 py-2 text-xs text-gray-600 shadow-sm dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-300 xl:self-auto">
+      <TableCard className="daily-sales-filter-card">
+        <div className="daily-sales-toolbar">
+          <span className="daily-sales-activity inline-flex shrink-0 items-center gap-2 self-start rounded-full border border-purple-100/80 bg-white/80 px-3 py-2 text-xs text-gray-600 shadow-sm dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-300 xl:self-auto">
             <span className="h-1.5 w-1.5 rounded-full bg-purple-500" aria-hidden="true" />
             <strong className="font-semibold text-gray-900 dark:text-white">{filteredRows.length}</strong> agents with activity
           </span>
 
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 xl:justify-end">
-            <div className="w-full sm:w-[170px]">
+          <div className="daily-sales-filters">
+            <div className="daily-sales-period">
               <Select value={activePreset} onValueChange={applyPreset}>
                 <SelectTrigger className={TOOLBAR_SELECT_TRIGGER_CLASS} aria-label="Report period">
                   <SelectValue placeholder="Report period" />
@@ -162,19 +163,18 @@ export default function DailySalesReportPage() {
               </Select>
             </div>
 
-            <div className="w-full sm:w-[310px]">
+            <div className="daily-sales-dates">
               <LiquidGlassDatePicker
                 initialFromDate={range.fromDate}
                 initialToDate={range.toDate}
                 emptyLabel="Select date range"
-                calendarMode
                 onChange={applyCustomRange}
                 stretch
                 className="w-full"
               />
             </div>
 
-            <div className="min-w-0 flex-1 sm:w-[190px] sm:flex-none">
+            <div className="daily-sales-location">
               <Select value={selectedLocationId || 'all'} onValueChange={(value) => setSelectedLocationId(value === 'all' ? '' : value)}>
                 <SelectTrigger className={TOOLBAR_SELECT_TRIGGER_CLASS} aria-label="Location">
                   <SelectValue placeholder="All Locations" />
@@ -191,7 +191,7 @@ export default function DailySalesReportPage() {
             </div>
 
             <TableRefreshButton
-              className="h-10 w-10 shrink-0"
+              className="daily-sales-refresh h-10 w-10 shrink-0"
               title="Refresh report"
               loading={loading}
               onClick={() => setRefreshVersion((version) => version + 1)}

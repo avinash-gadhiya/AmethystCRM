@@ -1,22 +1,26 @@
 import apiClient from './core/apiClient';
 import { getCurrentLoginIpv4 } from './clientIpService';
 import authService from './authService';
-import { buildCustomerPayload } from '@/lib/customerPayload';
+import { buildCustomerPayload, customerSaveMismatches, isCustomerActive } from '@/lib/customerPayload';
 
 const normalizeFields = (value) => {
   if (Array.isArray(value)) return value.map(normalizeFields);
   if (!value || typeof value !== 'object') return value;
   return Object.fromEntries(
-    Object.entries(value).map(([key, item]) => [key.charAt(0).toLowerCase() + key.slice(1), normalizeFields(item)])
+    Object.entries(value).map(([key, item]) => {
+      const name = key.charAt(0).toLowerCase() + key.slice(1);
+      return [name, name === 'isActive' && item != null ? isCustomerActive(item) : normalizeFields(item)];
+    })
   );
 };
 
-const unwrapCustomer = (payload, fallback, requestedId = Number(fallback?.customerId) || 0) => {
+const unwrapCustomer = (payload, fallback, requestedId = Number(fallback?.customerId) || 0, allowIdOnly = true) => {
   let value = normalizeFields(payload);
   while (value && typeof value === 'object' && !Array.isArray(value) && value.data !== undefined) value = value.data;
   if (Array.isArray(value)) value = requestedId ? value.find((item) => Number(item.customerId) === requestedId) : value[0];
   if (value && typeof value === 'object' && Number(value.customerId) > 0) return { ...fallback, ...value };
-  if ((typeof value === 'number' || typeof value === 'string') && Number(value) > 0) return { ...fallback, customerId: Number(value) };
+  if (allowIdOnly && (typeof value === 'number' || typeof value === 'string') && Number(value) > 0)
+    return { ...fallback, customerId: Number(value) };
   return fallback || null;
 };
 
@@ -28,6 +32,168 @@ const normalizeList = (payload) => {
   if (Array.isArray(payload?.data?.items)) return payload.data.items;
   if (Array.isArray(payload?.data?.data)) return payload.data.data;
   return [];
+};
+
+const profileFields = [
+  'email',
+  'phone',
+  'phone2',
+  'address',
+  'city',
+  'stateId',
+  'stateName',
+  'zipCode',
+  'countryId',
+  'countryName',
+  'salesPerson',
+  'salesPersonName'
+];
+const missingValue = (value) => value == null || String(value).trim() === '' || value === 0 || value === '0';
+const needsProfile = (row) =>
+  (!row.city && !row.stateName && !Number(row.stateId) && !row.countryName && !Number(row.countryId)) ||
+  (!String(row.salesPersonName || '').trim() && !Number(row.salesPerson));
+
+// The regular Customer projections omit profile fields. Search is a separate,
+// read-only index; merge only an exact customer ID, never a same-name customer.
+const hydrateCustomerProfiles = async (customers, signal) => {
+  const groups = new Map();
+  for (const customer of customers.filter(needsProfile)) {
+    const query = String(customer.name || customer.customerId).trim();
+    if (!groups.has(query)) groups.set(query, []);
+    groups.get(query).push(customer);
+  }
+  const profiles = new Map();
+  const errors = new Map();
+  const queue = [...groups.entries()];
+  await Promise.all(
+    Array.from({ length: Math.min(4, queue.length) }, async () => {
+      while (queue.length) {
+        const [searchText, targets] = queue.shift();
+        const wanted = new Set(targets.map((row) => Number(row.customerId)));
+        const seen = new Set();
+        try {
+          for (let pageNumber = 1; wanted.size && pageNumber <= 100; pageNumber += 1) {
+            signal?.throwIfAborted();
+            const payload = normalizeFields(
+              await apiClient.request('/Customer/search', {
+                params: { searchText, pageNumber, pageSize: 100 },
+                signal
+              })
+            );
+            const rows = normalizeList(payload);
+            let added = 0;
+            for (const row of rows) {
+              const id = Number(row.customerId);
+              if (id && !seen.has(id)) {
+                seen.add(id);
+                added += 1;
+              }
+              if (wanted.has(id)) {
+                profiles.set(id, row);
+                wanted.delete(id);
+              }
+            }
+            const total = payload?.totalCount ?? payload?.data?.totalCount ?? payload?.totalRecords;
+            if (!added || (total != null ? seen.size >= Number(total) : rows.length < 100)) break;
+          }
+        } catch (error) {
+          if (signal?.aborted) throw error;
+          for (const target of targets) errors.set(Number(target.customerId), error.message || 'Unable to load customer profile.');
+        }
+      }
+    })
+  );
+  signal?.throwIfAborted();
+  const warnings = [];
+  const data = customers.map((row) => {
+    const customer = { ...row };
+    const profile = profiles.get(Number(row.customerId));
+    if (profile)
+      for (const field of profileFields) {
+        if (missingValue(customer[field]) && !missingValue(profile[field])) customer[field] = profile[field];
+      }
+    // Empty optional fields in a successful response are not request failures.
+    // Only offer a retry when a supporting API call actually failed.
+    if (errors.has(Number(row.customerId)))
+      warnings.push({
+        customerId: row.customerId,
+        message: errors.get(Number(row.customerId))
+      });
+    return customer;
+  });
+  return { data, warnings };
+};
+
+const customerLookups = [
+  {
+    id: 'salesPerson',
+    field: 'salesPersonName',
+    key: 'userId',
+    route: '/User/UserDropDown',
+    label: (row) =>
+      row.fullName ||
+      [row.firstName, row.lastName].filter(Boolean).join(' ').trim() ||
+      row.displayName ||
+      row.username ||
+      row.userName ||
+      row.name
+  },
+  { id: 'stateId', field: 'stateName', key: 'stateId', route: '/State/StateDropdown', label: (row) => row.stateName || row.name },
+  {
+    id: 'countryId',
+    field: 'countryName',
+    key: 'countryId',
+    route: '/Country/CountryDropdown',
+    label: (row) => row.countryName || row.name
+  }
+];
+
+// Customer projections can include foreign keys without their display names.
+// Resolve only those referenced keys; never substitute the creator as the seller.
+const hydrateCustomerLabels = async (customers, signal) => {
+  const lookups = await Promise.allSettled(
+    customerLookups.map(async (lookup) => {
+      const needed = new Set(
+        customers
+          .filter((row) => Number(row[lookup.id]) > 0 && !String(row[lookup.field] || '').trim())
+          .map((row) => Number(row[lookup.id]))
+      );
+      const labels = new Map();
+      const seen = new Set();
+      for (let page = 1; needed.size && page <= 100; page += 1) {
+        signal?.throwIfAborted();
+        const payload = normalizeFields(await apiClient.request(lookup.route, { params: { PageNumber: page, PageSize: 100 }, signal }));
+        const rows = normalizeList(payload);
+        let added = 0;
+        for (const row of rows) {
+          const id = Number(row[lookup.key]);
+          if (id && !seen.has(id)) {
+            seen.add(id);
+            added += 1;
+          }
+          const label = lookup.label(row);
+          if (needed.has(id) && label) {
+            labels.set(id, label);
+            needed.delete(id);
+          }
+        }
+        const total = payload?.totalCount ?? payload?.data?.totalCount;
+        if (!added || (total != null ? seen.size >= Number(total) : rows.length < 100)) break;
+      }
+      return labels;
+    })
+  );
+  signal?.throwIfAborted();
+  return customers.map((row) => {
+    const customer = { ...row };
+    customerLookups.forEach((lookup, index) => {
+      if (!String(customer[lookup.field] || '').trim() && lookups[index].status === 'fulfilled') {
+        const label = lookups[index].value.get(Number(customer[lookup.id]));
+        if (label) customer[lookup.field] = label;
+      }
+    });
+    return customer;
+  });
 };
 
 export const customerService = {
@@ -46,8 +212,10 @@ export const customerService = {
       signal
     });
 
+    const profiles = await hydrateCustomerProfiles(normalizeList(payload), signal);
     return {
-      data: normalizeList(payload),
+      data: await hydrateCustomerLabels(profiles.data, signal),
+      profileWarnings: profiles.warnings,
       totalCount:
         Number(
           payload?.totalCount ?? payload?.data?.totalCount ?? payload?.totalRecords ?? payload?.TotalCount ?? normalizeList(payload).length
@@ -60,7 +228,7 @@ export const customerService = {
       params: { searchText, pageNumber, pageSize },
       signal
     });
-    const data = normalizeList(payload?.data ?? payload);
+    const data = await hydrateCustomerLabels(normalizeList(payload), signal);
     return {
       data,
       totalCount: Number(payload?.totalCount ?? payload?.data?.totalCount ?? payload?.totalRecords) || data.length
@@ -77,13 +245,18 @@ export const customerService = {
   },
 
   async getCustomerById(customerId, signal) {
-    if (!customerId) throw new Error('Customer ID is required.');
+    if (!Number.isInteger(Number(customerId)) || Number(customerId) <= 0) throw new Error('Customer ID is required.');
+    signal?.throwIfAborted();
     const ip = await getCurrentLoginIpv4();
+    signal?.throwIfAborted();
     const payload = await apiClient.request(`/Customer/${customerId}`, {
-      params: { ip, customerViewIp: ip },
+      params: { ip },
       signal
     });
-    return unwrapCustomer(payload, null, Number(customerId));
+    const customer = unwrapCustomer(payload, null, Number(customerId), false);
+    if (Number(customer?.customerId) !== Number(customerId)) throw new Error('The customer details could not be loaded. Please retry.');
+    const profiles = await hydrateCustomerProfiles([customer], signal);
+    return (await hydrateCustomerLabels(profiles.data, signal))[0];
   },
 
   async getCustomerViews(params = {}, signal) {
@@ -115,10 +288,79 @@ export const customerService = {
     return unwrapCustomer(payload, data);
   },
 
-  async toggleCustomerStatus(customerId) {
-    if (!customerId) throw new Error('Customer ID is required.');
-    const payload = await apiClient.request('/Customer/CanDisableCustomer', { method: 'PUT', params: { id: customerId } });
-    return payload?.data;
+  async verifyCustomerSave(customerId, submitted) {
+    const id = Number(customerId);
+    if (!Number.isInteger(id) || id <= 0)
+      throw new Error('The API reported a save without returning a customer ID. Check the customer list before submitting again.');
+    const signal = AbortSignal.timeout(15000);
+    // Some backend detail projections omit fields that are present in the list.
+    // Require a matching persisted record from either read, never the POST echo.
+    const reads = await Promise.allSettled([
+      this.getCustomerById(id, signal),
+      this.getCustomers({ Text: String(id), SearchField: 'customerId', PageNumber: 1, PageSize: 100 }, signal).then((result) =>
+        result.data.find((row) => Number(row.customerId) === id)
+      )
+    ]);
+    let missing = null;
+    for (const read of reads) {
+      if (read.status !== 'fulfilled' || !read.value) continue;
+      const mismatches = customerSaveMismatches(submitted, read.value);
+      if (!mismatches.length) return { verified: true, customer: read.value, missingFields: [] };
+      if (!missing || mismatches.length < missing.length) missing = mismatches;
+    }
+    return {
+      verified: false,
+      customer: null,
+      missingFields: missing || [],
+      message: `Customer #${id} was saved. Some details could not be confirmed by the API. Your entries are kept below; you do not need to save again.`
+    };
+  },
+
+  async toggleCustomerStatus(customerId, expectedStatus) {
+    const id = Number(customerId);
+    if (!Number.isInteger(id) || id <= 0) throw new Error('Customer ID is required.');
+    if (typeof expectedStatus !== 'boolean') throw new Error('The requested customer status is required.');
+    const signal = AbortSignal.timeout(15000);
+    // This endpoint disables the customer and returns its complete stored DTO.
+    // The list/detail projections omit profile fields, so never build the
+    // activation update from a table row or a partial detail response.
+    const result = await apiClient.request('/Customer/CanDisableCustomer', { method: 'PUT', params: { id }, signal });
+    const profile = unwrapCustomer(result, null, id, false);
+    if (expectedStatus && (profile?.isActive == null || !isCustomerActive(profile.isActive))) {
+      const profileFields = ['email', 'phone', 'phone2', 'address', 'city', 'stateId', 'countryId', 'salesPerson'];
+      if (Number(profile?.customerId) !== id || !profileFields.every((field) => Object.prototype.hasOwnProperty.call(profile, field))) {
+        throw new Error(
+          'Activation requires the complete saved customer profile, but the API did not return it. The customer was not updated with partial data.'
+        );
+      }
+      const update = buildCustomerPayload({ ...profile, isActive: true }, { user: authService.getUser() || {} });
+      // Keep unrelated stored values, including nullable metadata/collections,
+      // exactly as returned. Only isActive is being edited here.
+      for (const key of Object.keys(update)) {
+        if (key !== 'isActive' && Object.prototype.hasOwnProperty.call(profile, key)) update[key] = profile[key];
+      }
+      await apiClient.put('/Customer', update);
+    }
+    const payload = await apiClient.request('/Customer', {
+      params: { Text: String(id), SearchField: 'customerId', PageNumber: 1, PageSize: 100 },
+      signal
+    });
+    const customer = normalizeList(payload).find((row) => Number(row.customerId) === id);
+    if (!customer || customer.isActive == null) {
+      throw new Error('The status request was accepted, but the saved status could not be confirmed. Refresh the customer list.');
+    }
+    const active = isCustomerActive(customer.isActive);
+    if (active !== expectedStatus) {
+      const error = new Error(
+        `Customer #${id} is still ${active ? 'active' : 'inactive'}. The API did not apply ${expectedStatus ? 'activation' : 'deactivation'}.`
+      );
+      error.actualStatus = active;
+      throw error;
+    }
+    const saved = Object.fromEntries(
+      Object.entries(Number(profile?.customerId) === id ? profile : {}).filter(([, value]) => value != null)
+    );
+    return (await hydrateCustomerLabels([{ ...saved, customerId: id, isActive: active }], signal))[0];
   },
 
   async deleteCustomer(customerId) {

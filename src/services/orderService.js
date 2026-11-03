@@ -4,13 +4,14 @@ import { normalizeApiRecord } from '@/lib/normalizeApiRecord';
 
 const normalizeList = (payload) => {
   payload = normalizeApiRecord(payload);
+  while (payload && !Array.isArray(payload) && typeof payload === 'object') {
+    if (Array.isArray(payload.items)) return payload.items;
+    if (Array.isArray(payload.result)) return payload.result;
+    if (!Object.prototype.hasOwnProperty.call(payload, 'data')) break;
+    payload = payload.data;
+  }
   if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.data)) return payload.data;
-  if (Array.isArray(payload?.items)) return payload.items;
-  if (Array.isArray(payload?.data?.items)) return payload.data.items;
-  if (Array.isArray(payload?.data?.data)) return payload.data.data;
-  if (Array.isArray(payload?.result)) return payload.result;
-  return [];
+  throw new Error('The Order API returned an invalid order list. Please retry.');
 };
 
 const normalizeSummary = (payload) => {

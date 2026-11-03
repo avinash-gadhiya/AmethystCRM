@@ -1,2 +1,140 @@
-/* Kept as the Daily Sales entry point for the shared glass theme. */
 @import '../../../styles/liquid-glass-surfaces.css';
+
+.daily-sales-report.dashboard-glass {
+  padding: 20px 30px 30px;
+  background: linear-gradient(110deg, #e8e0fa 0%, #eeebf8 48%, #e7f2f2 100%);
+  border-color: #e4e1ef;
+}
+
+.daily-sales-report > .app-page-header {
+  min-height: 68px;
+  margin-bottom: 26px;
+}
+
+.daily-sales-report .app-page-header > div { gap: 18px; }
+.daily-sales-report .app-page-header-icon {
+  display: inline-flex;
+  padding-top: 2px;
+  color: #263047;
+}
+.daily-sales-report .app-page-header-icon svg { width: 28px; height: 28px; }
+.daily-sales-report .app-page-header h2 {
+  color: #0f172a;
+  font-size: 32px;
+  line-height: 1.2;
+  letter-spacing: -0.5px;
+}
+.daily-sales-report .app-page-header p {
+  margin-top: 5px;
+  color: #718096;
+  font-size: 18px;
+  line-height: 26px;
+}
+
+.daily-sales-report .daily-sales-export {
+  min-height: 48px;
+  padding: 10px 21px;
+  border-radius: 11px;
+  background: #8175ed;
+  font-size: 18px;
+  box-shadow: none;
+}
+.daily-sales-report .daily-sales-export:disabled { background: #a097ef; opacity: 1; }
+.daily-sales-report .daily-sales-export:hover:enabled { background: #7164dd; }
+.daily-sales-report .daily-sales-export svg { width: 19px; height: 19px; }
+
+.daily-sales-report .daily-sales-filter-card {
+  border: 1px solid #e5e8f1;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.8);
+  background-image: none;
+  box-shadow: 0 2px 4px rgba(35, 45, 70, 0.04);
+}
+.daily-sales-report .daily-sales-filter-card:hover { background-color: rgba(255, 255, 255, 0.8); }
+.daily-sales-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 80px;
+  padding: 15px;
+}
+.daily-sales-report .daily-sales-activity {
+  align-self: center;
+  padding: 10px 15px;
+  font-size: 15px;
+  line-height: 20px;
+  white-space: nowrap;
+}
+.daily-sales-filters {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 1;
+  min-width: 0;
+  gap: 10px;
+}
+.daily-sales-period { width: 212px; }
+.daily-sales-dates { width: 388px; }
+.daily-sales-location { width: 237px; }
+.daily-sales-report .daily-sales-filters [aria-haspopup='listbox'] {
+  height: 50px;
+  padding: 0 15px;
+  border-radius: 16px;
+  border-color: #dfe4f5;
+  background: rgba(255, 255, 255, 0.8);
+  color: #414d62;
+  font-size: 18px;
+}
+.daily-sales-report .liquid-glass-date-picker { gap: 8px; }
+.daily-sales-report .liquid-glass-date-picker > button,
+.daily-sales-report .daily-sales-refresh {
+  height: 40px;
+  border-radius: 10px;
+  border-color: #dfe5f2;
+  background: #fff;
+  color: #52627b;
+}
+.daily-sales-report .liquid-glass-date-picker > button:not([aria-haspopup]),
+.daily-sales-report .daily-sales-refresh { width: 40px; }
+.daily-sales-report .liquid-glass-date-picker [aria-haspopup='dialog'] { padding: 0 15px; }
+.daily-sales-report .liquid-glass-date-picker [aria-haspopup='dialog'] span { font-size: 15px; }
+.daily-sales-report .liquid-glass-date-picker [aria-haspopup='dialog'] > svg:first-child { width: 19px; height: 19px; }
+.daily-sales-report .daily-sales-filters button:focus-visible {
+  outline: 2px solid #9b8bea;
+  outline-offset: 3px;
+}
+
+.dark .daily-sales-report.dashboard-glass {
+  background: linear-gradient(110deg, #29243d, #1b2631);
+  border-color: #38364b;
+}
+.dark .daily-sales-report .app-page-header h2,
+.dark .daily-sales-report .app-page-header-icon { color: #f1f5f9; }
+.dark .daily-sales-report .app-page-header p { color: #94a3b8; }
+.dark .daily-sales-report .daily-sales-filter-card,
+.dark .daily-sales-report .daily-sales-filter-card:hover {
+  background: rgba(25, 28, 44, 0.75);
+  border-color: #3a3e56;
+}
+.dark .daily-sales-report .daily-sales-filters button {
+  background: #282e42;
+  border-color: #41465e;
+  color: #e2e8f0;
+}
+
+@media (max-width: 1279px) {
+  .daily-sales-toolbar { flex-wrap: wrap; }
+  .daily-sales-filters { flex-basis: 100%; }
+  .daily-sales-period, .daily-sales-location { flex: 1; }
+}
+@media (max-width: 639px) {
+  .daily-sales-report.dashboard-glass { padding: 18px 12px; }
+  .daily-sales-report .app-page-header h2 { font-size: 24px; }
+  .daily-sales-report .app-page-header p { font-size: 14px; }
+  .daily-sales-report .app-page-header > div { gap: 12px; }
+  .daily-sales-report .daily-sales-export { font-size: 15px; }
+  .daily-sales-filters { flex-wrap: wrap; }
+  .daily-sales-period, .daily-sales-dates { width: 100%; flex: auto; }
+  .daily-sales-location { width: auto; min-width: 0; }
+  .daily-sales-report .daily-sales-filters [aria-haspopup='listbox'] { font-size: 16px; }
+}

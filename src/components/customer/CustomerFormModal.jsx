@@ -362,6 +362,9 @@ export default function CustomerFormModal({
   const [formErrors, setFormErrors] = useState({});
   const [showValidationErrors, setShowValidationErrors] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savedCustomerId, setSavedCustomerId] = useState(0);
+  const [saveNotice, setSaveNotice] = useState('');
+  const [savedFormSnapshot, setSavedFormSnapshot] = useState('');
   const savingRef = useRef(false);
   const [saveError, setSaveError] = useState('');
   const [lookupError, setLookupError] = useState('');
@@ -775,6 +778,9 @@ export default function CustomerFormModal({
     }
 
     setFormData(seed);
+    setSavedCustomerId(0);
+    setSaveNotice('');
+    setSavedFormSnapshot('');
     setSaveError('');
     setFormErrors({});
     setShowValidationErrors(false);
@@ -1028,12 +1034,16 @@ export default function CustomerFormModal({
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (savingRef.current) return;
-    if (mode === 'edit' ? !canUpdate : !canAdd) {
+    if (savedCustomerId < 0) return;
+    if (savedFormSnapshot === JSON.stringify(formData)) return;
+    const updating = mode === 'edit' || savedCustomerId > 0;
+    if (updating ? !canUpdate : !canAdd) {
       setSaveError('You do not have permission to save this customer.');
       return;
     }
     if (lookupsLoading || salesPersonsLoading) return;
     setSaveError('');
+    setSaveNotice('');
     setShowValidationErrors(true);
     const errors = validateCustomerForm(formData);
     if (Object.keys(errors).length > 0) {
@@ -1045,9 +1055,11 @@ export default function CustomerFormModal({
     savingRef.current = true;
     setSaving(true);
     let saved;
+    let verification;
     try {
       const payload = {
         ...formData,
+        customerId: savedCustomerId || formData.customerId,
         phone: normalizeDigits(formData.phone),
         phone2: formData.phone2 ? normalizeDigits(formData.phone2) : '',
         leadId: Number(formData.leadId) || 0,
@@ -1057,7 +1069,11 @@ export default function CustomerFormModal({
         createdDate: formData.createdDate || new Date().toISOString(),
       };
 
-      saved = mode === 'edit' ? await customerService.updateCustomer(payload) : await customerService.createCustomer(payload);
+      saved = updating ? await customerService.updateCustomer(payload) : await customerService.createCustomer(payload);
+      const persistedId = Number(saved?.customerId || payload.customerId);
+      setSavedCustomerId(persistedId > 0 ? persistedId : -1);
+      verification = await customerService.verifyCustomerSave(persistedId, payload);
+      if (verification.verified) saved = verification.customer;
     } catch (error) {
       const errors = error?.payload?.errors || error?.response?.data?.errors;
       const details = errors && typeof errors === 'object' ? Object.values(errors).flat().join(' ') : '';
@@ -1069,7 +1085,13 @@ export default function CustomerFormModal({
       savingRef.current = false;
       setSaving(false);
     }
-    toast.success(mode === 'edit' ? 'Customer updated' : 'Customer created');
+    if (!verification.verified) {
+      setSaveNotice(verification.message);
+      setSavedFormSnapshot(JSON.stringify(formData));
+      if (typeof onSaved === 'function') onSaved(saved);
+      return;
+    }
+    toast.success(updating ? 'Customer updated' : 'Customer created');
     if (typeof onSaved === 'function') onSaved(saved);
     if (typeof onOpenChange === 'function') onOpenChange(false);
   };
@@ -1151,6 +1173,7 @@ export default function CustomerFormModal({
           <fieldset disabled={saving} className="contents">
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain bg-slate-50/40 p-4 dark:bg-black/10 sm:p-6">
             {saveError && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{saveError}</div>}
+            {saveNotice && <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">{saveNotice}</div>}
             {(lookupError || salesError) && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               <p>{[lookupError, salesError].filter(Boolean).join(' ')}</p>
               <button type="button" className="mt-2 font-semibold underline" disabled={saving || lookupsLoading || salesPersonsLoading} onClick={() => setLookupVersion((value) => value + 1)}>Retry loading options</button>
@@ -1523,14 +1546,14 @@ export default function CustomerFormModal({
               onClick={() => !savingRef.current && onOpenChange?.(false)}
               className="h-10 px-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-transparent text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 transition-all shadow-xs"
             >
-              Cancel
+              {saveNotice ? 'Done' : 'Cancel'}
             </button>
             <LiquidGlassButton
               type="submit"
-              disabled={saving || lookupsLoading || salesPersonsLoading || (mode === 'edit' ? !canUpdate : !canAdd)}
+              disabled={saving || savedCustomerId < 0 || savedFormSnapshot === JSON.stringify(formData) || lookupsLoading || salesPersonsLoading || (mode === 'edit' || savedCustomerId > 0 ? !canUpdate : !canAdd)}
               className="!h-10 !rounded-xl px-6 text-center !text-sm !font-semibold shadow-md shadow-violet-500/20 hover:shadow-lg hover:shadow-violet-500/30 transition-all"
             >
-              {saving ? 'Saving...' : mode === 'edit' ? 'Save Changes' : 'Create Customer'}
+              {saving ? 'Saving...' : mode === 'edit' || savedCustomerId > 0 ? 'Save Changes' : 'Create Customer'}
             </LiquidGlassButton>
           </div>
         </form>

@@ -1,6 +1,6 @@
 /* The admin container already supplies the page gutters. */
 .pc-container:has(.payments-page-wrapper) {
-  padding-top: 20px;
+  padding-top: 45px;
 }
 
 .app-page.payments-page-wrapper {

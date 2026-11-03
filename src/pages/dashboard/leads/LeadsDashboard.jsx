@@ -16,10 +16,8 @@ const CHART_COLORS = ['#3b82f6', '#6366f1', '#10b981', '#f97316', '#06b6d4', '#a
 
 export default function LeadsDashboard() {
   const initialRange = useMemo(() => getMonthToDateRange(), []);
-  const [draftRange, setDraftRange] = useState(initialRange);
   const [range, setRange] = useState(initialRange);
   const [group, setGroup] = useState('');
-  const [draftGroup, setDraftGroup] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -56,9 +54,9 @@ export default function LeadsDashboard() {
 
   const groups = useMemo(
     () => [
-      ...new Set([group, draftGroup, ...data.group.map((item) => textValue(item, ['groupName', 'group', 'name'], ''))].filter(Boolean))
+      ...new Set([group, ...data.group.map((item) => textValue(item, ['groupName', 'group', 'name'], ''))].filter(Boolean))
     ],
-    [data.group, group, draftGroup]
+    [data.group, group]
   );
   const filteredGroups = group ? data.group.filter((item) => textValue(item, ['groupName', 'group', 'name'], '') === group) : data.group;
   const leadSummaryRows = group || data.group.length > 0 ? filteredGroups : data.people;
@@ -102,24 +100,13 @@ export default function LeadsDashboard() {
     { label: 'Users', value: data.users.length, icon: TrendingUp, tone: 'amber' }
   ];
 
-  const applyRange = (event) => {
-    event.preventDefault();
-    if (!isValidDateRange(draftRange)) {
+  const changeRange = (nextRange) => {
+    if (!isValidDateRange(nextRange)) {
       setError('Select a valid date range.');
       return;
     }
     setError('');
-    setRange(draftRange);
-    setGroup(draftGroup);
-  };
-
-  const resetFilters = () => {
-    const nextRange = getMonthToDateRange();
-    setDraftRange(nextRange);
     setRange(nextRange);
-    setDraftGroup('');
-    setGroup('');
-    setError('');
   };
 
   const formatRangeDate = (value) =>
@@ -151,15 +138,15 @@ export default function LeadsDashboard() {
         </button>
       </LiquidGlassSurface>
 
-      <DashboardRangeToolbar range={draftRange} onRangeChange={setDraftRange} onApply={applyRange} onReset={resetFilters} loading={loading}>
+      <DashboardRangeToolbar range={range} onRangeChange={changeRange} showActions={false}>
         <div className="min-w-0">
           <label htmlFor="lead-group" className="mb-1.5 block text-xs font-semibold text-slate-500 dark:text-slate-400">
             Group
           </label>
           <select
             id="lead-group"
-            value={draftGroup}
-            onChange={(event) => setDraftGroup(event.target.value)}
+            value={group}
+            onChange={(event) => setGroup(event.target.value)}
             className="h-10 w-full rounded-xl border border-slate-200 bg-white/70 px-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
           >
             <option value="">All groups</option>
