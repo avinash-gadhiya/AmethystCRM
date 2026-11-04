@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Users, UserPlus, Search, X, ShieldCheck, Pencil, Copy, Check, Filter } from 'lucide-react';
+import { Users, UserPlus, Search, X, ShieldCheck, Pencil, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
 
 import userService from '@/services/userService';
@@ -9,6 +9,8 @@ import permissionService from '@/services/permissionService';
 import { getApiErrorMessage } from '@/lib/apiError';
 
 import LiquidGlassButton from '@/components/common/LiquidGlassButton';
+import GlassRecordsHeader from '@/components/common/GlassRecordsHeader';
+import GlassSegmentedControl from '@/components/common/GlassSegmentedControl';
 import GlassCloseButton from '@/components/common/GlassCloseButton';
 import ActionIconButton from '@/components/common/ActionIconButton';
 import TableRefreshButton from '@/components/common/TableRefreshButton';
@@ -18,8 +20,15 @@ import PermissionModal from '@/components/common/PermissionModal';
 import AnchorPagination from '@/components/common/AnchorPagination';
 import UserGroupsModal from './components/UserGroupsModal';
 import UserEditorModal from './components/UserEditorModal';
+import './users.css';
+import NativeLiquidSelect from '@/components/common/liquid-membrane/NativeLiquidSelect';
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+const SEARCH_MODES = [
+  { value: 'all', label: 'All' },
+  { value: 'role', label: 'Role' },
+  { value: 'location', label: 'Location' }
+];
 
 // ---------------------------------------------------------------------------
 // Helper: Format Date or return 'Never'
@@ -413,16 +422,12 @@ const UsersPage = () => {
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   return (
-    <div className="users-page px-5 lg:px-10 py-5">
+    <div className="users-page crm-records-page">
 
 
-      <div className="flex flex-col gap-5 lg:gap-7.5">
+      <div className="users-page-content">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white truncate">Users</h1>
-            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Manage system users and their permissions.</p>
-          </div>
+        <GlassRecordsHeader icon={Users} eyebrow="USER MANAGEMENT" title="Users" description="Manage system users and their permissions.">
           {canCreateUser && (
             <div className="w-full sm:w-auto flex justify-start sm:justify-end">
               <LiquidGlassButton
@@ -431,65 +436,38 @@ const UsersPage = () => {
                   setEditingUser(null);
                   setEditorModalOpen(true);
                 }}
-                className="w-full sm:w-auto text-center"
+                className="users-add-button"
               >
                 <UserPlus className="w-4 h-4 liquid-glass-btn__icon" />
                 Add New User
               </LiquidGlassButton>
             </div>
           )}
-        </div>
+        </GlassRecordsHeader>
 
         {/* Toolbar & Filters Card */}
-        <div className="card p-5 bg-white dark:bg-[#17132a] border border-gray-300 dark:border-white/10 rounded-xl shadow-xs">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div className="users-directory crm-records-card">
+        <div className="users-toolbar">
+          <div className="users-toolbar-layout">
             {/* Left: Result count */}
-            <h3 className="font-medium text-sm text-gray-700 dark:text-white">
-              Showing {users.length} of {totalCount} Users
-            </h3>
+            <div className="users-directory-heading">
+              <h2>User directory</h2>
+              <span className="users-count" role="status"><i aria-hidden="true" />Showing <strong>{users.length}</strong> of <strong>{totalCount}</strong> Users</span>
+            </div>
 
             {/* Right: Search mode selector & Dynamic filter control */}
-            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
-              {/* Search Mode Pill Selector */}
-              <div className="inline-flex rounded-lg border border-gray-300 dark:border-white/10 bg-gray-50/70 dark:bg-white/5 p-1 text-xs font-medium">
-                <button
-                  type="button"
-                  onClick={() => handleSearchModeChange('all')}
-                  className={`px-3 py-1 rounded-md transition-all ${
-                    searchMode === 'all'
-                      ? 'bg-white dark:bg-[#1d1733] text-purple-700 dark:text-purple-300 shadow-xs font-semibold'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                  }`}
-                >
-                  All
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSearchModeChange('role')}
-                  className={`px-3 py-1 rounded-md transition-all ${
-                    searchMode === 'role'
-                      ? 'bg-white dark:bg-[#1d1733] text-purple-700 dark:text-purple-300 shadow-xs font-semibold'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                  }`}
-                >
-                  Role
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSearchModeChange('location')}
-                  className={`px-3 py-1 rounded-md transition-all ${
-                    searchMode === 'location'
-                      ? 'bg-white dark:bg-[#1d1733] text-purple-700 dark:text-purple-300 shadow-xs font-semibold'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                  }`}
-                >
-                  Location
-                </button>
-              </div>
+            <div className="users-toolbar-controls">
+              <GlassSegmentedControl
+                className="users-search-modes"
+                ariaLabel="User search mode"
+                options={SEARCH_MODES}
+                value={searchMode}
+                onChange={handleSearchModeChange}
+              />
 
               {/* Dynamic Filter Controls */}
               {searchMode === 'all' && (
-                <div className="flex items-center gap-2 border rounded-lg px-3 py-1.5 flex-1 min-w-0 sm:flex-none sm:w-64 bg-white dark:bg-[#0f1322] border-gray-300 dark:border-white/10 relative">
+                <div className="users-search">
                   <Search size={16} className="text-gray-500 dark:text-gray-300 shrink-0" />
                   <input
                     type="text"
@@ -518,15 +496,15 @@ const UsersPage = () => {
               )}
 
               {searchMode === 'role' && (
-                <div className="flex items-center gap-2 border rounded-lg px-3 py-1.5 flex-1 min-w-0 sm:flex-none sm:w-56 bg-white dark:bg-[#0f1322] border-gray-300 dark:border-white/10">
-                  <Filter size={14} className="text-gray-400 shrink-0" />
-                  <select
+                <div className="users-filter">
+                  <NativeLiquidSelect
+                    aria-label="Filter by role"
                     value={selectedRoleId}
                     onChange={(e) => {
                       setSelectedRoleId(e.target.value);
                       setPageNumber(1);
                     }}
-                    className="w-full outline-none bg-transparent text-sm text-gray-900 dark:text-white cursor-pointer"
+                    className="users-filter-trigger w-full"
                   >
                     <option value="">All Roles</option>
                     {roles.map((r) => {
@@ -538,20 +516,20 @@ const UsersPage = () => {
                         </option>
                       );
                     })}
-                  </select>
+                  </NativeLiquidSelect>
                 </div>
               )}
 
               {searchMode === 'location' && (
-                <div className="flex items-center gap-2 border rounded-lg px-3 py-1.5 flex-1 min-w-0 sm:flex-none sm:w-56 bg-white dark:bg-[#0f1322] border-gray-300 dark:border-white/10">
-                  <Filter size={14} className="text-gray-400 shrink-0" />
-                  <select
+                <div className="users-filter">
+                  <NativeLiquidSelect
+                    aria-label="Filter by location"
                     value={selectedLocationId}
                     onChange={(e) => {
                       setSelectedLocationId(e.target.value);
                       setPageNumber(1);
                     }}
-                    className="w-full outline-none bg-transparent text-sm text-gray-900 dark:text-white cursor-pointer"
+                    className="users-filter-trigger w-full"
                   >
                     <option value="">All Locations</option>
                     {locations.map((loc) => {
@@ -563,20 +541,20 @@ const UsersPage = () => {
                         </option>
                       );
                     })}
-                  </select>
+                  </NativeLiquidSelect>
                 </div>
               )}
 
               {/* Refresh Button */}
-              <TableRefreshButton onClick={fetchUsers} className="shrink-0" />
+              <TableRefreshButton title="Refresh users" onClick={fetchUsers} loading={loading} className="users-refresh" />
             </div>
           </div>
         </div>
 
         {/* Responsive Table Container */}
-        <div className="bg-white dark:bg-[#17132a] border border-gray-300 dark:border-white/10 rounded-2xl shadow-xs overflow-hidden">
+        <div className="users-table-card">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="users-data-table w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-white/10 bg-gray-50/80 dark:bg-[#1d1733] text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-300">
                   <th className="py-3.5 px-3 text-center w-12 shrink-0">#</th>
@@ -692,14 +670,14 @@ const UsersPage = () => {
                         {/* 2. Username (First & Last prominent, @username below) */}
                         <td className="py-3.5 px-3">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 text-white flex items-center justify-center font-semibold text-xs shrink-0 shadow-xs">
+                            <div className="users-avatar" aria-hidden="true">
                               {getInitials(user)}
                             </div>
                             <div className="min-w-0">
-                              <div className="font-semibold text-gray-900 dark:text-white truncate max-w-[140px]" title={fullName}>
+                              <div className="users-fullname font-semibold truncate max-w-[140px]" title={fullName}>
                                 {fullName}
                               </div>
-                              <div className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[140px]" title={`@${user.username}`}>
+                              <div className="users-username text-xs truncate max-w-[140px]" title={`@${user.username}`}>
                                 @{user.username}
                               </div>
                             </div>
@@ -725,7 +703,7 @@ const UsersPage = () => {
                         {/* 5. Role */}
                         <td className="py-3.5 px-3">
                           {user.roleName || user.role ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 border border-purple-200 dark:border-purple-700/40 whitespace-nowrap">
+                            <span className="users-role-badge inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 border border-purple-200 dark:border-purple-700/40 whitespace-nowrap">
                               {user.roleName || user.role}
                             </span>
                           ) : (
@@ -736,7 +714,7 @@ const UsersPage = () => {
                         {/* 6. Location */}
                         <td className="py-3.5 px-3">
                           {user.locationName || user.location ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-700/40 whitespace-nowrap">
+                            <span className="users-location-badge inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-700/40 whitespace-nowrap">
                               {user.locationName || user.location}
                             </span>
                           ) : (
@@ -769,13 +747,16 @@ const UsersPage = () => {
 
                         {/* 8. Status (iOS Style Toggle) */}
                         <td className="py-3.5 px-3 text-center">
-                          <div className="inline-flex items-center justify-center scale-90">
+                          <div className="users-status" data-active={Boolean(user.isActive)}>
                             <IosToggle
                               checked={Boolean(user.isActive)}
                               onCheckedChange={(next) => handleToggleStatus(user, next)}
                               disabled={!canUpdateUser || Boolean(statusToggling[user.userId])}
+                              loading={Boolean(statusToggling[user.userId])}
+                              aria-label={`${user.isActive ? 'Deactivate' : 'Activate'} ${user.username}`}
                               title={user.isActive ? 'Active' : 'Inactive'}
                             />
+                            <span>{statusToggling[user.userId] ? 'Updating...' : user.isActive ? 'Active' : 'Inactive'}</span>
                           </div>
                         </td>
 
@@ -786,7 +767,7 @@ const UsersPage = () => {
 
                         {/* 10. Actions (Sticky Right Column: Manage groups, permissions, edit, delete) */}
                         <td className="sticky right-0 z-10 bg-white/95 dark:bg-[#17132a]/95 backdrop-blur-xs py-3 px-4 text-right shadow-[-6px_0_10px_-2px_rgba(0,0,0,0.06)] border-l border-gray-100 dark:border-white/5 group-hover:bg-purple-50/95 dark:group-hover:bg-[#1f1938]/95 transition-colors">
-                          <div className="inline-flex items-center justify-end gap-1.5">
+                          <div className="users-row-actions">
                             {canUpdateUser && (
                               <>
                                 {/* Manage Groups */}
@@ -838,7 +819,7 @@ const UsersPage = () => {
           </div>
 
           {/* Server-side Pagination Footer */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-3.5 border-t border-gray-200 dark:border-white/10 bg-gray-50/50 dark:bg-white/[0.02] text-xs text-gray-500 dark:text-gray-400">
+          <div className="users-pagination flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-3.5 border-t border-gray-200 dark:border-white/10 bg-gray-50/50 dark:bg-white/[0.02] text-xs text-gray-500 dark:text-gray-400">
             <div>
               Showing <strong className="text-gray-800 dark:text-gray-200">{users.length}</strong> of{' '}
               <strong className="text-gray-800 dark:text-gray-200">{totalCount}</strong> Users
@@ -848,7 +829,7 @@ const UsersPage = () => {
               {/* Page Size Selector */}
               <div className="flex items-center gap-1.5">
                 <span>Per page:</span>
-                <select
+                <NativeLiquidSelect
                   value={pageSize}
                   onChange={(e) => {
                     setPageSize(Number(e.target.value));
@@ -861,7 +842,7 @@ const UsersPage = () => {
                       {sz}
                     </option>
                   ))}
-                </select>
+                </NativeLiquidSelect>
               </div>
 
               {/* Anchor Pagination from CodePen jh3y */}
@@ -874,6 +855,8 @@ const UsersPage = () => {
             </div>
           </div>
         </div>
+      </div>
+
       </div>
 
       {/* ========================================================= */}

@@ -8,6 +8,7 @@ import { getApiErrorMessage } from '@/lib/apiError';
 import LiquidGlassButton from '@/components/common/LiquidGlassButton';
 import GlassCloseButton from '@/components/common/GlassCloseButton';
 import IosToggle from '@/components/common/IosToggle';
+import NativeLiquidSelect from '@/components/common/liquid-membrane/NativeLiquidSelect';
 
 const GATEWAY_TYPES = [
   { value: 0, label: 'Unknown' },
@@ -194,7 +195,7 @@ const GatewayModal = ({ open, brand = null, gateway = null, onClose, onSuccess }
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
                 Brand <span className="text-red-500">*</span>
               </label>
-              <select
+              <NativeLiquidSelect
                 aria-label="Brand"
                 value={brandId}
                 onChange={(e) => setSelectedBrandId(Number(e.target.value))}
@@ -207,7 +208,7 @@ const GatewayModal = ({ open, brand = null, gateway = null, onClose, onSuccess }
                     {b.brandName}
                   </option>
                 ))}
-              </select>
+              </NativeLiquidSelect>
             </div>
 
             {/* Gateway Name */}
@@ -230,7 +231,7 @@ const GatewayModal = ({ open, brand = null, gateway = null, onClose, onSuccess }
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
               <div>
                 <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">Gateway Type</label>
-                <select
+                <NativeLiquidSelect
                   value={gatewayType}
                   onChange={(e) => setGatewayType(Number(e.target.value))}
                   disabled={saving}
@@ -241,7 +242,7 @@ const GatewayModal = ({ open, brand = null, gateway = null, onClose, onSuccess }
                       {t.label}
                     </option>
                   ))}
-                </select>
+                </NativeLiquidSelect>
               </div>
 
               <div>

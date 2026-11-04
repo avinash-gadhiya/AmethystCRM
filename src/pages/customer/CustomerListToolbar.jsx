@@ -35,10 +35,13 @@ export default function CustomerListToolbar({
   return (
     <div className="customer-list-toolbar">
       <div className="customer-toolbar-top">
-        <span className="customer-count">
-          <i aria-hidden="true" />
-          Showing <strong>{shown}</strong> of <strong>{total}</strong> Customers
-        </span>
+        <div className="customer-directory-heading">
+          <h2>Customer directory</h2>
+          <span className="customer-count" role="status">
+            <i aria-hidden="true" />
+            Showing <strong>{shown}</strong> of <strong>{total}</strong> Customers
+          </span>
+        </div>
         <TableRefreshButton title="Refresh customers" onClick={onRefresh} loading={loading} />
       </div>
       <div className="customer-toolbar-filters">
@@ -89,7 +92,7 @@ export default function CustomerListToolbar({
               }}
             >
               <SelectTrigger aria-label="Quick date">
-                <SelectValue placeholder="Quick Date:..." />
+                <SelectValue placeholder="Quick date" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All dates</SelectItem>
@@ -107,6 +110,7 @@ export default function CustomerListToolbar({
             initialToDate={toDate}
             emptyLabel="All dates"
             stretch
+            forceBelow
             className="customer-list-dates"
             onChange={(from, to) => {
               setPeriod('custom');

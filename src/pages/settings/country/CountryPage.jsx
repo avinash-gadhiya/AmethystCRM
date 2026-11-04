@@ -26,6 +26,7 @@ import DeleteConfirmModal from '@/components/common/DeleteConfirmModal';
 import AnchorPagination from '@/components/common/AnchorPagination';
 import CountryModal from './components/CountryModal';
 import StateModal from './components/StateModal';
+import NativeLiquidSelect from '@/components/common/liquid-membrane/NativeLiquidSelect';
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -677,7 +678,7 @@ const CountryPage = () => {
                   {/* Page Size Selector */}
                   <div className="flex items-center gap-1.5">
                     <span>Per page:</span>
-                    <select
+                    <NativeLiquidSelect
                       value={pageSize}
                       onChange={(e) => {
                         setPageSize(Number(e.target.value));
@@ -690,7 +691,7 @@ const CountryPage = () => {
                           {sz}
                         </option>
                       ))}
-                    </select>
+                    </NativeLiquidSelect>
                   </div>
 
                   {/* Anchor Pagination from CodePen jh3y */}

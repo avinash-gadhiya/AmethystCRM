@@ -6,6 +6,8 @@ import { createContext, forwardRef, useContext } from 'react';
 
 import { ModalBodyArea, ModalFooterBar, ModalHeaderBar, ModalShell } from '@/components/common/AppModal';
 import MiniCalendarInput from '@/components/common/MiniCalendarInput';
+import NativeLiquidSelect from '@/components/common/liquid-membrane/NativeLiquidSelect';
+import { Popover as LiquidPopover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 // --- Row / Col (12-Column Responsive Grid) ---
 export const Row = ({ children, className = '', ...props }) => (
@@ -145,7 +147,7 @@ Form.Control = forwardRef(({ as: Tag = 'input', className = '', type = 'text', s
 Form.Control.displayName = 'Form.Control';
 
 Form.Select = forwardRef(({ children, className = '', size: sz, ...props }, ref) => (
-  <select ref={ref} className={`form-control form-select neu-input ${className}`} {...props}>{children}</select>
+  <NativeLiquidSelect ref={ref} className={`form-control form-select neu-input ${className}`} {...props}>{children}</NativeLiquidSelect>
 ));
 Form.Select.displayName = 'Form.Select';
 
@@ -228,9 +230,9 @@ export const Alert = ({ children, variant = 'info', dismissible, onClose, classN
 );
 
 // --- Dropdown ---
-export const Dropdown = ({ children, ...props }) => <div className="relative inline-block" {...props}>{children}</div>;
-Dropdown.Toggle = ({ children, ...props }) => <button type="button" className="btn btn-secondary btn-sm" {...props}>{children}</button>;
-Dropdown.Menu = ({ children, ...props }) => <div className="dropdown-menu" {...props}>{children}</div>;
+export const Dropdown = ({ children, show, onToggle, ...props }) => <LiquidPopover open={show} onOpenChange={onToggle}><div className="relative inline-block" {...props}>{children}</div></LiquidPopover>;
+Dropdown.Toggle = ({ children, ...props }) => <PopoverTrigger asChild><button type="button" className="btn btn-secondary btn-sm" {...props}>{children}</button></PopoverTrigger>;
+Dropdown.Menu = ({ children, style, ...props }) => <PopoverContent align="end" className="dropdown-menu" {...props} style={{ ...style, position: 'relative', inset: 'auto', margin: 0 }}>{children}</PopoverContent>;
 Dropdown.Item = ({ children, onClick, as: Tag = 'button', ...props }) => (
   <Tag type="button" className="dropdown-item" onClick={onClick} {...props}>{children}</Tag>
 );

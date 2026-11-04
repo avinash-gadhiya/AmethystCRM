@@ -5,6 +5,7 @@ import ActionIconButton from '@/components/common/ActionIconButton';
 import TableRefreshButton from '@/components/common/TableRefreshButton';
 import AnchorPagination from '@/components/common/AnchorPagination';
 import IosToggle from '@/components/common/IosToggle';
+import NativeLiquidSelect from '@/components/common/liquid-membrane/NativeLiquidSelect';
 
 const BrandGatewayTab = ({
   gatewayError,
@@ -297,7 +298,7 @@ const BrandGatewayTab = ({
             </span>
             <label className="flex items-center gap-1">
               <span>Rows:</span>
-              <select
+              <NativeLiquidSelect
                 aria-label="Rows per page"
                 value={gatewayPageSize}
                 onChange={(e) => {
@@ -311,7 +312,7 @@ const BrandGatewayTab = ({
                     {size}
                   </option>
                 ))}
-              </select>
+              </NativeLiquidSelect>
             </label>
           </div>
           <AnchorPagination

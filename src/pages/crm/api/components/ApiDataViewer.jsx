@@ -6,10 +6,13 @@ import { AlertTriangle, Braces, Download, Eye, Table2 } from 'lucide-react';
 import CommonTable from '@/components/common/CommonTable';
 import TableRefreshButton from '@/components/common/TableRefreshButton';
 import TableSearchField from '@/components/common/TableSearchField';
+import ActionIconButton from '@/components/common/ActionIconButton';
+import { formatShiftTime } from '@/lib/leadScheduler';
 import { Button } from 'components/ui/Bootstrap';
 import { formatApiValue, humanizeKey, inferApiColumns, rowMatches, toCsv, unwrapApiPayload } from '@/lib/apiData';
 import { apiClient } from 'services/core/apiClient';
 import RecordDetailModal, { FieldGrid } from './RecordDetailModal';
+import ScheduleDetailModal from '../../ScheduleDetailModal';
 import { getOperationQuery } from '@/lib/apiOperationQuery';
 
 const toInputDate = (date) => {
@@ -54,7 +57,7 @@ const renderCell = (value, key) => {
  * Renders any API payload: a sortable, paginated table for lists, or a field grid for single objects.
  * When `server` is provided, paging and sorting are delegated to the API; otherwise they run on the loaded rows.
  */
-export function ApiPayloadView({ payload, loading = false, query = '', server, itemName = 'Records' }) {
+export function ApiPayloadView({ payload, loading = false, query = '', server, itemName = 'Records', presentation, onEdit, onDelete }) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [sort, setSort] = useState({ sortProperty: '', isDescending: false });
@@ -106,15 +109,26 @@ export function ApiPayloadView({ payload, loading = false, query = '', server, i
         itemName
       };
 
+  const schedulerColumns = [
+    { id: 'leadSchedulerId', header: 'Schedule ID', sortable: true, cell: (row) => <span className="scheduler-id">#{row.leadSchedulerId ?? '-'}</span> },
+    { id: 'groupName', header: 'Group', sortable: true, cell: (row) => <div className="scheduler-group"><strong>{row.groupName || `Group #${row.groupId ?? '-'}`}</strong><span>Group ID: {row.groupId ?? '-'}</span></div> },
+    { id: 'shiftStartTime', header: 'Shift times', sortable: true, cell: (row) => <div className="scheduler-shift"><span><small>Start</small>{formatShiftTime(row.shiftStartTime) || '-'}</span><span><small>End</small>{formatShiftTime(row.shiftEndTime) || '-'}</span></div> },
+    { id: 'isActive', header: 'Status', sortable: true, cell: (row) => typeof row.isActive === 'boolean' ? <span className="scheduler-status" data-active={row.isActive}>{row.isActive ? 'Active' : 'Inactive'}</span> : renderCell(row.isActive, 'isActive') },
+    { id: 'createdDate', header: 'Created', sortable: true, cell: (row) => <div className="scheduler-audit"><span>{formatApiValue(row.createdDate, 'createdDate')}</span><small>{row.createdByName || (row.createdBy ? `User #${row.createdBy}` : '-')}</small></div> },
+    { id: 'updatedDate', header: 'Updated', sortable: true, cell: (row) => <div className="scheduler-audit"><span>{formatApiValue(row.updatedDate, 'updatedDate')}</span><small>{row.updatedByName || (row.updatedBy ? `User #${row.updatedBy}` : '-')}</small></div> }
+  ];
   const tableColumns = [
-    { id: 'serial', header: '#', width: '56px' },
-    ...keys.map((key) => ({ id: key, header: humanizeKey(key), sortable: true, cell: (row) => renderCell(row?.[key], key) })),
+    ...(presentation === 'scheduler' ? schedulerColumns : [
+      { id: 'serial', header: '#', width: '56px' },
+      ...keys.map((key) => ({ id: key, header: humanizeKey(key), sortable: true, cell: (row) => renderCell(row?.[key], key) }))
+    ]),
     {
       id: 'action',
-      header: 'View',
+      header: onEdit || onDelete ? 'Actions' : 'View',
       align: 'center',
       sticky: 'right',
       cell: (row) => (
+        <div className={presentation === 'scheduler' ? 'scheduler-row-actions' : undefined}>
         <button
           type="button"
           onClick={(event) => {
@@ -127,6 +141,9 @@ export function ApiPayloadView({ payload, loading = false, query = '', server, i
         >
           <Eye size={15} />
         </button>
+        {onEdit && <ActionIconButton label="Edit schedule" variant="edit" onClick={() => onEdit(row)} />}
+        {onDelete && <ActionIconButton label="Delete schedule" variant="delete" onClick={() => onDelete(row)} />}
+        </div>
       )
     }
   ];
@@ -142,6 +159,7 @@ export function ApiPayloadView({ payload, loading = false, query = '', server, i
       ) : (
         <>
           <CommonTable
+            containerClassName={presentation === 'scheduler' ? 'scheduler-table' : undefined}
             columns={tableColumns}
             data={pageRows}
             loading={loading}
@@ -150,16 +168,18 @@ export function ApiPayloadView({ payload, loading = false, query = '', server, i
             onRowClick={setSelected}
             sort={{ ...activeSort, onSort }}
             pagination={pagination}
-            emptyState={{ title: 'No records found', description: 'Try a different date range or search term.' }}
+            emptyState={{ title: presentation === 'scheduler' ? 'No schedules found' : 'No records found', description: presentation === 'scheduler' ? 'Try a different search term.' : 'Try a different date range or search term.' }}
           />
-          {hiddenCount > 0 && !loading && (
+          {presentation !== 'scheduler' && hiddenCount > 0 && !loading && (
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
               {hiddenCount} more field{hiddenCount === 1 ? '' : 's'} per record. Open a row to see every field.
             </div>
           )}
         </>
       )}
-      <RecordDetailModal record={selected} title={itemName.replace(/s$/, '') + ' details'} onHide={() => setSelected(null)} />
+      {presentation === 'scheduler'
+        ? <ScheduleDetailModal record={selected} onClose={() => setSelected(null)} />
+        : <RecordDetailModal record={selected} title={itemName.replace(/s$/, '') + ' details'} onHide={() => setSelected(null)} />}
     </>
   );
 }
@@ -169,6 +189,9 @@ ApiPayloadView.propTypes = {
   loading: PropTypes.bool,
   query: PropTypes.string,
   itemName: PropTypes.string,
+  presentation: PropTypes.oneOf(['scheduler']),
+  onEdit: PropTypes.func,
+  onDelete: PropTypes.func,
   server: PropTypes.shape({
     page: PropTypes.number.isRequired,
     pageSize: PropTypes.number.isRequired,
@@ -180,7 +203,8 @@ ApiPayloadView.propTypes = {
   })
 };
 
-export default function ApiDataViewer({ operation, title }) {
+export default function ApiDataViewer({ operation, title, presentation, onEdit, onDelete, reloadToken }) {
+  const isScheduler = presentation === 'scheduler';
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [sort, setSort] = useState({ sortProperty: '', isDescending: true });
@@ -226,7 +250,7 @@ export default function ApiDataViewer({ operation, title }) {
         setState({ loading: false, error: error?.message || 'Unable to load data.', payload: null, elapsed: 0 });
       });
     return () => controller.abort();
-  }, [operation.path, page, pageSize, sort, range, search, reloadKey]);
+  }, [operation.path, page, pageSize, sort, range, search, reloadKey, reloadToken]);
 
   const unwrapped = useMemo(() => unwrapApiPayload(state.payload), [state.payload]);
   // APIs that ignore PageSize return every row at once; only use server paging when totalCount exceeds the current slice or when beyond page 1.
@@ -262,7 +286,7 @@ export default function ApiDataViewer({ operation, title }) {
     URL.revokeObjectURL(url);
   };
 
-  const itemName = humanizeKey(operation.path.split('/').filter(Boolean).pop() || 'Records');
+  const itemName = isScheduler ? 'Schedules' : humanizeKey(operation.path.split('/').filter(Boolean).pop() || 'Records');
   const recordLabel = state.loading
     ? 'Loading…'
     : unwrapped.rows.length
@@ -272,26 +296,31 @@ export default function ApiDataViewer({ operation, title }) {
         : '';
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3">
-        <div className="min-w-0">
+    <div className={isScheduler ? 'scheduler-view' : 'space-y-3'}>
+      <div className={isScheduler ? 'scheduler-view-toolbar' : 'flex flex-col xl:flex-row xl:items-center justify-between gap-3'}>
+        <div className={isScheduler ? 'scheduler-view-heading' : 'min-w-0'}>
           <h6 className="mb-0 text-base font-semibold text-gray-900 dark:text-white">{title || itemName}</h6>
+          {isScheduler ? <span className="scheduler-count" role="status"><i aria-hidden="true" />{state.loading ? 'Loading schedules...' : `${unwrapped.totalCount} schedule${unwrapped.totalCount === 1 ? '' : 's'}`}</span> : (
           <div className="text-xs text-gray-500 dark:text-gray-400 flex flex-wrap items-center gap-2">
             <code className="text-purple-600 dark:text-purple-300">GET /api{operation.path}</code>
             {recordLabel && <span>{recordLabel}</span>}
           </div>
+          )}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className={isScheduler ? 'scheduler-view-controls' : 'flex flex-wrap items-center gap-2'}>
           <TableSearchField
+            {...(isScheduler ? { className: 'scheduler-search' } : {})}
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
             onClear={() => setSearchInput('')}
             placeholder="Search records"
           />
+          {!isScheduler && (<>
           <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
             From
             <MiniCalendarInput
               type="date"
+              aria-label="From date"
               value={range.from}
               max={range.to || undefined}
               onChange={(event) => {
@@ -305,6 +334,7 @@ export default function ApiDataViewer({ operation, title }) {
             To
             <MiniCalendarInput
               type="date"
+              aria-label="To date"
               value={range.to}
               min={range.from || undefined}
               onChange={(event) => {
@@ -314,7 +344,8 @@ export default function ApiDataViewer({ operation, title }) {
               className="form-control neu-input py-1.5 text-xs w-auto"
             />
           </label>
-          <Button
+          </>)}
+          {!isScheduler && <Button
             size="sm"
             variant="outline-secondary"
             onClick={() => setView((current) => (current === 'table' ? 'json' : 'table'))}
@@ -323,7 +354,7 @@ export default function ApiDataViewer({ operation, title }) {
           >
             {view === 'table' ? <Braces size={14} /> : <Table2 size={14} />}
             {view === 'table' ? 'JSON' : 'Table'}
-          </Button>
+          </Button>}
           <Button
             size="sm"
             variant="outline-secondary"
@@ -341,19 +372,19 @@ export default function ApiDataViewer({ operation, title }) {
         <div className="rounded-2xl border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 p-4 flex items-start gap-3">
           <AlertTriangle size={18} className="text-red-600 dark:text-red-300 flex-shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-semibold text-red-700 dark:text-red-200">Could not load this endpoint</div>
+            <div className="text-sm font-semibold text-red-700 dark:text-red-200">{isScheduler ? 'Could not load schedules' : 'Could not load this endpoint'}</div>
             <div className="text-xs text-red-600 dark:text-red-300 break-words">{state.error}</div>
           </div>
           <Button size="sm" variant="outline-danger" onClick={() => setReloadKey((key) => key + 1)}>
             Retry
           </Button>
         </div>
-      ) : view === 'json' ? (
+      ) : !isScheduler && view === 'json' ? (
         <pre className="rounded-2xl bg-gray-900 text-gray-100 p-4 text-xs overflow-auto mb-0 max-h-[560px]">
           {JSON.stringify(state.payload, null, 2)}
         </pre>
       ) : (
-        <ApiPayloadView payload={state.payload} loading={state.loading} query={search} server={server} itemName={itemName} />
+        <ApiPayloadView payload={state.payload} loading={state.loading} query={search} server={server} itemName={itemName} presentation={presentation} onEdit={onEdit} onDelete={onDelete} />
       )}
     </div>
   );
@@ -361,5 +392,9 @@ export default function ApiDataViewer({ operation, title }) {
 
 ApiDataViewer.propTypes = {
   operation: PropTypes.shape({ path: PropTypes.string.isRequired }).isRequired,
-  title: PropTypes.string
+  title: PropTypes.string,
+  presentation: PropTypes.oneOf(['scheduler']),
+  onEdit: PropTypes.func,
+  onDelete: PropTypes.func,
+  reloadToken: PropTypes.number
 };

@@ -9,7 +9,8 @@ import { toAbsoluteUrl } from '@/utils/Assets';
 import { usePageCrudPermissions } from '@/hooks/usePageCrudPermissions';
 import usePagePermissionCodes from '@/hooks/usePagePermissionCodes';
 import { useSearchFieldFetchGuard } from '@/hooks/useSearchFieldFetchGuard';
-import { TableCard, PageHeader } from '@/components/common/page-card';
+import { TableCard } from '@/components/common/page-card';
+import GlassRecordsHeader from '@/components/common/GlassRecordsHeader';
 import { Button } from '@/components/ui/button';
 import PaymentsToolbar from './PaymentsToolbar';
 import './PaymentsTable.css';
@@ -99,7 +100,7 @@ const getColumns = () => [
     enableSorting: false,
     meta: { headerClassName: 'w-[110px] min-w-[110px] max-w-[110px] text-center', cellClassName: 'w-[110px] min-w-[110px] max-w-[110px] text-center' },
     cell: ({ row }) => (
-      <span className="text-sm font-semibold text-gray-900">{row.original.paymentId ?? '-'}</span>
+      <span className="payments-id">#{row.original.paymentId ?? '-'}</span>
     ),
   },
   {
@@ -128,10 +129,10 @@ const getColumns = () => [
       }
       return (
         <div className="payments-method flex flex-col gap-0.5">
-          <span className="font-semibold text-sm text-gray-900">{paymentTypeText}</span>
-          <span className="text-xs text-gray-600">{secondaryLabel}: {secondaryValue}</span>
-          <span className="text-xs text-gray-600">Trans: {p.transactionId || '-'}</span>
-          {p.authCode && <span className="text-xs text-gray-500">Auth: {p.authCode}</span>}
+          <span className="payments-primary">{paymentTypeText}</span>
+          <span className="payments-secondary">{secondaryLabel}: {secondaryValue}</span>
+          <span className="payments-secondary">Trans: {p.transactionId || '-'}</span>
+          {p.authCode && <span className="payments-secondary">Auth: {p.authCode}</span>}
         </div>
       );
     },
@@ -143,9 +144,9 @@ const getColumns = () => [
     meta: { headerClassName: 'text-left', cellClassName: 'text-left' },
     cell: ({ row }) => (
       <div className="payments-brand flex flex-col gap-0.5">
-        <span className="text-sm font-semibold text-gray-900">{row.original.brandName || '-'}</span>
+        <span className="payments-primary">{row.original.brandName || '-'}</span>
         {isCardPayment(row.original.paymentType) && row.original.gatewayName && (
-          <span className="text-xs text-gray-600">{row.original.gatewayName}</span>
+          <span className="payments-secondary">{row.original.gatewayName}</span>
         )}
       </div>
     ),
@@ -159,7 +160,7 @@ const getColumns = () => [
       const { label, color } = getStatusBadge(row.original);
       return (
         <div className="flex justify-center">
-          <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ring-1 ring-inset ${color}`}>
+          <div className={`payments-status-badge inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ring-1 ring-inset ${color}`}>
             {label}
           </div>
         </div>
@@ -172,7 +173,7 @@ const getColumns = () => [
     enableSorting: false,
     meta: { headerClassName: 'text-right', cellClassName: 'text-right tabular-nums whitespace-nowrap' },
     cell: ({ row }) => (
-      <span className="text-sm font-semibold text-gray-900">{formatCurrency(row.original.amount)}</span>
+      <span className="payments-amount">{formatCurrency(row.original.amount)}</span>
     ),
   },
   {
@@ -481,8 +482,8 @@ const PaymentsTable = () => {
   }, [fetchPayments]);
 
   return (
-    <div className="payments-table-page">
-      <PageHeader title="Payments" description="View and manage all payment transactions.">
+    <div className="payments-table-page crm-records-page">
+      <GlassRecordsHeader icon={CreditCard} eyebrow="PAYMENT MANAGEMENT" title="Payments" description="View and manage all payment transactions.">
         <div className="payments-header-actions">
           <div className="payments-header-buttons">
             <Button
@@ -515,12 +516,12 @@ const PaymentsTable = () => {
 
           <p className="payments-upload-note">
             <TriangleAlert className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            <span>Note: Refund ID is mandatory in the uploaded file.</span>
+            <span>Refund ID is required in the uploaded file.</span>
           </p>
         </div>
-      </PageHeader>
+      </GlassRecordsHeader>
 
-      <TableCard className="payments-list-card">
+      <TableCard className="payments-list-card crm-records-card">
 
         {/* Toolbar */}
         <PaymentsToolbar

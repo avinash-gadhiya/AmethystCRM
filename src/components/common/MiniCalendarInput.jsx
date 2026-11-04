@@ -2,6 +2,7 @@ import { forwardRef, useRef, useState } from 'react';
 import * as Popover from '@radix-ui/react-popover';
 import { CalendarDays } from 'lucide-react';
 import MiniCalendar from './MiniCalendar';
+import LiquidCalendarContent from './liquid-membrane/LiquidCalendarContent';
 import { dateWithTime } from '@/utils/calendarUtils';
 
 // Keep a real input for form submission, browser validation, refs, and typing.
@@ -11,6 +12,7 @@ const MiniCalendarInput = forwardRef(function MiniCalendarInput(
   forwardedRef
 ) {
   const inputRef = useRef(null);
+  const calendarAnchorRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [localValue, setLocalValue] = useState(defaultValue);
   const currentValue = String(value !== undefined ? (value ?? '') : (localValue ?? ''));
@@ -29,7 +31,7 @@ const MiniCalendarInput = forwardRef(function MiniCalendarInput(
   return (
     <Popover.Root open={open && editable} onOpenChange={setOpen}>
       <Popover.Anchor asChild>
-        <span className="mini-calendar-input">
+        <span ref={calendarAnchorRef} className="mini-calendar-input">
           <input
             {...props}
             ref={(element) => {
@@ -72,65 +74,63 @@ const MiniCalendarInput = forwardRef(function MiniCalendarInput(
           </Popover.Trigger>
         </span>
       </Popover.Anchor>
-      <Popover.Portal>
-        <Popover.Content
-          className="mini-calendar-popover"
-          align="start"
-          sideOffset={6}
-          collisionPadding={12}
-          aria-label="Choose date"
-          onEscapeKeyDown={(event) => event.stopPropagation()}
-          onOpenAutoFocus={(event) => {
-            if (document.activeElement === inputRef.current) event.preventDefault();
+      <LiquidCalendarContent
+        open={open && editable}
+        onOpenChange={setOpen}
+        anchorRef={calendarAnchorRef}
+        align="start"
+        aria-label="Choose date"
+        onEscapeKeyDown={(event) => event.stopPropagation()}
+        onOpenAutoFocus={(event) => {
+          if (document.activeElement === inputRef.current) event.preventDefault();
+        }}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          inputRef.current?.focus();
+        }}
+      >
+        <MiniCalendar
+          value={currentValue.slice(0, 10)}
+          min={min}
+          max={max}
+          onSelect={(day) => {
+            update(type === 'datetime-local' ? dateWithTime(day, currentValue, min, max) : day);
+            if (type !== 'datetime-local') setOpen(false);
           }}
-          onCloseAutoFocus={(event) => {
-            event.preventDefault();
-            inputRef.current?.focus();
-          }}
-        >
-          <MiniCalendar
-            value={currentValue.slice(0, 10)}
-            min={min}
-            max={max}
-            onSelect={(day) => {
-              update(type === 'datetime-local' ? dateWithTime(day, currentValue, min, max) : day);
-              if (type !== 'datetime-local') setOpen(false);
-            }}
-          />
-          {type === 'datetime-local' && (
-            <label className="mini-calendar__time">
-              Time
-              <input
-                type="time"
-                aria-label="Time"
-                value={currentValue.split('T')[1] || ''}
-                step={props.step}
-                min={min?.slice(0, 10) === currentValue.slice(0, 10) ? min.split('T')[1] : undefined}
-                max={max?.slice(0, 10) === currentValue.slice(0, 10) ? max.split('T')[1] : undefined}
-                onChange={(event) => {
-                  if (currentValue && event.target.value) update(`${currentValue.slice(0, 10)}T${event.target.value}`);
-                }}
-              />
-            </label>
-          )}
-          <div className="mini-calendar__footer">
-            {!props.required && (
-              <button
-                type="button"
-                onClick={() => {
-                  update('');
-                  setOpen(false);
-                }}
-              >
-                Clear
-              </button>
-            )}
-            <button type="button" className="mini-calendar__apply" onClick={() => setOpen(false)}>
-              Done
+        />
+        {type === 'datetime-local' && (
+          <label className="mini-calendar__time">
+            Time
+            <input
+              type="time"
+              aria-label="Time"
+              value={currentValue.split('T')[1] || ''}
+              step={props.step}
+              min={min?.slice(0, 10) === currentValue.slice(0, 10) ? min.split('T')[1] : undefined}
+              max={max?.slice(0, 10) === currentValue.slice(0, 10) ? max.split('T')[1] : undefined}
+              onChange={(event) => {
+                if (currentValue && event.target.value) update(`${currentValue.slice(0, 10)}T${event.target.value}`);
+              }}
+            />
+          </label>
+        )}
+        <div className="mini-calendar__footer">
+          {!props.required && (
+            <button
+              type="button"
+              onClick={() => {
+                update('');
+                setOpen(false);
+              }}
+            >
+              Clear
             </button>
-          </div>
-        </Popover.Content>
-      </Popover.Portal>
+          )}
+          <button type="button" className="mini-calendar__apply" onClick={() => setOpen(false)}>
+            Done
+          </button>
+        </div>
+      </LiquidCalendarContent>
     </Popover.Root>
   );
 });

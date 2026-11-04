@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { User, Mail, Lock } from 'lucide-react';
 
 // assets
-import logoDark from 'assets/images/logo-dark.svg';
+import logoDark from '@/assets/images/crm-brain-logo.png';
 
 // -----------------------|| SIGN UP ||-----------------------//
 

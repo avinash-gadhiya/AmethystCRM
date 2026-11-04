@@ -74,6 +74,7 @@ test('notification mount and clock updates make no attendance requests; activity
   }, {
     react: hooks,
     'react-router-dom': { Link: Stub, useNavigate: () => () => {} },
+    '@/components/ui/popover': { Popover: 'Popover', PopoverTrigger: 'PopoverTrigger', PopoverContent: 'PopoverContent' },
     'lucide-react': new Proxy({}, { get: () => Stub }),
     'services/authService': { __esModule: true, default: { getUser: () => user } },
     'services/activityNotificationService': activity,
@@ -91,7 +92,7 @@ test('notification mount and clock updates make no attendance requests; activity
     assert.equal(requests, 0, 'neither mount nor the minute clock polls AttendanceReport');
     activity.default.record('logout', { ...user, userId: 11, displayName: 'Other User' });
     tree = render();
-    nodes(tree).find((node) => node.props?.['aria-label'] === 'Notifications').props.onClick();
+    nodes(tree).find((node) => node.type === 'Popover').props.onOpenChange(true);
     tree = render();
     assert.match(text(tree), /Other User logged out/);
     assert.equal(activity.default.getUnreadCount(user), 0);

@@ -20,6 +20,7 @@ import LiquidGlassDatePicker from '@/components/common/LiquidGlassDatePicker';
 import StatCardGrid from '@/components/common/StatCards';
 import TableRefreshButton from '@/components/common/TableRefreshButton';
 import './AttendanceReport.css';
+import NativeLiquidSelect from '@/components/common/liquid-membrane/NativeLiquidSelect';
 
 const PAGE_SIZES = [10, 25, 50];
 const WEEK_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -890,14 +891,14 @@ export default function AttendanceReport() {
 
           {/* User Status Select */}
           <div className="w-full sm:w-44 shrink-0">
-            <select
+            <NativeLiquidSelect
               value={filters.includeInactiveUsers ? 'all' : 'active'}
               onChange={handleStatusChange}
               className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 dark:border-white/10 dark:bg-[#0f1322] dark:text-white"
             >
               <option value="active">Active users</option>
               <option value="all">Include inactive</option>
-            </select>
+            </NativeLiquidSelect>
           </div>
         </div>
 
@@ -905,7 +906,7 @@ export default function AttendanceReport() {
         <div className="flex flex-col min-[520px]:flex-row items-stretch min-[520px]:items-center gap-2 shrink-0">
           {/* Quick Date Presets */}
           <div className="w-full min-[520px]:w-36 shrink-0">
-            <select
+            <NativeLiquidSelect
               value={quickDateFilter}
               onChange={handleQuickDateChange}
               className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 dark:border-white/10 dark:bg-[#0f1322] dark:text-white font-medium"
@@ -916,7 +917,7 @@ export default function AttendanceReport() {
                 </option>
               ))}
               {quickDateFilter === 'Custom' && <option value="Custom">Custom Range</option>}
-            </select>
+            </NativeLiquidSelect>
           </div>
 
           {/* LiquidGlassDatePicker & Refresh Button Group (Exactly like Dashboard!) */}
@@ -1100,7 +1101,7 @@ export default function AttendanceReport() {
         <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-3.5 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between dark:border-white/10 dark:text-slate-400">
           <div className="flex items-center gap-2">
             <span>Rows:</span>
-            <select
+            <NativeLiquidSelect
               value={pageSize}
               onChange={(event) => {
                 setPageSize(Number(event.target.value));
@@ -1113,7 +1114,7 @@ export default function AttendanceReport() {
                   {size}
                 </option>
               ))}
-            </select>
+            </NativeLiquidSelect>
             <span>{totalCount} users</span>
           </div>
           <AnchorPagination currentPage={page} totalPages={totalPages} onPageChange={setPage} disabled={loading} />

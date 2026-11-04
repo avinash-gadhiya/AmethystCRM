@@ -7,8 +7,10 @@ import DashboardPanel from '../components/DashboardPanel';
 import DashboardRangeToolbar from '../components/DashboardRangeToolbar';
 import StatCardGrid from '@/components/common/StatCards';
 import LiquidGlassSurface from '@/components/common/LiquidGlassSurface';
+import LiquidMembraneSelect from '@/components/common/liquid-membrane/LiquidMembraneSelect';
 import { Alert, Badge, Card, Spinner, Table } from 'components/ui/Bootstrap';
 import dashboardService from 'services/dashboardService';
+import groupService from '@/services/groupService';
 import { getMonthToDateRange, isValidDateRange } from 'utils/dateUtils';
 import { asArray, currency, integer, numberValue, textValue } from '../dashboardData';
 
@@ -22,6 +24,33 @@ export default function LeadsDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [data, setData] = useState({ group: [], people: [], users: [] });
+  const [groups, setGroups] = useState([]);
+  const [groupsLoading, setGroupsLoading] = useState(true);
+  const [groupsError, setGroupsError] = useState('');
+  const [groupRetryKey, setGroupRetryKey] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setGroupsLoading(true);
+    setGroupsError('');
+    // Options must not depend on lead activity in the selected date range.
+    groupService
+      .getGroupDropdownOptions(controller.signal, true)
+      .then((options) => {
+        if (controller.signal.aborted) return;
+        const names = [...new Set(options.map((option) => option.name))].sort((left, right) => left.localeCompare(right));
+        setGroups(names);
+        setGroup((current) => (names.includes(current) ? current : ''));
+      })
+      .catch((requestError) => {
+        if (controller.signal.aborted) return;
+        setGroupsError(requestError?.message || 'Unable to load groups.');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setGroupsLoading(false);
+      });
+    return () => controller.abort();
+  }, [refreshKey, groupRetryKey]);
 
   const load = useCallback(
     async (signal) => {
@@ -52,18 +81,9 @@ export default function LeadsDashboard() {
     return () => controller.abort();
   }, [load, refreshKey]);
 
-  const groups = useMemo(
-    () => [
-      ...new Set([group, ...data.group.map((item) => textValue(item, ['groupName', 'group', 'name'], ''))].filter(Boolean))
-    ],
-    [data.group, group]
-  );
   const filteredGroups = group ? data.group.filter((item) => textValue(item, ['groupName', 'group', 'name'], '') === group) : data.group;
   const leadSummaryRows = group || data.group.length > 0 ? filteredGroups : data.people;
-  const totalLeads = leadSummaryRows.reduce(
-    (sum, item) => sum + numberValue(item, ['leadCount', 'totalLeads', 'leads', 'count']),
-    0
-  );
+  const totalLeads = leadSummaryRows.reduce((sum, item) => sum + numberValue(item, ['leadCount', 'totalLeads', 'leads', 'count']), 0);
 
   const chart = useMemo(() => {
     const buckets = [...new Set(filteredGroups.map((item) => textValue(item, ['hour', 'time', 'period', 'label'], 'Total')))];
@@ -143,19 +163,26 @@ export default function LeadsDashboard() {
           <label htmlFor="lead-group" className="mb-1.5 block text-xs font-semibold text-slate-500 dark:text-slate-400">
             Group
           </label>
-          <select
+          <LiquidMembraneSelect
             id="lead-group"
+            label="Group"
             value={group}
-            onChange={(event) => setGroup(event.target.value)}
-            className="h-10 w-full rounded-xl border border-slate-200 bg-white/70 px-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-          >
-            <option value="">All groups</option>
-            {groups.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
+            onValueChange={setGroup}
+            disabled={groupsLoading}
+            options={[
+              { value: '', label: groupsLoading ? 'Loading groups...' : 'All groups' },
+              ...groups.map((name) => ({ value: name, label: name }))
+            ]}
+          />
+          {groupsError && (
+            <div className="mt-2 flex items-center gap-2 text-xs text-rose-600 dark:text-rose-300" role="alert">
+              <span>{groupsError}</span>
+              <button type="button" className="shrink-0 font-semibold underline" onClick={() => setGroupRetryKey((value) => value + 1)}>
+                Retry groups
+              </button>
+            </div>
+          )}
+          {!groupsLoading && !groupsError && groups.length === 0 && <p className="mt-2 text-xs text-slate-500">No groups available.</p>}
         </div>
       </DashboardRangeToolbar>
 

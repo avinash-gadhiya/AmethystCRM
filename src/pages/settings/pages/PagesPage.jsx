@@ -27,6 +27,7 @@ import IosToggle from '@/components/common/IosToggle';
 
 import PageModal from './components/PageModal';
 import PagePermissionsModal from './components/PagePermissionsModal';
+import NativeLiquidSelect from '@/components/common/liquid-membrane/NativeLiquidSelect';
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -573,7 +574,7 @@ const PagesPage = () => {
                   </span>
                   <div className="flex items-center gap-1.5">
                     <span>Rows:</span>
-                    <select
+                    <NativeLiquidSelect
                       value={pageSize}
                       onChange={(e) => {
                         setPageSize(Number(e.target.value));
@@ -586,7 +587,7 @@ const PagesPage = () => {
                           {size}
                         </option>
                       ))}
-                    </select>
+                    </NativeLiquidSelect>
                   </div>
                 </div>
 

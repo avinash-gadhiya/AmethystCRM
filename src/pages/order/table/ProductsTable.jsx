@@ -4,10 +4,10 @@ import DeleteConfirmModal from '@/components/common/DeleteConfirmModal';
 import AppModal from '@/components/common/AppModal';
 import ActionIconButton from '@/components/common/ActionIconButton';
 import AnchorPagination from '@/components/common/AnchorPagination';
-import CommonTable from '@/components/common/CommonTable';
-import GlassSegmentedControl from '@/components/common/GlassSegmentedControl';
 import LiquidGlassButton from '@/components/common/LiquidGlassButton';
-import ListToolbar from '@/components/common/ListToolbar';
+import TableSearchField from '@/components/common/TableSearchField';
+import TableRefreshButton from '@/components/common/TableRefreshButton';
+import GlassRecordsHeader from '@/components/common/GlassRecordsHeader';
 import { DetailFields, StatusPill } from '@/components/common/TableCells';
 import { productService } from '@/services';
 import { toAbsoluteUrl } from '@/utils/Assets';
@@ -18,7 +18,8 @@ import { resolveDynamicPaths } from '@/lib/dynamicPaths';
 import authService from '@/services/authService';
 import permissionService from '@/services/permissionService';
 import { IosToggle } from '@/components/ui/ios-toggle';
-import { TableCard, PageHeader } from '@/components/common/page-card';
+import { TableCard } from '@/components/common/page-card';
+import '../products.css';
 
 const emptyForm = {
   productId: 0,
@@ -32,11 +33,6 @@ const emptyForm = {
   createdByName: '',
   createdDate: '',
 };
-
-const VIEW_OPTIONS = [
-  { value: 'grid', label: 'Grid' },
-  { value: 'table', label: 'Table' },
-];
 
 const FORM_FIELDS = [
   { name: 'name', label: 'Product Name', required: true, wide: true, placeholder: 'e.g. Premium Support Plan' },
@@ -165,7 +161,6 @@ const ProductsTable = () => {
   const [pageSize] = useState(12);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchText, setSearchText] = useState('');
-  const [viewMode, setViewMode] = useState('grid');
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
@@ -377,7 +372,7 @@ const ProductsTable = () => {
     ].filter((action) => action.show);
 
   const renderActions = (product, className = '') => (
-    <div className={`flex items-center gap-1.5 ${className}`}>
+    <div className={`product-actions ${className}`}>
       {productActions(product).map((action) => (
         <ActionIconButton key={action.key} label={action.label} variant={action.variant} onClick={action.onClick} />
       ))}
@@ -387,70 +382,45 @@ const ProductsTable = () => {
   const statusPill = (product) =>
     product.isActive === false ? <StatusPill tone="danger">Inactive</StatusPill> : <StatusPill tone="success">Active</StatusPill>;
 
-  const tableColumns = [
-    {
-      id: 'product',
-      header: 'Product',
-      cell: (product) => (
-        <button type="button" onClick={() => setDetailProduct(product)} className="flex min-w-0 items-center gap-3 border-0 bg-transparent p-0 text-left">
-          <ProductImage product={product} className="h-11 w-11 shrink-0 rounded-xl" letterClassName="text-base" />
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-semibold text-gray-900 hover:text-indigo-600 dark:text-white">{product.name || '-'}</span>
-            <span className="block text-xs text-gray-500">#{product.productId}</span>
-          </span>
-        </button>
-      ),
-    },
-    {
-      id: 'description',
-      header: 'Description',
-      cell: (product) => (
-        <span className="block max-w-[320px] truncate text-sm text-gray-600 dark:text-gray-300" title={product.description}>
-          {product.description || '—'}
-        </span>
-      ),
-    },
-    { id: 'type', header: 'Type', cell: (product) => (product.productType ? <StatusPill tone="primary">{product.productType}</StatusPill> : '—') },
-    { id: 'price', header: 'Price', align: 'right', cell: (product) => <span className="font-semibold tabular-nums">{formatPrice(product.price)}</span> },
-    { id: 'status', header: 'Status', cell: statusPill },
-    { id: 'actions', header: 'Actions', align: 'center', sticky: 'right', cell: (product) => renderActions(product, 'justify-center') },
-  ];
-
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const isFormLocked = permissionsLoading || (editingId ? !canUpdate : !canAdd);
 
   return (
-    <>
-      <PageHeader title="Products" description="Browse and manage the products sold on orders.">
+    <div className="products-page crm-records-page">
+      <GlassRecordsHeader icon={Package} eyebrow="PRODUCT MANAGEMENT" title="Products" description="Browse and manage the products sold on orders.">
         {!permissionsLoading && canAdd ? (
-          <LiquidGlassButton type="button" onClick={handleCreate} className="w-full sm:w-auto">
+          <LiquidGlassButton type="button" onClick={handleCreate} className="product-add-button">
             <Plus className="h-4 w-4" />
             Add New Product
           </LiquidGlassButton>
         ) : null}
-      </PageHeader>
+      </GlassRecordsHeader>
 
-      <TableCard>
-        <ListToolbar
-          shown={products.length}
-          total={totalCount}
-          itemName="Products"
-          searchValue={searchTerm}
-          onSearchChange={setSearchTerm}
-          onSearchClear={() => setSearchTerm('')}
-          onSearchSubmit={applySearchNow}
-          searchPlaceholder="Search products..."
-          onRefresh={fetchProducts}
-          loading={loading}
-        />
-
-        <div className="flex items-center justify-end border-b border-slate-200 px-3 py-2 dark:border-white/10">
-          <GlassSegmentedControl
-            ariaLabel="Product layout"
-            value={viewMode}
-            onChange={setViewMode}
-            options={VIEW_OPTIONS}
-          />
+      <TableCard className="crm-records-card product-catalog">
+        <div className="product-toolbar">
+          <div className="product-catalog-heading">
+            <h2>Product catalog</h2>
+            <span className="product-count" role="status">
+              <span aria-hidden="true" />
+              <strong>{products.length}</strong> of <strong>{totalCount}</strong> Products
+            </span>
+          </div>
+          <div className="product-toolbar-controls">
+            <TableSearchField
+              className="product-search"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              onClear={() => setSearchTerm('')}
+              placeholder="Search products..."
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  applySearchNow();
+                }
+              }}
+            />
+            <TableRefreshButton title="Refresh products" onClick={fetchProducts} loading={loading} className="product-refresh" />
+          </div>
         </div>
 
         {loadError && (
@@ -465,21 +435,10 @@ const ProductsTable = () => {
 
         {!permissionsLoading && !codesLoading && !canSeeProducts ? (
           <div className="px-4 py-16 text-center text-sm text-gray-500">You don&apos;t have permission to view products.</div>
-        ) : viewMode === 'table' ? (
-          <div className="grid">
-            <CommonTable
-              columns={tableColumns}
-              data={products}
-              isLoading={loading}
-              rowKey="productId"
-              emptyState={{ icon: <Package size={28} />, title: 'No products found', description: 'Try a different search term.' }}
-              pagination={{ pageNumber, pageSize, totalCount, itemName: 'Products', showPageSize: false, onPageChange: setPageNumber }}
-            />
-          </div>
         ) : (
-          <div className="p-4">
+          <div className="product-catalog-body">
             {loading ? (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4" role="status" aria-label="Loading products">
+              <div className="products-grid" role="status" aria-label="Loading products">
                 {Array.from({ length: Math.min(pageSize, products.length || 8) }).map((_, i) => (
                   <ProductCardSkeleton key={i} />
                 ))}
@@ -495,26 +454,24 @@ const ProductsTable = () => {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+              <div className="products-grid">
                 {products.map((product) => (
                   <article
                     key={product.productId}
-                    className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
+                    className="product-card"
                   >
-                    <button type="button" onClick={() => setDetailProduct(product)} className="relative block border-0 bg-transparent p-0 text-left" aria-label={`View ${product.name}`}>
-                      <ProductImage product={product} className="h-40 w-full" />
-                      {product.productType && (
-                        <span className="absolute left-3 top-3 inline-flex items-center rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-sm backdrop-blur dark:bg-slate-900/80 dark:text-slate-200">
-                          {product.productType}
-                        </span>
-                      )}
-                      <span className="absolute right-3 top-3">{statusPill(product)}</span>
+                    <button type="button" onClick={() => setDetailProduct(product)} className="product-card-media" aria-label={`View ${product.name}`}>
+                      <ProductImage product={product} className="product-card-image" />
                     </button>
-                    <div className="flex flex-1 flex-col p-4">
-                      <h3 className="mb-1 line-clamp-2 text-sm font-semibold text-gray-900 dark:text-white">{product.name}</h3>
-                      <p className="mb-4 line-clamp-2 text-xs text-gray-500 dark:text-gray-400">{product.description || 'No description provided.'}</p>
-                      <div className="mt-auto flex items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
-                        <span className="text-lg font-bold tabular-nums text-gray-900 dark:text-white">{formatPrice(product.price)}</span>
+                    <div className="product-card-body">
+                      <div className="product-card-meta">
+                        <span className="product-type">{product.productType || 'Product'}</span>
+                        {statusPill(product)}
+                      </div>
+                      <h3><button type="button" onClick={() => setDetailProduct(product)}>{product.name}</button></h3>
+                      <p className="product-description">{product.description || 'No description provided.'}</p>
+                      <div className="product-card-footer">
+                        <div className="product-price"><span>Price</span><strong>{formatPrice(product.price)}</strong></div>
                         {renderActions(product)}
                       </div>
                     </div>
@@ -672,7 +629,7 @@ const ProductsTable = () => {
           </fieldset>
         </AppModal>
       </TableCard>
-    </>
+    </div>
   );
 };
 

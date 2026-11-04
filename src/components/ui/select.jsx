@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown } from 'lucide-react';
+import useLiquidOverlay from '@/components/common/liquid-membrane/useLiquidOverlay';
 
 const SelectContext = createContext(null);
 
@@ -12,7 +13,7 @@ const getOptionText = (node) => {
   return '';
 };
 
-export function Select({ value, onValueChange, onOpenChange, children, disabled = false }) {
+export function Select({ value, onValueChange, onOpenChange, children, disabled = false, multiple = false }) {
   const [open, setOpenState] = useState(false);
   const [itemLabels, setItemLabels] = useState({});
   const containerRef = useRef(null);
@@ -94,9 +95,10 @@ export function Select({ value, onValueChange, onOpenChange, children, disabled 
         itemLabels,
         registerItem,
         disabled,
+        multiple,
         triggerRef,
         contentRef,
-        listboxId,
+        listboxId
       }}
     >
       <div ref={containerRef} className="relative w-full">
@@ -106,7 +108,7 @@ export function Select({ value, onValueChange, onOpenChange, children, disabled 
   );
 }
 
-export function SelectTrigger({ className = '', children, ...props }) {
+export const SelectTrigger = React.forwardRef(function SelectTrigger({ className = '', children, ...props }, forwardedRef) {
   const context = useContext(SelectContext);
   if (!context) return null;
   const { open, setOpen, disabled, triggerRef, listboxId } = context;
@@ -129,7 +131,11 @@ export function SelectTrigger({ className = '', children, ...props }) {
   return (
     <button
       type="button"
-      ref={triggerRef}
+      ref={(node) => {
+        triggerRef.current = node;
+        if (typeof forwardedRef === 'function') forwardedRef(node);
+        else if (forwardedRef) forwardedRef.current = node;
+      }}
       disabled={disabled}
       aria-haspopup="listbox"
       aria-expanded={open}
@@ -144,16 +150,19 @@ export function SelectTrigger({ className = '', children, ...props }) {
       <ChevronDown className={`h-4 w-4 shrink-0 opacity-50 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
     </button>
   );
-}
+});
 
 export function SelectValue({ placeholder = 'Select...' }) {
   const context = useContext(SelectContext);
   if (!context) return null;
   const { value, itemLabels } = context;
 
-  const resolvedLabel = value !== undefined && value !== null
-    ? (itemLabels[value] ?? itemLabels[String(value)])
-    : undefined;
+  if (Array.isArray(value)) {
+    const labels = value.map((item) => itemLabels[String(item)]).filter(Boolean);
+    return <span className="truncate block">{labels.length ? labels.join(', ') : placeholder}</span>;
+  }
+
+  const resolvedLabel = value !== undefined && value !== null ? (itemLabels[value] ?? itemLabels[String(value)]) : undefined;
   const display = resolvedLabel !== undefined ? resolvedLabel : placeholder;
 
   return <span className="truncate block">{display}</span>;
@@ -161,27 +170,48 @@ export function SelectValue({ placeholder = 'Select...' }) {
 
 export function SelectContent({ className = '', children, search = null, position = 'popper', sideOffset = 4, style, ...props }) {
   const context = useContext(SelectContext);
+  const fallbackAnchor = useRef(null);
+  const layerIndex = Number(style?.zIndex) || 11000;
+  const { surface, mountContent } = useLiquidOverlay({
+    open: Boolean(context?.open),
+    onOpenChange: context?.setOpen || (() => {}),
+    anchorRef: context?.triggerRef || fallbackAnchor,
+    forwardedRef: context?.contentRef,
+    placement: 'self',
+    zIndex: layerIndex
+  });
+  useEffect(() => {
+    if (!context?.open) return;
+    const content = context.contentRef.current;
+    if (!content || content.contains(document.activeElement)) return;
+    (
+      content.querySelector('input') ||
+      content.querySelector('[aria-selected="true"]:not([aria-disabled="true"])') ||
+      content.querySelector('[role="option"]:not([aria-disabled="true"])')
+    )?.focus({ preventScroll: true });
+  }, [context?.open]);
   if (!context) return null;
 
   // Keep options mounted while closed so their labels are registered and the
   // trigger can display the selected value before the menu is opened once.
   if (!context.open) {
     return (
-      <div className="hidden" aria-hidden="true">
-        {children}
-      </div>
+      <>
+        {surface}
+        <div className="hidden" aria-hidden="true">
+          {children}
+        </div>
+      </>
     );
   }
 
   const triggerRect = context.triggerRef.current?.getBoundingClientRect();
+  const gap = Math.max(12, sideOffset);
   const viewportPadding = 8;
   const maxViewportWidth = Math.max(160, window.innerWidth - viewportPadding * 2);
   const menuWidth = Math.min(maxViewportWidth, Math.max(200, triggerRect?.width || 200));
-  const availableBelow = Math.max(
-    0,
-    window.innerHeight - (triggerRect?.bottom || 0) - sideOffset - viewportPadding,
-  );
-  const availableAbove = Math.max(0, (triggerRect?.top || 0) - sideOffset - viewportPadding);
+  const availableBelow = Math.max(0, window.innerHeight - (triggerRect?.bottom || 0) - gap - viewportPadding);
+  const availableAbove = Math.max(0, (triggerRect?.top || 0) - gap - viewportPadding);
 
   // Keep menus below their controls in normal layouts. Opening upward over
   // section headers made the Create Order fields look detached and obscured
@@ -189,35 +219,72 @@ export function SelectContent({ className = '', children, search = null, positio
   const openAbove = availableBelow < 72 && availableAbove > availableBelow;
   const availableSpace = openAbove ? availableAbove : availableBelow;
   const menuMaxHeight = Math.max(64, Math.min(288, availableSpace));
-  const left = Math.max(
-    viewportPadding,
-    Math.min(triggerRect?.left || viewportPadding, window.innerWidth - menuWidth - viewportPadding),
-  );
+  const left = Math.max(viewportPadding, Math.min(triggerRect?.left || viewportPadding, window.innerWidth - menuWidth - viewportPadding));
   const placementStyle = openAbove
-    ? { bottom: window.innerHeight - (triggerRect?.top || 0) + sideOffset }
-    : { top: (triggerRect?.bottom || 0) + sideOffset };
+    ? { bottom: window.innerHeight - (triggerRect?.top || 0) + gap }
+    : { top: (triggerRect?.bottom || 0) + gap };
 
-  return createPortal(
-    <div
-      ref={context.contentRef}
-      id={context.listboxId}
-      role="listbox"
-      data-position={position}
-      className={`fixed isolate flex min-w-[160px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-800 shadow-2xl shadow-slate-950/15 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 ${className}`}
-      style={{ ...placementStyle, left, width: menuWidth, maxHeight: menuMaxHeight, zIndex: 10000, ...style }}
-      {...props}
-    >
-      {search && <div className="z-10 shrink-0">{search}</div>}
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1">{children}</div>
-    </div>,
-    document.body
+  return (
+    <>
+      {surface}
+      {createPortal(
+        <div
+          ref={mountContent}
+          id={context.listboxId}
+          role="listbox"
+          aria-multiselectable={context.multiple || undefined}
+          data-position={position}
+          className={`liquid-overlay-content fixed isolate flex min-w-[160px] flex-col overflow-hidden rounded-xl border border-slate-200 text-slate-800 dark:text-slate-100 ${className}`}
+          style={{ ...placementStyle, left, width: menuWidth, maxHeight: menuMaxHeight, ...style, zIndex: layerIndex + 1 }}
+          onKeyDownCapture={(event) => {
+            if (event.key === 'Escape') {
+              event.preventDefault();
+              event.stopPropagation();
+              context.setOpen(false);
+              context.triggerRef.current?.focus({ preventScroll: true });
+              return;
+            }
+            if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+            const isInput = event.target.tagName === 'INPUT';
+            if (isInput && ['Home', 'End'].includes(event.key)) return;
+            const options = [...context.contentRef.current.querySelectorAll('[role="option"]:not([aria-disabled="true"])')];
+            if (!options.length) return;
+            event.preventDefault();
+            const current = options.indexOf(document.activeElement);
+            const next =
+              event.key === 'Home'
+                ? 0
+                : event.key === 'End'
+                  ? options.length - 1
+                  : (current + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
+            options[next].focus({ preventScroll: true });
+            const viewport = options[next].closest('[data-select-scroll]');
+            if (viewport) {
+              const top = options[next].offsetTop;
+              if (top < viewport.scrollTop) viewport.scrollTop = top;
+              else if (top + options[next].offsetHeight > viewport.scrollTop + viewport.clientHeight)
+                viewport.scrollTop = top + options[next].offsetHeight - viewport.clientHeight;
+            }
+          }}
+          {...props}
+        >
+          {search && <div className="z-10 shrink-0">{search}</div>}
+          <div data-select-scroll className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain p-1">
+            {children}
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
   );
 }
 
 export function SelectItem({ value, children, className = '', meta = null, textValue, disabled = false, ...props }) {
   const context = useContext(SelectContext);
   const registerItem = context?.registerItem;
-  const optionLabel = String(textValue || getOptionText(children)).replace(/\s+/g, ' ').trim();
+  const optionLabel = String(textValue || getOptionText(children))
+    .replace(/\s+/g, ' ')
+    .trim();
 
   // Register a plain-text label for the trigger. Complex product/user rows must
   // not be rendered inside the compact trigger after selection.
@@ -228,14 +295,19 @@ export function SelectItem({ value, children, className = '', meta = null, textV
   if (!context) return null;
   const { value: selectedValue, onValueChange, setOpen } = context;
 
-  const isSelected = String(selectedValue) === String(value);
+  const isSelected = Array.isArray(selectedValue)
+    ? selectedValue.some((item) => String(item) === String(value))
+    : String(selectedValue) === String(value);
 
   const handleSelect = (e) => {
     e.preventDefault();
     e.stopPropagation();
     if (disabled) return;
     onValueChange?.(value);
-    setOpen(false);
+    if (!context.multiple) {
+      setOpen(false);
+      context.triggerRef.current?.focus({ preventScroll: true });
+    }
   };
 
   const handleKeyDown = (event) => {

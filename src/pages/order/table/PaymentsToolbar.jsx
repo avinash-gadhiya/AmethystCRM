@@ -21,18 +21,22 @@ export default function PaymentsToolbar({
   return (
     <div className="payments-toolbar" aria-label="Payment filters">
       <div className="payments-toolbar__top">
-        <span className="payments-toolbar__count">
-          <span className="payments-toolbar__dot" aria-hidden="true" />
-          <span><strong>{shown}</strong> of <strong>{total}</strong> Payments</span>
-        </span>
+        <div className="payments-toolbar__heading">
+          <h2>Payment transactions</h2>
+          <span className="payments-toolbar__count" role="status">
+            <span className="payments-toolbar__dot" aria-hidden="true" />
+            <span><strong>{shown}</strong> of <strong>{total}</strong> Payments</span>
+          </span>
+        </div>
         <div className="payments-toolbar__actions">
           <TableRefreshButton className="payments-icon-button" title="Refresh payments" onClick={onRefresh} loading={loading} />
           <Button
-            type="button" variant="outline" size="icon" className="payments-icon-button"
+            type="button" variant="outline" className="payments-export-button"
             title="Download payments" aria-label="Download payments"
             onClick={onDownload} disabled={downloadDisabled || loading} aria-busy={downloadDisabled || undefined}
           >
             {downloadDisabled ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            <span>{downloadDisabled ? 'Exporting...' : 'Export CSV'}</span>
           </Button>
         </div>
       </div>
@@ -60,6 +64,8 @@ export default function PaymentsToolbar({
         <LiquidGlassDatePicker
           key={`payments-date-${fromDate || ''}-${toDate || ''}`}
           initialFromDate={fromDate || ''} initialToDate={toDate || ''}
+          emptyLabel="All dates"
+          forceBelow
           showQuickDateDropdown showClearButton={false}
           onChange={(from, to, isSingle) => onDateRangeChange(from, isSingle ? from : to)}
           onClear={onDateClear} quickDateTriggerClassName="payments-date-trigger" className="payments-date-filter"

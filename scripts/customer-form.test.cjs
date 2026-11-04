@@ -34,14 +34,23 @@ const fixture = {
   isActive: true
 };
 
-function service(api) {
+function service(api, { user = () => actor, ...globals } = {}) {
   return load('src/services/customerService.js', (name) => {
     if (name === './core/apiClient') return { __esModule: true, default: api };
-    if (name === './authService') return { __esModule: true, default: { getUser: () => actor } };
+    if (name === './authService') return { __esModule: true, default: { getUser: user } };
     if (name === './clientIpService') return { getCurrentLoginIpv4: async () => '192.0.2.9' };
     if (name === '@/lib/customerPayload') return payloads;
     throw Error(`Unexpected dependency: ${name}`);
-  }).default;
+  }, globals).default;
+}
+
+function memoryStorage() {
+  const data = new Map();
+  return {
+    getItem: (key) => data.get(key) || null,
+    setItem: (key, value) => data.set(key, String(value)),
+    removeItem: (key) => data.delete(key)
+  };
 }
 
 test('Customer POST uses the supplied DTO, optional lead, and current creator without child transactions', async () => {
@@ -237,6 +246,130 @@ test('customer read-only profile enrichment failures preserve the table and repo
   const result = await customers.getCustomers();
   assert.equal(result.data[0].customerId, 13);
   assert.equal(result.profileWarnings[0].message, 'Search access denied');
+});
+
+test('known address and sales person survive sparse list/search/detail reads, status changes and a page reload', async () => {
+  const sessionStorage = memoryStorage();
+  const writes = [];
+  let active = false;
+  const sparse = () => ({ customerId: 13, name: fixture.name, address: '', city: '', stateId: 0, countryId: 0, salesPerson: 0, salesPersonName: '', isActive: active });
+  const api = {
+    request: async (path, options) => {
+      if (path === '/Customer/CanDisableCustomer') {
+        writes.push(path);
+        active = false;
+        return { data: { ...fixture, customerId: 13, address: '123 Main Street', isActive: false } };
+      }
+      if (path === '/Customer' || path === '/Customer/search') return { data: [sparse()], totalCount: 1 };
+      if (path === '/Customer/13') return { data: sparse() };
+      throw Error(`Unexpected request ${path}`);
+    },
+    put: async (path) => { writes.push(path); active = true; return { success: true }; }
+  };
+  const customers = service(api, { sessionStorage });
+  await customers.toggleCustomerStatus(13, false);
+  for (const row of [(await customers.getCustomers()).data[0], (await customers.searchCustomers('Test')).data[0], await customers.getCustomerById(13)]) {
+    assert.equal(row.address, '123 Main Street');
+    assert.equal(row.salesPersonName, fixture.salesPersonName);
+    assert.equal(row.stateName, fixture.stateName);
+    assert.equal(row.isActive, false);
+  }
+  const enabled = await customers.toggleCustomerStatus(13, true);
+  assert.equal(enabled.address, '123 Main Street');
+  assert.equal(enabled.salesPersonName, fixture.salesPersonName);
+  assert.equal(enabled.isActive, true);
+  const afterReload = service(api, { sessionStorage });
+  const row = (await afterReload.getCustomers()).data[0];
+  assert.equal(row.address, '123 Main Street');
+  assert.equal(row.salesPersonName, fixture.salesPersonName);
+  assert.equal(row.isActive, true, 'cached profile fields must never replace the current status');
+  assert.deepEqual(writes, ['/Customer/CanDisableCustomer', '/Customer/CanDisableCustomer', '/Customer'], 'reads must never change status to recover a profile');
+});
+
+test('newly saved customers retain entered profiles without using the write echo as save verification', async () => {
+  const customers = service({
+    post: async () => ({ data: { customerId: 13, address: '', salesPersonName: '' } }),
+    request: async (path) => ({ data: path === '/Customer' || path === '/Customer/search' ? [{ customerId: 13, name: fixture.name }] : { customerId: 13, name: fixture.name } })
+  });
+  await customers.createCustomer({ ...fixture, address: '123 Main Street' });
+  const customer = (await customers.getCustomers()).data[0];
+  assert.equal(customer.address, '123 Main Street');
+  assert.equal(customer.salesPersonName, fixture.salesPersonName);
+  const verification = await customers.verifyCustomerSave(13, fixture);
+  assert.equal(verification.verified, false, 'save verification must bypass the display cache');
+  assert.ok(verification.missingFields.includes('salesPerson'));
+});
+
+test('profile updates replace cached values, including explicit clears, and reject old names for changed IDs', async () => {
+  let row = { ...fixture, customerId: 13, address: 'Old address' };
+  const customers = service({
+    request: async (path) => {
+      if (path === '/Customer' || path === '/Customer/search') return { data: [row], totalCount: 1 };
+      if (path === '/User/UserDropDown') return { data: [{ userId: 8, fullName: 'New Seller' }] };
+      if (path === '/State/StateDropdown') return { data: [] };
+      throw Error(path);
+    },
+    put: async () => ({ success: true, data: null })
+  });
+  await customers.getCustomers();
+  row = { customerId: 13, salesPerson: 8, salesPersonName: '', stateId: 6, stateName: '' };
+  const changed = (await customers.getCustomers()).data[0];
+  assert.equal(changed.salesPersonName, 'New Seller');
+  assert.notEqual(changed.stateName, 'Ohio');
+  await customers.updateCustomer({ ...fixture, customerId: 13, address: '', phone2: '', salesPerson: 0, salesPersonName: '' });
+  row = { customerId: 13 };
+  const cleared = (await customers.getCustomers()).data[0];
+  assert.ok(!cleared.address);
+  assert.ok(!cleared.phone2);
+  assert.ok(!cleared.salesPersonName);
+});
+
+test('profile cache is isolated by customer and login, clears on logout and tolerates unavailable browser storage', async () => {
+  const sessionStorage = memoryStorage();
+  const listeners = new Map();
+  const window = { addEventListener: (event, handler) => listeners.set(event, handler) };
+  let user = { ...actor, lastLoginDate: 'first-login' };
+  let rows = [{ ...fixture, customerId: 13 }];
+  const api = { request: async () => ({ data: rows, totalCount: rows.length }) };
+  const customers = service(api, { sessionStorage, window, user: () => user });
+  await customers.getCustomers();
+  rows = [{ customerId: 14, name: fixture.name }];
+  assert.ok(!(await customers.getCustomers()).data[0].salesPersonName, 'same-name customers must not share profiles');
+  user = { ...actor, userId: 100, lastLoginDate: 'second-login' };
+  rows = [{ customerId: 13 }];
+  assert.ok(!(await customers.getCustomers()).data[0].salesPersonName, 'another account must not receive cached profiles');
+  user = { ...actor, lastLoginDate: 'first-login' };
+  listeners.get('auth-session-changed')();
+  assert.ok(!(await customers.getCustomers()).data[0].salesPersonName, 'logout must remove cached profiles');
+  const blockedStorage = { getItem() { throw Error('blocked'); }, setItem() { throw Error('blocked'); } };
+  const memoryOnly = service(api, { sessionStorage: blockedStorage });
+  rows = [{ ...fixture, customerId: 13 }];
+  await memoryOnly.getCustomers();
+  rows = [{ customerId: 13 }];
+  assert.equal((await memoryOnly.getCustomers()).data[0].salesPersonName, fixture.salesPersonName);
+});
+
+test('deleted customer profiles are removed from the display cache', async () => {
+  let rows = [{ ...fixture, customerId: 13 }];
+  const customers = service({ request: async () => ({ data: rows, totalCount: rows.length }) });
+  await customers.getCustomers();
+  await customers.deleteCustomer(13);
+  rows = [{ customerId: 13 }];
+  assert.ok(!(await customers.getCustomers()).data[0].salesPersonName);
+});
+
+test('customer label lookups support generic dropdown ID and label shapes', async () => {
+  const customers = service({ request: async (path) => {
+    if (path === '/Customer') return { data: [{ customerId: 21, city: 'Surat', stateId: 61, countryId: 1009, salesPerson: 7 }] };
+    if (path === '/User/UserDropDown') return { Data: { Items: [{ Value: '7', Text: 'Test Seller' }] } };
+    if (path === '/State/StateDropdown') return { data: [{ id: 61, label: 'Gujarat' }] };
+    if (path === '/Country/CountryDropdown') return { data: [{ value: 1009, text: 'India' }] };
+    throw Error(path);
+  } });
+  const row = (await customers.getCustomers()).data[0];
+  assert.equal(row.salesPersonName, 'Test Seller');
+  assert.equal(row.stateName, 'Gujarat');
+  assert.equal(row.countryName, 'India');
 });
 
 test('customer save verification reports incomplete read-backs separately from write failures', async () => {
@@ -829,7 +962,7 @@ test('customer list matches the reference columns and Create Order navigates wit
   const tree = await view.settle();
   const table = find(tree, (node) => node.props?.pagination?.itemName === 'Customers');
   assert.deepEqual(plain(table.props.columns.map((column) => column.header)), ['ID', 'Name', 'Address', 'Sales Person', 'Created By', 'Create Date', 'Is Active Status', 'Action']);
-  assert.equal(table.props.columns.find((column) => column.id === 'address').cell(customer), 'Columbus, Ohio, USA');
+  assert.equal(table.props.columns.find((column) => column.id === 'address').cell(customer), '123 Main Street, Columbus, Ohio, USA, 43215');
   assert.equal(table.props.columns.find((column) => column.id === 'salesPerson').cell(customer), 'Test Seller');
   const identity = table.props.columns.find((column) => column.id === 'customer').cell(customer);
   assert.match(text(identity), /Test Customer/);

@@ -4,10 +4,9 @@ import { toast } from 'sonner';
 
 import LiquidGlassButton from '@/components/common/LiquidGlassButton';
 import LiquidGlassDatePicker from '@/components/common/LiquidGlassDatePicker';
-import { TOOLBAR_SELECT_TRIGGER_CLASS } from '@/components/common/ListToolbar';
 import TableRefreshButton from '@/components/common/TableRefreshButton';
 import { PageHeader, TableCard } from '@/components/common/page-card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import LiquidMembraneSelect from '@/components/common/liquid-membrane/LiquidMembraneSelect';
 import { getApiErrorMessage } from '@/lib/apiError';
 import dailySalesReportService from '@/services/dailySalesReportService';
 import {
@@ -133,7 +132,11 @@ export default function DailySalesReportPage() {
         title="Daily Sales Report"
         description={`${formatDailySalesDateRange(range)} · ${selectedLocationName || 'All Locations'}`}
       >
-        <LiquidGlassButton onClick={exportCsv} disabled={loading || !!error || !sortedRows.length} className="daily-sales-export w-full sm:w-auto">
+        <LiquidGlassButton
+          onClick={exportCsv}
+          disabled={loading || !!error || !sortedRows.length}
+          className="daily-sales-export w-full sm:w-auto"
+        >
           <Download size={16} />
           Export CSV
         </LiquidGlassButton>
@@ -148,19 +151,16 @@ export default function DailySalesReportPage() {
 
           <div className="daily-sales-filters">
             <div className="daily-sales-period">
-              <Select value={activePreset} onValueChange={applyPreset}>
-                <SelectTrigger className={TOOLBAR_SELECT_TRIGGER_CLASS} aria-label="Report period">
-                  <SelectValue placeholder="Report period" />
-                </SelectTrigger>
-                <SelectContent position="popper" sideOffset={4} className="min-w-[var(--radix-select-trigger-width)]">
-                  {activePreset === 'custom' && <SelectItem value="custom">Custom range</SelectItem>}
-                  {DAILY_SALES_QUICK_FILTERS.map((filter) => (
-                    <SelectItem key={filter.id} value={filter.id}>
-                      {filter.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <LiquidMembraneSelect
+                label="Report period"
+                value={activePreset}
+                onValueChange={applyPreset}
+                placeholder="Report period"
+                options={[
+                  ...(activePreset === 'custom' ? [{ value: 'custom', label: 'Custom range' }] : []),
+                  ...DAILY_SALES_QUICK_FILTERS.map((filter) => ({ value: filter.id, label: filter.label }))
+                ]}
+              />
             </div>
 
             <div className="daily-sales-dates">
@@ -175,19 +175,16 @@ export default function DailySalesReportPage() {
             </div>
 
             <div className="daily-sales-location">
-              <Select value={selectedLocationId || 'all'} onValueChange={(value) => setSelectedLocationId(value === 'all' ? '' : value)}>
-                <SelectTrigger className={TOOLBAR_SELECT_TRIGGER_CLASS} aria-label="Location">
-                  <SelectValue placeholder="All Locations" />
-                </SelectTrigger>
-                <SelectContent position="popper" sideOffset={4} className="min-w-[var(--radix-select-trigger-width)] max-h-72">
-                  <SelectItem value="all">All Locations</SelectItem>
-                  {locationOptions.map((location) => (
-                    <SelectItem key={location.locationId} value={String(location.locationId)}>
-                      {location.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <LiquidMembraneSelect
+                label="Location"
+                value={selectedLocationId || 'all'}
+                onValueChange={(value) => setSelectedLocationId(value === 'all' ? '' : value)}
+                placeholder="All Locations"
+                options={[
+                  { value: 'all', label: 'All Locations' },
+                  ...locationOptions.map((location) => ({ value: String(location.locationId), label: location.name }))
+                ]}
+              />
             </div>
 
             <TableRefreshButton

@@ -8,9 +8,8 @@ import { getApiErrorMessage } from '@/lib/apiError';
 import { TrendingUp, TrendingDown, BarChart2, PieChart, Users, MapPin, Target } from 'lucide-react';
 import { LiquidGlassDatePicker } from '@/components/common/LiquidGlassDatePicker';
 import TableRefreshButton from '@/components/common/TableRefreshButton';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import DashboardLiquidSelect from '@/components/common/liquid-membrane/LiquidMembraneSelect';
 import { fetchSalesPersonList, isSalesManagerUser } from '@/lib/salesRoles';
-import SelectSearchInput from '@/components/common/SelectSearchInput';
 import UserOptionBadges, {
   getUserBadgeSearchText,
   getUserLocationName,
@@ -1876,59 +1875,32 @@ const DashboardPage = () => {
               <div className="flex flex-col min-[420px]:flex-row items-stretch min-[420px]:items-center gap-2 w-full sm:w-auto min-w-0">
               {isAdminUser && (
                 <div className="flex-1 sm:flex-none sm:w-[200px] lg:w-[176px] xl:w-[210px] min-w-0">
-                  <Select
+                  <DashboardLiquidSelect
+                    label="Sales person"
                     value={selectedUserId}
                     onValueChange={handleSalesPersonChange}
-                    onOpenChange={(isOpen) => {
-                      if (!isOpen) setSalesPersonSearchText('');
-                    }}
-                  >
-                    <SelectTrigger className="h-10 w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg text-sm text-gray-700 dark:text-slate-100">
-                      <SelectValue placeholder="All Sales Persons" />
-                    </SelectTrigger>
-                    <SelectContent
-                      position="popper"
-                      sideOffset={4}
-                      className="min-w-[var(--radix-select-trigger-width)] bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-white"
-                      search={(
-                        <SelectSearchInput
-                          value={salesPersonSearchText}
-                          onChange={setSalesPersonSearchText}
-                          placeholder="Search sales person..."
-                        />
-                      )}
-                    >
-                      <SelectItem value="all" className="text-gray-700 dark:text-white focus:dark:bg-slate-800">All Sales Persons</SelectItem>
-                      {salesPersonOptions.length === 0 ? (
-                        <div className="px-2 py-2 text-xs text-gray-500 dark:text-slate-400">No users found.</div>
-                      ) : (
-                        salesPersonOptions.map((user) => (
-                          <SelectItem
-                            key={user.id}
-                            value={String(user.id)}
-                            className="text-gray-700 dark:text-white focus:dark:bg-slate-800"
-                            meta={<UserOptionBadges user={user} />}
-                          >
-                            {user.name}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
+                    placeholder="All Sales Persons"
+                    searchValue={salesPersonSearchText}
+                    onSearchChange={setSalesPersonSearchText}
+                    searchPlaceholder="Search sales person..."
+                    options={[
+                      { value: 'all', label: 'All Sales Persons' },
+                      ...salesPersonOptions.map((user) => ({
+                        value: String(user.id), label: user.name, meta: <UserOptionBadges user={user} />
+                      }))
+                    ]}
+                  />
                 </div>
               )}
 
               <div className="flex-1 sm:flex-none sm:w-[172px] lg:w-[150px] xl:w-[182px] min-w-0">
-                <Select value={quickDateFilter} onValueChange={handleQuickDateChange}>
-                  <SelectTrigger className="h-10 w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg text-sm text-gray-700 dark:text-slate-100">
-                    <SelectValue placeholder={quickDateFilter ? 'Current Month' : 'Custom Range'} />
-                  </SelectTrigger>
-                  <SelectContent position="popper" sideOffset={4} className="min-w-[var(--radix-select-trigger-width)] bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-white">
-                    {[...QUICK_DATE_FILTERS, ...YEAR_FILTER_OPTIONS].map((item) => (
-                      <SelectItem key={item.value} value={item.value} className="text-gray-700 dark:text-white focus:dark:bg-slate-800">{item.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <DashboardLiquidSelect
+                  label="Date period"
+                  value={quickDateFilter}
+                  onValueChange={handleQuickDateChange}
+                  placeholder={quickDateFilter ? 'Current Month' : 'Custom Range'}
+                  options={[...QUICK_DATE_FILTERS, ...YEAR_FILTER_OPTIONS]}
+                />
               </div>
               </div>
 

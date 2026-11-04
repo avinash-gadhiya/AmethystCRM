@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import * as Popover from '@radix-ui/react-popover';
 import MiniCalendar from './MiniCalendar';
+import LiquidCalendarContent from './liquid-membrane/LiquidCalendarContent';
 import { nextCalendarRange, shiftCalendarRange } from '@/utils/calendarUtils';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import '@/styles/liquid-glass-surfaces.css';
@@ -33,12 +34,14 @@ export function LiquidGlassDatePicker({
   onStep,
   onChange,
   onClear,
-  stretch = false
+  stretch = false,
+  forceBelow = false
 }) {
   const iconButtonClassName = `inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 shadow-sm transition-colors shrink-0 ${glass ? 'liquid-glass-control liquid-glass-control--icon' : ''}`;
   const [fromDate, setFromDate] = useState(initialFromDate);
   const [toDate, setToDate] = useState(initialToDate);
   const [isOpen, setIsOpen] = useState(false);
+  const calendarAnchorRef = useRef(null);
   const handleStepClick = (direction) => {
     if (onStep) {
       setIsOpen(false);
@@ -111,6 +114,7 @@ export function LiquidGlassDatePicker({
         {/* Pill button */}
         <Popover.Trigger asChild>
           <button
+            ref={calendarAnchorRef}
             type="button"
             aria-label="Choose date range"
             aria-haspopup="dialog"
@@ -160,64 +164,59 @@ export function LiquidGlassDatePicker({
           </button>
         )}
       </div>
-      <Popover.Portal>
-        <Popover.Content
-          className="mini-calendar-popover"
-          align="end"
-          sideOffset={6}
-          collisionPadding={12}
-          aria-label="Date range"
-          onEscapeKeyDown={(event) => event.stopPropagation()}
-        >
-          {showQuickDateDropdown && quickDateOptions.length > 0 && (
-            <div>
-              <div className="mb-2 text-xs font-semibold">{quickDatePlaceholder}</div>
-              <div className="mini-calendar__presets" role="group" aria-label={quickDatePlaceholder}>
-                {quickDateOptions.map((option) => {
-                  const value = option?.value ?? option;
-                  const label = option?.label ?? option;
-                  const selected = String(quickDateValue) === String(value);
+      <LiquidCalendarContent
+        open={isOpen}
+        onOpenChange={setIsOpen}
+        anchorRef={calendarAnchorRef}
+        side="bottom"
+        align={forceBelow ? 'center' : 'end'}
+        avoidCollisions={!forceBelow}
+        aria-label="Date range"
+        onEscapeKeyDown={(event) => event.stopPropagation()}
+      >
+        {showQuickDateDropdown && quickDateOptions.length > 0 && (
+          <div>
+            <div className="mb-2 text-xs font-semibold">{quickDatePlaceholder}</div>
+            <div className="mini-calendar__presets" role="group" aria-label={quickDatePlaceholder}>
+              {quickDateOptions.map((option) => {
+                const value = option?.value ?? option;
+                const label = option?.label ?? option;
+                const selected = String(quickDateValue) === String(value);
 
-                  return (
-                    <button
-                      key={String(value)}
-                      type="button"
-                      aria-pressed={selected}
-                      onClick={() => handleQuickDateSelect(value)}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
+                return (
+                  <button key={String(value)} type="button" aria-pressed={selected} onClick={() => handleQuickDateSelect(value)}>
+                    {label}
+                  </button>
+                );
+              })}
             </div>
-          )}
+          </div>
+        )}
 
-          <MiniCalendar
-            range
-            value={fromDate}
-            endValue={toDate}
-            onSelect={(day) => {
-              const next = nextCalendarRange(fromDate, toDate, day);
-              setFromDate(next.fromDate);
-              setToDate(next.toDate);
-            }}
-          />
-          <div className="mini-calendar__hint" aria-live="polite">
-            {fromDate
-              ? formatDisplayDate(fromDate) + (toDate ? ' - ' + formatDisplayDate(toDate) : ' - Select end date, or Apply for one day')
-              : 'Select start date'}
-          </div>
-          <div className="mini-calendar__footer">
-            <button type="button" onClick={() => setIsOpen(false)}>
-              Cancel
-            </button>
-            <button type="button" className="mini-calendar__apply" disabled={!fromDate} onClick={handleApply}>
-              Apply
-            </button>
-          </div>
-        </Popover.Content>
-      </Popover.Portal>
+        <MiniCalendar
+          range
+          value={fromDate}
+          endValue={toDate}
+          onSelect={(day) => {
+            const next = nextCalendarRange(fromDate, toDate, day);
+            setFromDate(next.fromDate);
+            setToDate(next.toDate);
+          }}
+        />
+        <div className="mini-calendar__hint" aria-live="polite">
+          {fromDate
+            ? formatDisplayDate(fromDate) + (toDate ? ' - ' + formatDisplayDate(toDate) : ' - Select end date, or Apply for one day')
+            : 'Select start date'}
+        </div>
+        <div className="mini-calendar__footer">
+          <button type="button" onClick={() => setIsOpen(false)}>
+            Cancel
+          </button>
+          <button type="button" className="mini-calendar__apply" disabled={!fromDate} onClick={handleApply}>
+            Apply
+          </button>
+        </div>
+      </LiquidCalendarContent>
     </Popover.Root>
   );
 }

@@ -12,7 +12,7 @@ function load(file, overrides = {}, cache = new Map()) {
   if (file.endsWith('.json')) return JSON.parse(fs.readFileSync(file, 'utf8'));
   const source = fs.readFileSync(file, 'utf8').replaceAll('import.meta.env', '({ VITE_APP_API_URL: "https://test.invalid/api" })');
   const code = transformSync(source, { loader: 'jsx', format: 'cjs' }).code;
-  const context = { module: { exports: {} }, console, URLSearchParams, AbortController, FormData, Blob,
+  const context = { module: { exports: {} }, console, URLSearchParams, AbortController, FormData, Blob, fetch: overrides.fetch,
     localStorage: { getItem: (key) => key === 'userId' ? '1' : null },
     require(name) {
       if (name in overrides) return overrides[name];
@@ -70,6 +70,43 @@ function setup(handler = () => ({ data: [], totalCount: 0 })) {
   };
   return { calls, service: (name) => load(`src/services/${name}Service.js`, overrides).default };
 }
+
+test('lead dashboard group options use the GroupDropdown API independently of report activity', async () => {
+  const { calls, service } = setup(() => ({ success: true, data: [
+    { GroupId: 2004, GroupName: 'North & West', IsActive: true },
+    { GroupId: 2005, GroupName: 'No leads yet', IsActive: false }
+  ] }));
+  const groups = service('group');
+  const options = await groups.getGroupDropdownOptions(undefined, true);
+  assert.deepEqual(plain(options), [
+    { id: 2004, name: 'North & West', isActive: true },
+    { id: 2005, name: 'No leads yet', isActive: false }
+  ]);
+  assert.equal(calls[0].path, '/Group/GroupDropdown');
+  assert.equal(calls[0].method, 'GET');
+  await groups.getGroupDropdownOptions(undefined, true);
+  assert.equal(calls.length, 2, 'refresh bypasses stale dropdown options');
+});
+
+test('group lead requests send the selected group name and documented dates; All groups omits the filter', async () => {
+  const calls = [];
+  const service = load('src/services/dashboardService.js', {
+    './authService': { __esModule: true, default: { getToken: () => 'test-token' } },
+    './http': { handleSessionExpired: () => {} },
+    fetch: async (url, options) => {
+      calls.push({ url: new URL(url), ...options });
+      return { ok: true, status: 200, json: async () => ({ success: true, data: [] }) };
+    }
+  }).default;
+  const signal = new AbortController().signal;
+  await service.getGroupWiseLeads('2026-11-01', '2026-11-03', 'North & West', signal);
+  assert.equal(calls[0].url.pathname, '/api/Dashboard/GroupWiseLeads');
+  assert.deepEqual(Object.fromEntries(calls[0].url.searchParams), { fromdate: '2026-11-01', todate: '2026-11-03', Group: 'North & West' });
+  assert.equal(calls[0].signal, signal);
+  assert.equal(calls[0].headers.Authorization, 'Bearer test-token');
+  await service.getGroupWiseLeads('2026-11-01', '2026-11-03', '', signal);
+  assert.equal(calls[1].url.searchParams.has('Group'), false);
+});
 
 test('API workspace catalog covers every documented operation exactly and excludes sending mail from bulk reads', () => {
   const { CRM_API_OPERATIONS } = load('src/services/catalog/crmApiCatalog.js');

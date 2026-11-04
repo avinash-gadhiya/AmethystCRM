@@ -8,6 +8,7 @@ import { getApiErrorMessage } from '@/lib/apiError';
 import LiquidGlassButton from '@/components/common/LiquidGlassButton';
 import GlassCloseButton from '@/components/common/GlassCloseButton';
 import IosToggle from '@/components/common/IosToggle';
+import NativeLiquidSelect from '@/components/common/liquid-membrane/NativeLiquidSelect';
 
 const PageModal = ({ open, page = null, onClose, onSuccess, menus = [] }) => {
   const isEditing = Boolean(page && page.pageId);
@@ -169,7 +170,7 @@ const PageModal = ({ open, page = null, onClose, onSuccess, menus = [] }) => {
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
                 Parent Menu Category
               </label>
-              <select
+              <NativeLiquidSelect
                   value={formData.menuId}
                   onChange={(e) => handleChange('menuId', e.target.value)}
                   disabled={saving}
@@ -181,7 +182,7 @@ const PageModal = ({ open, page = null, onClose, onSuccess, menus = [] }) => {
                       {m.name} (#{m.id})
                     </option>
                   ))}
-              </select>
+              </NativeLiquidSelect>
             </div>
 
             {/* Page Name */}

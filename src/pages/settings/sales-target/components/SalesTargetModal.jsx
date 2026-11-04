@@ -1,3 +1,4 @@
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, MapPin, Search, Sparkles, Target, UserRound, X } from 'lucide-react';
@@ -34,7 +35,6 @@ const SalesTargetModal = ({ open, user = null, users = [], usersLoading = false,
   const [userSearch, setUserSearch] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const pickerRef = useRef(null);
 
   const selectedUser = useMemo(() => users.find((item) => Number(item.userId) === Number(form.userId)) || null, [form.userId, users]);
   const isEditing = hasExistingTarget(selectedUser);
@@ -50,24 +50,6 @@ const SalesTargetModal = ({ open, user = null, users = [], usersLoading = false,
     setUserSearch('');
     setPickerOpen(false);
   }, [open, user]);
-
-  useEffect(() => {
-    if (!pickerOpen) return undefined;
-
-    const handlePointerDown = (event) => {
-      if (!pickerRef.current?.contains(event.target)) setPickerOpen(false);
-    };
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') setPickerOpen(false);
-    };
-
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [pickerOpen]);
 
   const visibleUsers = useMemo(() => {
     const query = userSearch.trim().toLowerCase();
@@ -155,45 +137,50 @@ const SalesTargetModal = ({ open, user = null, users = [], usersLoading = false,
         </div>
 
         <form id="sales-target-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
-          <div ref={pickerRef}>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-              User <span className="text-red-500">*</span>
-            </label>
-            <button
-              type="button"
-              disabled={usersLoading || saving}
-              onClick={() => setPickerOpen((current) => !current)}
-              className={`w-full min-h-[52px] px-3 py-2 rounded-xl border bg-white dark:bg-[#0f1322] text-left flex items-center justify-between gap-3 outline-none transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
-                pickerOpen
-                  ? 'border-purple-500 ring-2 ring-purple-500/15'
-                  : 'border-gray-200 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/20'
-              }`}
-              aria-haspopup="listbox"
-              aria-expanded={pickerOpen}
-              aria-controls="sales-user-options"
-            >
-              <span className="flex min-w-0 items-center gap-2.5">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-purple-50 text-[11px] font-bold text-purple-600 dark:bg-purple-950/50 dark:text-purple-300">
-                  {selectedUser ? userInitials(selectedUser) : <UserRound size={16} />}
-                </span>
-                <span className="min-w-0">
-                  <span
-                    className={`block truncate text-sm font-medium ${selectedUser ? 'text-gray-900 dark:text-white' : 'text-gray-400'}`}
-                  >
-                    {usersLoading ? 'Loading users...' : selectedUser ? displayName(selectedUser) : 'Select user'}
-                  </span>
-                  {selectedUser && (
-                    <span className="block truncate text-[11px] text-gray-500 dark:text-gray-400">
-                      {[selectedUser.roleName, selectedUser.locationName].filter(Boolean).join(' · ') || 'Sales user'}
+          <div>
+            <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                User <span className="text-red-500">*</span>
+              </label>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  disabled={usersLoading || saving}
+                  className={`w-full min-h-[52px] px-3 py-2 rounded-xl border bg-white dark:bg-[#0f1322] text-left flex items-center justify-between gap-3 outline-none transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
+                    pickerOpen
+                      ? 'border-purple-500 ring-2 ring-purple-500/15'
+                      : 'border-gray-200 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/20'
+                  }`}
+                  aria-haspopup="listbox"
+                  aria-expanded={pickerOpen}
+                  aria-controls="sales-user-options"
+                >
+                  <span className="flex min-w-0 items-center gap-2.5">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-purple-50 text-[11px] font-bold text-purple-600 dark:bg-purple-950/50 dark:text-purple-300">
+                      {selectedUser ? userInitials(selectedUser) : <UserRound size={16} />}
                     </span>
-                  )}
-                </span>
-              </span>
-              <ChevronDown size={17} className={`shrink-0 text-gray-400 transition-transform ${pickerOpen ? 'rotate-180' : ''}`} />
-            </button>
+                    <span className="min-w-0">
+                      <span
+                        className={`block truncate text-sm font-medium ${selectedUser ? 'text-gray-900 dark:text-white' : 'text-gray-400'}`}
+                      >
+                        {usersLoading ? 'Loading users...' : selectedUser ? displayName(selectedUser) : 'Select user'}
+                      </span>
+                      {selectedUser && (
+                        <span className="block truncate text-[11px] text-gray-500 dark:text-gray-400">
+                          {[selectedUser.roleName, selectedUser.locationName].filter(Boolean).join(' · ') || 'Sales user'}
+                        </span>
+                      )}
+                    </span>
+                  </span>
+                  <ChevronDown size={17} className={`shrink-0 text-gray-400 transition-transform ${pickerOpen ? 'rotate-180' : ''}`} />
+                </button>
+              </PopoverTrigger>
 
-            {pickerOpen && !usersLoading && (
-              <div className="mt-2 w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg shadow-gray-200/60 dark:border-white/10 dark:bg-[#151126] dark:shadow-black/30">
+              <PopoverContent
+                align="start"
+                className="w-[var(--radix-popover-trigger-width)] overflow-hidden p-0"
+                onEscapeKeyDown={(event) => event.stopPropagation()}
+              >
                 <div className="p-2.5 border-b border-gray-100 dark:border-white/10">
                   <div className="sales-target-user-search flex h-10 items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 transition-colors focus-within:border-purple-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-purple-500/10 dark:border-white/10 dark:bg-[#0f1322] dark:focus-within:bg-[#0f1322]">
                     <Search size={15} className="text-gray-400 shrink-0" />
@@ -272,8 +259,8 @@ const SalesTargetModal = ({ open, user = null, users = [], usersLoading = false,
                     <p className="px-3 py-6 text-center text-xs text-gray-500">No matching users found.</p>
                   )}
                 </div>
-              </div>
-            )}
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div>

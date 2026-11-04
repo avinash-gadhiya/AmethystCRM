@@ -8,6 +8,7 @@ import { getApiErrorMessage } from '@/lib/apiError';
 import LiquidGlassButton from '@/components/common/LiquidGlassButton';
 import GlassCloseButton from '@/components/common/GlassCloseButton';
 import IosToggle from '@/components/common/IosToggle';
+import NativeLiquidSelect from '@/components/common/liquid-membrane/NativeLiquidSelect';
 
 /**
  * Centered responsive modal for creating and editing Group Email identities.
@@ -251,7 +252,7 @@ const GroupEmailModal = ({
               )}
             </div>
             <div className="relative">
-              <select
+              <NativeLiquidSelect
                 id="group-email-group"
                 value={groupId}
                 onChange={handleGroupSelect}
@@ -268,7 +269,7 @@ const GroupEmailModal = ({
                     {opt.name} {opt.isActive === false ? '(Inactive)' : ''}
                   </option>
                 ))}
-              </select>
+              </NativeLiquidSelect>
               <ChevronDown
                 size={16}
                 className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 dark:text-gray-500"

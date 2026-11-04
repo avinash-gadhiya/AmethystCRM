@@ -8,6 +8,7 @@ import { getApiErrorMessage } from '@/lib/apiError';
 import GlassCloseButton from '@/components/common/GlassCloseButton';
 import IosToggle from '@/components/common/IosToggle';
 import LiquidGlassButton from '@/components/common/LiquidGlassButton';
+import NativeLiquidSelect from '@/components/common/liquid-membrane/NativeLiquidSelect';
 
 const EMPTY_FORM = {
   brandEmailTemplateId: 0,
@@ -227,10 +228,10 @@ const StandaloneBrandTemplateModal = ({
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                 Brand <span className="text-red-500">*</span>
               </label>
-              <select value={form.brandId || ''} onChange={(event) => handleBrandChange(event.target.value)} disabled={saving} className={controlClass}>
+              <NativeLiquidSelect value={form.brandId || ''} onChange={(event) => handleBrandChange(event.target.value)} disabled={saving} className={controlClass}>
                 <option value="">Select brand</option>
                 {brands.map((brand) => <option key={brand.brandId} value={brand.brandId}>{brand.brandName}</option>)}
-              </select>
+              </NativeLiquidSelect>
             </div>
 
             <div>
@@ -251,17 +252,17 @@ const StandaloneBrandTemplateModal = ({
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                 Email Template <span className="text-red-500">*</span>
               </label>
-              <select value={form.templateId || ''} onChange={(event) => setForm((current) => ({ ...current, templateId: Number(event.target.value) || 0 }))} disabled={saving || loadingReferences} className={controlClass}>
+              <NativeLiquidSelect value={form.templateId || ''} onChange={(event) => setForm((current) => ({ ...current, templateId: Number(event.target.value) || 0 }))} disabled={saving || loadingReferences} className={controlClass}>
                 <option value="">{loadingReferences ? 'Loading templates...' : 'Select Template ID'}</option>
                 {masterTemplates.map((item) => <option key={item.templateId} value={item.templateId}>{item.templateName}</option>)}
-              </select>
+              </NativeLiquidSelect>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                 From Email <span className="text-red-500">*</span>
               </label>
-              <select
+              <NativeLiquidSelect
                 value={form.fromEmailId || ''}
                 onChange={(event) => {
                   const fromEmailId = Number(event.target.value) || 0;
@@ -273,7 +274,7 @@ const StandaloneBrandTemplateModal = ({
               >
                 <option value="">{!form.brandId ? 'Select brand first' : loadingEmails ? 'Loading emails...' : 'Select from email'}</option>
                 {brandEmails.map((item) => <option key={item.brandEmailId} value={item.brandEmailId}>{item.email}</option>)}
-              </select>
+              </NativeLiquidSelect>
             </div>
 
             <div>
@@ -288,10 +289,10 @@ const StandaloneBrandTemplateModal = ({
 
             <div>
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Sale Type</label>
-              <select value={form.saleTypeId || ''} onChange={(event) => setForm((current) => ({ ...current, saleTypeId: Number(event.target.value) || 0 }))} disabled={saving || loadingReferences} className={controlClass}>
+              <NativeLiquidSelect value={form.saleTypeId || ''} onChange={(event) => setForm((current) => ({ ...current, saleTypeId: Number(event.target.value) || 0 }))} disabled={saving || loadingReferences} className={controlClass}>
                 <option value="">{loadingReferences ? 'Loading sale types...' : 'Select sale type'}</option>
                 {saleTypes.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </select>
+              </NativeLiquidSelect>
             </div>
           </div>
 

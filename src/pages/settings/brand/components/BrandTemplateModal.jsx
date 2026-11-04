@@ -8,6 +8,7 @@ import { getApiErrorMessage } from '@/lib/apiError';
 import LiquidGlassButton from '@/components/common/LiquidGlassButton';
 import GlassCloseButton from '@/components/common/GlassCloseButton';
 import IosToggle from '@/components/common/IosToggle';
+import NativeLiquidSelect from '@/components/common/liquid-membrane/NativeLiquidSelect';
 
 const BrandTemplateModal = ({ open, brand = null, template = null, onClose, onSuccess }) => {
   const isEditing = Boolean(template && template.brandEmailTemplateId);
@@ -191,7 +192,7 @@ const BrandTemplateModal = ({ open, brand = null, template = null, onClose, onSu
                     <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
                       Master Template <span className="text-red-500">*</span>
                     </label>
-                    <select
+                    <NativeLiquidSelect
                       value={templateId}
                       onChange={(e) => handleMasterTemplateSelect(e.target.value)}
                       disabled={saving}
@@ -203,14 +204,14 @@ const BrandTemplateModal = ({ open, brand = null, template = null, onClose, onSu
                           {t.templateName}
                         </option>
                       ))}
-                    </select>
+                    </NativeLiquidSelect>
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
                       From Email (Sender) <span className="text-red-500">*</span>
                     </label>
-                    <select
+                    <NativeLiquidSelect
                       value={fromEmailId}
                       onChange={(e) => setFromEmailId(e.target.value)}
                       disabled={saving}
@@ -222,7 +223,7 @@ const BrandTemplateModal = ({ open, brand = null, template = null, onClose, onSu
                           {e.email} ({e.userName || 'Default'})
                         </option>
                       ))}
-                    </select>
+                    </NativeLiquidSelect>
                     {brandEmails.length === 0 && (
                       <span className="text-[11px] text-amber-500 mt-1 block">
                         No brand emails configured yet. Please configure one in the Email tab first.
@@ -248,7 +249,7 @@ const BrandTemplateModal = ({ open, brand = null, template = null, onClose, onSu
 
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">Sale Type</label>
-                    <select
+                    <NativeLiquidSelect
                       value={saleTypeId}
                       onChange={(e) => setSaleTypeId(Number(e.target.value))}
                       disabled={saving}
@@ -259,7 +260,7 @@ const BrandTemplateModal = ({ open, brand = null, template = null, onClose, onSu
                           {s.saleTypeName}
                         </option>
                       ))}
-                    </select>
+                    </NativeLiquidSelect>
                   </div>
                 </div>
 

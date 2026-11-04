@@ -13,6 +13,7 @@ import LiquidGlassButton from '@/components/common/LiquidGlassButton';
 import TableRefreshButton from '@/components/common/TableRefreshButton';
 import AnchorPagination from '@/components/common/AnchorPagination';
 import BrandEmailModal from './components/BrandEmailModal';
+import NativeLiquidSelect from '@/components/common/liquid-membrane/NativeLiquidSelect';
 
 const PAGE_SIZES = [10, 25, 50, 100];
 
@@ -206,7 +207,7 @@ const BrandEmailPage = () => {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center justify-between gap-3"><span className="text-sm font-medium text-gray-700 dark:text-gray-200">{rows.length} of {totalCount} results</span><div className="sm:hidden"><TableRefreshButton onClick={() => fetchEmails(true)} /></div></div>
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-              <select value={selectedBrandId || ''} onChange={(e) => setBrandFilter(Number(e.target.value || 0))} disabled={brandsLoading} aria-label="Filter by brand" className="w-full sm:w-48 px-3 py-2 rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0f1322] text-sm text-gray-900 dark:text-white outline-none focus:border-purple-500"><option value="">All Brands</option>{brands.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+              <NativeLiquidSelect value={selectedBrandId || ''} onChange={(e) => setBrandFilter(Number(e.target.value || 0))} disabled={brandsLoading} aria-label="Filter by brand" className="w-full sm:w-48 px-3 py-2 rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0f1322] text-sm text-gray-900 dark:text-white outline-none focus:border-purple-500"><option value="">All Brands</option>{brands.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</NativeLiquidSelect>
               <div className="relative flex items-center w-full sm:w-64 rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0f1322] focus-within:border-purple-500">
                 <Search size={16} className="ml-3 text-gray-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search Brand Email" className="w-full px-2 py-2 pr-8 bg-transparent text-sm text-gray-900 dark:text-white outline-none" />
                 {search && <button type="button" onClick={() => { setSearch(''); setDebouncedSearch(''); setPage(1); }} aria-label="Clear search" className="absolute right-2 text-gray-400"><X size={14} /></button>}
@@ -242,9 +243,9 @@ const BrandEmailPage = () => {
             <div className="px-4 py-3.5 border-t border-gray-200 dark:border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-gray-500 dark:text-gray-400">
               <div className="flex items-center gap-3">
                 <span>Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, totalCount)} of {totalCount}</span>
-                <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="rounded-md border border-gray-300 dark:border-white/10 bg-transparent px-2 py-1">
+                <NativeLiquidSelect value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="rounded-md border border-gray-300 dark:border-white/10 bg-transparent px-2 py-1">
                   {PAGE_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
-                </select>
+                </NativeLiquidSelect>
               </div>
               <AnchorPagination currentPage={page} totalPages={totalPages} onPageChange={(val) => setPage(val)} disabled={loading} />
             </div>

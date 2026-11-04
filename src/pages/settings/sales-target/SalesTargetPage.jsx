@@ -18,6 +18,7 @@ import ActionIconButton from '@/components/common/ActionIconButton';
 import TableRefreshButton from '@/components/common/TableRefreshButton';
 import AnchorPagination from '@/components/common/AnchorPagination';
 import SalesTargetModal from './components/SalesTargetModal';
+import NativeLiquidSelect from '@/components/common/liquid-membrane/NativeLiquidSelect';
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -292,7 +293,7 @@ const SalesTargetPage = () => {
               </span>
               <div className="flex items-center gap-1.5">
                 <span>Rows:</span>
-                <select
+                <NativeLiquidSelect
                   value={pageSize}
                   onChange={(event) => {
                     setPageSize(Number(event.target.value));
@@ -303,7 +304,7 @@ const SalesTargetPage = () => {
                   {PAGE_SIZE_OPTIONS.map((size) => (
                     <option key={size} value={size} className="dark:bg-[#17132a]">{size}</option>
                   ))}
-                </select>
+                </NativeLiquidSelect>
               </div>
             </div>
 

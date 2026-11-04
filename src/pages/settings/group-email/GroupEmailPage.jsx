@@ -25,6 +25,7 @@ import AnchorPagination from '@/components/common/AnchorPagination';
 import IosToggle from '@/components/common/IosToggle';
 
 import GroupEmailModal from './components/GroupEmailModal';
+import NativeLiquidSelect from '@/components/common/liquid-membrane/NativeLiquidSelect';
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -557,7 +558,7 @@ const GroupEmailPage = () => {
                 {/* Page Size Selector */}
                 <div className="flex items-center gap-1.5">
                   <span className="text-gray-500 dark:text-gray-400">Rows per page:</span>
-                  <select
+                  <NativeLiquidSelect
                     value={pageSize}
                     onChange={(e) => {
                       setPageSize(Number(e.target.value));
@@ -570,7 +571,7 @@ const GroupEmailPage = () => {
                         {size}
                       </option>
                     ))}
-                  </select>
+                  </NativeLiquidSelect>
                 </div>
 
                 {/* Page Navigation Buttons */}

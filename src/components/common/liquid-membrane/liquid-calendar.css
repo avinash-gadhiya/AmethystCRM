@@ -1,0 +1,23 @@
+.liquid-calendar-layer {
+  --membrane-surface: #fcfbff;
+  --membrane-rim: #dedbe8;
+  position: fixed;
+  inset: 0;
+  z-index: 11000;
+  pointer-events: none;
+}
+.dark .liquid-calendar-layer { --membrane-surface: #242638; --membrane-rim: #454457; }
+.liquid-calendar-surface { position: absolute; inset: 0; overflow: visible; pointer-events: none; filter: drop-shadow(0 4px 7px #38304f12); }
+.mini-calendar-popover.mini-calendar-popover--liquid {
+  /* The app sets every div[role=dialog] to 2000 !important. Keep the
+     interactive calendar above its decorative SVG and parent modals. */
+  z-index: 11001 !important;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  opacity: 0;
+  will-change: opacity, translate, clip-path;
+}
+.dark .mini-calendar-popover.mini-calendar-popover--liquid { background: transparent; border-color: transparent; }

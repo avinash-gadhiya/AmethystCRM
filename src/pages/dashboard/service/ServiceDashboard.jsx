@@ -22,10 +22,12 @@ import userService from 'services/userService';
 import AnchorPagination from '@/components/common/AnchorPagination';
 import LiquidGlassSurface from '@/components/common/LiquidGlassSurface';
 import LiquidGlassDatePicker from '@/components/common/LiquidGlassDatePicker';
+import LiquidMembraneSelect from '@/components/common/liquid-membrane/LiquidMembraneSelect';
 import GlassSegmentedControl from '@/components/common/GlassSegmentedControl';
 import './service-ticket-tabs.css';
 import { getMonthToDateRange, isValidDateRange, toInputDate } from 'utils/dateUtils';
 import { asArray, findNumber, integer, textValue } from '../dashboardData';
+import NativeLiquidSelect from '@/components/common/liquid-membrane/NativeLiquidSelect';
 
 const statusOf = (ticket) => textValue(ticket, ['statusName', 'ticketStatus', 'status', 'state'], 'New').toLowerCase();
 const isClosed = (status) => ['closed', 'complete', 'completed', 'resolved'].some((value) => status.includes(value));
@@ -269,47 +271,43 @@ export default function ServiceDashboard() {
       </LiquidGlassSurface>
 
       <LiquidGlassSurface allowOverflow className="relative z-40 rounded-2xl p-4 sm:p-5">
-        <div
-          className="grid grid-cols-1 items-end gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(180px,1fr)_minmax(150px,0.7fr)_minmax(300px,1.4fr)]"
-        >
+        <div className="grid grid-cols-1 items-end gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(180px,1fr)_minmax(150px,0.7fr)_minmax(300px,1.4fr)]">
           <div className="min-w-0">
             <label htmlFor="assigned-user-select" className="mb-1.5 block text-xs font-semibold text-slate-500 dark:text-slate-400">
               Agent
             </label>
-            <select
+            <LiquidMembraneSelect
               id="assigned-user-select"
+              label="Agent"
               value={userId}
-              onChange={(event) => setUserId(event.target.value)}
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white/70 px-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-            >
-              <option value="">All agents</option>
-              {users.map((user, index) => {
-                const id = user.userId ?? user.id ?? user.value ?? index;
-                return (
-                  <option key={id} value={id}>
-                    {textValue(user, ['fullName', 'userName', 'name', 'text', 'label'], 'User ' + (index + 1))}
-                  </option>
-                );
-              })}
-            </select>
+              onValueChange={setUserId}
+              options={[
+                { value: '', label: 'All agents' },
+                ...users.map((user, index) => ({
+                  value: String(user.userId ?? user.id ?? user.value ?? index),
+                  label: textValue(user, ['fullName', 'userName', 'name', 'text', 'label'], 'User ' + (index + 1))
+                }))
+              ]}
+            />
           </div>
           <div className="min-w-0">
             <label htmlFor="service-date-preset" className="mb-1.5 block text-xs font-semibold text-slate-500 dark:text-slate-400">
               Period
             </label>
-            <select
+            <LiquidMembraneSelect
               id="service-date-preset"
+              label="Period"
               value={datePreset}
-              onChange={(event) => handlePresetSelect(event.target.value)}
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white/70 px-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-            >
-              <option value="today">Today</option>
-              <option value="yesterday">Yesterday</option>
-              <option value="thisWeek">This week</option>
-              <option value="monthToDate">Month to date</option>
-              <option value="last30Days">Last 30 days</option>
-              <option value="custom">Custom range</option>
-            </select>
+              onValueChange={handlePresetSelect}
+              options={[
+                { value: 'today', label: 'Today' },
+                { value: 'yesterday', label: 'Yesterday' },
+                { value: 'thisWeek', label: 'This week' },
+                { value: 'monthToDate', label: 'Month to date' },
+                { value: 'last30Days', label: 'Last 30 days' },
+                { value: 'custom', label: 'Custom range' }
+              ]}
+            />
           </div>
           <div className="min-w-0 sm:col-span-2 xl:col-span-1">
             <span className="mb-1.5 block text-xs font-semibold text-slate-500 dark:text-slate-400">Date range</span>
@@ -626,11 +624,13 @@ export default function ServiceDashboard() {
               { id: 'closed', label: 'Closed', count: counts.closed, icon: CheckCircle2 }
             ].map((tab) => ({
               value: tab.id,
-              label: <>
+              label: (
+                <>
                   <tab.icon size={17} aria-hidden="true" />
                   <span>{tab.label}</span>
                   <span className="service-ticket-tabs__count">{tab.count}</span>
                 </>
+              )
             }))}
           />
         </div>
@@ -808,7 +808,7 @@ export default function ServiceDashboard() {
             {/* Page Size Selector */}
             <label htmlFor="service-ticket-page-size" className="flex items-center gap-2">
               <span>Rows per page</span>
-              <select
+              <NativeLiquidSelect
                 id="service-ticket-page-size"
                 value={pageSize}
                 onChange={(e) => {
@@ -820,7 +820,7 @@ export default function ServiceDashboard() {
                 <option value={10}>10</option>
                 <option value={25}>25</option>
                 <option value={50}>50</option>
-              </select>
+              </NativeLiquidSelect>
             </label>
           </div>
 

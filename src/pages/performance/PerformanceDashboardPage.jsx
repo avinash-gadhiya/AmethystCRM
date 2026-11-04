@@ -24,19 +24,11 @@ import LiquidGlassSurface from '@/components/common/LiquidGlassSurface';
 import StatCardGrid from '@/components/common/StatCards';
 import TableRefreshButton from '@/components/common/TableRefreshButton';
 import { ChartSkeleton, TableSkeletonRows } from '@/components/common/skeleton-loader';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import LiquidMembraneSelect from '@/components/common/liquid-membrane/LiquidMembraneSelect';
 import performanceDashboardService from '@/services/performanceDashboardService';
 import { aggregatePerformance, currentMonthRange, getQuickDateRange } from './performanceDashboardUtils';
 
-const QUICK_FILTERS = [
-  'Today',
-  'Yesterday',
-  'Last Week',
-  'Current Month',
-  'Last Month',
-  'This Year',
-  'Last Year'
-];
+const QUICK_FILTERS = ['Today', 'Yesterday', 'Last Week', 'Current Month', 'Last Month', 'This Year', 'Last Year'];
 
 const TIER_FILTERS = [
   ['all', 'All tiers'],
@@ -407,44 +399,37 @@ export default function PerformanceDashboardPage() {
 
           <LiquidGlassSurface allowOverflow className="liquid-glass-filter-panel flex w-full flex-col gap-2 rounded-2xl p-2.5 xl:w-auto">
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 xl:flex">
-              <Select value={quickFilter} onValueChange={handleQuickFilter}>
-                <SelectTrigger aria-label="Date preset" className="liquid-glass-control h-10 w-full min-w-[150px] rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="liquid-glass-menu">
-                  {quickFilter === 'Custom' && <SelectItem value="Custom">Custom range</SelectItem>}
-                  {QUICK_FILTERS.map((filter) => (
-                    <SelectItem key={filter} value={filter}>
-                      {filter}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={tierFilter} onValueChange={setTierFilter}>
-                <SelectTrigger aria-label="Performance tier" className="liquid-glass-control h-10 w-full min-w-[130px] rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="liquid-glass-menu">
-                  {TIER_FILTERS.map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={locationFilter} onValueChange={setLocationFilter}>
-                <SelectTrigger aria-label="Location" className="liquid-glass-control h-10 w-full min-w-[160px] rounded-xl">
-                  <SelectValue placeholder="All locations" />
-                </SelectTrigger>
-                <SelectContent className="liquid-glass-menu">
-                  <SelectItem value="all">All locations</SelectItem>
-                  {locations.map((location) => (
-                    <SelectItem key={location} value={location}>
-                      {location}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="min-w-0 xl:w-[150px]">
+                <LiquidMembraneSelect
+                  label="Date preset"
+                  value={quickFilter}
+                  onValueChange={handleQuickFilter}
+                  options={[
+                    ...(quickFilter === 'Custom' ? [{ value: 'Custom', label: 'Custom range' }] : []),
+                    ...QUICK_FILTERS.map((filter) => ({ value: filter, label: filter }))
+                  ]}
+                />
+              </div>
+              <div className="min-w-0 xl:w-[130px]">
+                <LiquidMembraneSelect
+                  label="Performance tier"
+                  value={tierFilter}
+                  onValueChange={setTierFilter}
+                  options={TIER_FILTERS.map(([value, label]) => ({ value, label }))}
+                />
+              </div>
+              <div className="min-w-0 xl:w-[160px]">
+                <LiquidMembraneSelect
+                  label="Location"
+                  value={locationFilter}
+                  onValueChange={setLocationFilter}
+                  placeholder="All locations"
+                  options={[
+                    { value: 'all', label: 'All locations' },
+                    ...locations.map((location) => ({ value: location, label: location }))
+                  ]}
+                />
+              </div>
             </div>
             <div className="flex min-w-0 items-center gap-2">
               <LiquidGlassDatePicker

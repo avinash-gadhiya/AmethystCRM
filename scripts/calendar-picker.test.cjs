@@ -41,7 +41,10 @@ function harness(file, props = {}) {
           }
         ];
       },
-      useRef: (initial) => refs[refIndex] || (refs[refIndex++] = { current: initial }),
+      useRef: (initial) => {
+        const index = refIndex++;
+        return refs[index] || (refs[index] = { current: initial });
+      },
       useId: () => 'calendar-heading',
       forwardRef: (render) => render
     },
@@ -49,6 +52,7 @@ function harness(file, props = {}) {
     '@radix-ui/react-popover': { Root: 'Root', Anchor: 'Anchor', Trigger: 'Trigger', Portal: 'Portal', Content: 'Content' },
     'lucide-react': Object.fromEntries(['Calendar', 'CalendarDays', 'ChevronLeft', 'ChevronRight', 'RotateCcw'].map((key) => [key, key])),
     './MiniCalendar': { __esModule: true, default: 'MiniCalendar' },
+    './liquid-membrane/LiquidCalendarContent': { __esModule: true, default: 'Content' },
     '@/utils/calendarUtils': utils
   }).default;
   const render = () => {

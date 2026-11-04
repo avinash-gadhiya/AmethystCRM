@@ -1,0 +1,35 @@
+.liquid-overlay-layer {
+  --membrane-surface: #fcfbff;
+  --membrane-rim: #dedbe8;
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+.dark .liquid-overlay-layer { --membrane-surface: #242638; --membrane-rim: #454457; }
+.liquid-overlay-surface { position: absolute; inset: 0; overflow: visible; pointer-events: none; filter: drop-shadow(0 4px 7px #38304f12); }
+.liquid-overlay-content {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  animation: none !important;
+  transition: none !important;
+  will-change: opacity, translate, clip-path;
+}
+.liquid-native-select { position: relative; display: inline-flex; flex-wrap: wrap; min-width: 0; max-width: 100%; vertical-align: middle; }
+.liquid-native-select--full { width: 100%; }
+.liquid-native-select__backing { position: absolute !important; width: 1px !important; height: 1px !important; min-width: 0 !important; padding: 0 !important; margin: 0 !important; border: 0 !important; opacity: 0 !important; pointer-events: none !important; clip-path: inset(50%) !important; }
+.liquid-native-select__trigger { min-height: 34px; width: 100%; border: 1px solid #dedbe8; border-radius: 12px; background: #fcfbff; color: #33415c; }
+.dark .liquid-native-select__trigger { border-color: #454457; background: #242638; color: #eeeafa; }
+.liquid-native-select__error { display: block; flex-basis: 100%; margin-top: 4px; color: #e11d48; font-size: 11px; }
+.liquid-native-select [aria-invalid='true'] { border-color: #f43f5e; }
+.liquid-select-search { background: transparent; }
+.liquid-select-search:focus-within { border-bottom-color: #bca8df; }
+.liquid-overlay-content .liquid-select-search input.liquid-select-search__input,
+.liquid-overlay-content .liquid-select-search input.liquid-select-search__input:is(:focus, :focus-visible) {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}

@@ -28,6 +28,7 @@ import IosToggle from '@/components/common/IosToggle';
 
 import GroupModal from './components/GroupModal';
 import GroupEmailModal from './components/GroupEmailModal';
+import NativeLiquidSelect from '@/components/common/liquid-membrane/NativeLiquidSelect';
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -689,7 +690,7 @@ const GroupPage = () => {
                       </span>
                       <div className="flex items-center gap-1.5">
                         <span>Rows:</span>
-                        <select
+                        <NativeLiquidSelect
                           value={groupPageSize}
                           onChange={(e) => {
                             setGroupPageSize(Number(e.target.value));
@@ -702,7 +703,7 @@ const GroupPage = () => {
                               {size}
                             </option>
                           ))}
-                        </select>
+                        </NativeLiquidSelect>
                       </div>
                     </div>
 
@@ -987,7 +988,7 @@ const GroupPage = () => {
                       </span>
                       <div className="flex items-center gap-1.5">
                         <span>Rows:</span>
-                        <select
+                        <NativeLiquidSelect
                           value={emailPageSize}
                           onChange={(e) => {
                             setEmailPageSize(Number(e.target.value));
@@ -1000,7 +1001,7 @@ const GroupPage = () => {
                               {size}
                             </option>
                           ))}
-                        </select>
+                        </NativeLiquidSelect>
                       </div>
                     </div>
 

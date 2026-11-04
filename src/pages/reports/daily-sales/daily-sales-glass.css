@@ -76,15 +76,6 @@
 .daily-sales-period { width: 212px; }
 .daily-sales-dates { width: 388px; }
 .daily-sales-location { width: 237px; }
-.daily-sales-report .daily-sales-filters [aria-haspopup='listbox'] {
-  height: 50px;
-  padding: 0 15px;
-  border-radius: 16px;
-  border-color: #dfe4f5;
-  background: rgba(255, 255, 255, 0.8);
-  color: #414d62;
-  font-size: 18px;
-}
 .daily-sales-report .liquid-glass-date-picker { gap: 8px; }
 .daily-sales-report .liquid-glass-date-picker > button,
 .daily-sales-report .daily-sales-refresh {
@@ -136,5 +127,4 @@
   .daily-sales-filters { flex-wrap: wrap; }
   .daily-sales-period, .daily-sales-dates { width: 100%; flex: auto; }
   .daily-sales-location { width: auto; min-width: 0; }
-  .daily-sales-report .daily-sales-filters [aria-haspopup='listbox'] { font-size: 16px; }
 }

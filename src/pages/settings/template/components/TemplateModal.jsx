@@ -9,6 +9,7 @@ import LiquidGlassButton from '@/components/common/LiquidGlassButton';
 import GlassCloseButton from '@/components/common/GlassCloseButton';
 import IosToggle from '@/components/common/IosToggle';
 import RichTextEditor from './RichTextEditor';
+import NativeLiquidSelect from '@/components/common/liquid-membrane/NativeLiquidSelect';
 
 const TemplateModal = ({
   open,
@@ -209,7 +210,7 @@ const TemplateModal = ({
                 Email Type
               </label>
               <div className="relative">
-                <select
+                <NativeLiquidSelect
                   value={formData.emailTypeId}
                   onChange={(e) => handleChange('emailTypeId', e.target.value)}
                   disabled={saving}
@@ -221,7 +222,7 @@ const TemplateModal = ({
                       {et.name}
                     </option>
                   ))}
-                </select>
+                </NativeLiquidSelect>
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 text-xs">
                   ▼
                 </span>

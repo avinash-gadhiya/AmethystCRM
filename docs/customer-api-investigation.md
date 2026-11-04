@@ -33,3 +33,10 @@ Frontend changes:
 - Customer saves are read back from detail and list APIs. A POST echo alone cannot confirm persistence. An incomplete read-back produces a separate warning, retains the form entries and created ID, and offers Done. Unchanged data cannot be submitted again. Editing the retained fields allows a PUT to the same customer rather than another POST. Actual write failures remain errors.
 
 Restart the local Vite server after pulling these configuration changes. Customer #13's missing values cannot be reconstructed from the supplied response alone.
+
+Customer profile display follow-up:
+
+- The table now includes the stored street address and ZIP code, which the previous compact cell intentionally excluded.
+- Profile fields learned from successful reads, saves or explicit status operations are retained by exact customer ID for the current login in this tab. Sparse list/search/detail responses no longer erase them after activation, refresh or navigation. The cache never supplies isActive or creation metadata, is isolated by API/user/login, and is cleared on logout and customer deletion. Explicit edits replace cached values, including cleared fields. Save verification bypasses this display cache so a write echo cannot be mistaken for a persisted read-back.
+- User, state and country dropdown labels also recognize id/value and label/text response fields alongside the entity-specific keys.
+- These changes keep the existing HTTP endpoints, methods, parameters and write payloads. Loading the page never calls CanDisableCustomer to obtain profile data. Customers whose stored profiles have never been returned to this tab still require the backend GET projection correction described above. Session retention cannot reconstruct information absent from every read-only response.

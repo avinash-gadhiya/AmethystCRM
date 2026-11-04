@@ -24,6 +24,7 @@ import LiquidGlassButton from '@/components/common/LiquidGlassButton';
 import AnchorPagination from '@/components/common/AnchorPagination';
 import TableRefreshButton from '@/components/common/TableRefreshButton';
 import StandaloneBrandTemplateModal from './components/StandaloneBrandTemplateModal';
+import NativeLiquidSelect from '@/components/common/liquid-membrane/NativeLiquidSelect';
 
 const PAGE_SIZES = [10, 25, 50, 100];
 
@@ -257,7 +258,7 @@ const BrandTemplatePage = () => {
               <div className="flex flex-col sm:flex-row sm:items-end gap-2 w-full lg:w-auto">
                 <label className="w-full sm:w-48">
                   <span className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-1">Brand</span>
-                  <select
+                  <NativeLiquidSelect
                     value={selectedBrandId || ''}
                     onChange={(event) => setBrandFilter(Number(event.target.value) || 0)}
                     disabled={brandsLoading}
@@ -265,7 +266,7 @@ const BrandTemplatePage = () => {
                   >
                     <option value="">All Brands</option>
                     {brands.map((brand) => <option key={brand.brandId} value={brand.brandId}>{brand.brandName}</option>)}
-                  </select>
+                  </NativeLiquidSelect>
                 </label>
 
                 <div className="relative flex items-center w-full sm:w-64 rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0f1322] focus-within:border-purple-500 sm:mb-0">
@@ -352,9 +353,9 @@ const BrandTemplatePage = () => {
                   <span>Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, totalCount)} of {totalCount} Templates</span>
                   <div className="flex items-center gap-1.5">
                     <span>Rows:</span>
-                    <select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }} className="rounded-md border border-gray-300 dark:border-white/10 bg-transparent px-2 py-1 text-gray-900 dark:text-white">
+                    <NativeLiquidSelect value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }} className="rounded-md border border-gray-300 dark:border-white/10 bg-transparent px-2 py-1 text-gray-900 dark:text-white">
                       {PAGE_SIZES.map((size) => <option key={size} value={size} className="dark:bg-[#17132a]">{size}</option>)}
-                    </select>
+                    </NativeLiquidSelect>
                   </div>
                 </div>
                 <AnchorPagination

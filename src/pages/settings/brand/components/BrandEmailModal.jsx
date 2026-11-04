@@ -8,6 +8,7 @@ import { getApiErrorMessage } from '@/lib/apiError';
 import LiquidGlassButton from '@/components/common/LiquidGlassButton';
 import GlassCloseButton from '@/components/common/GlassCloseButton';
 import IosToggle from '@/components/common/IosToggle';
+import NativeLiquidSelect from '@/components/common/liquid-membrane/NativeLiquidSelect';
 
 const BrandEmailModal = ({
   open,
@@ -195,7 +196,7 @@ const BrandEmailModal = ({
               <label htmlFor="brand-email-brand" className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
                 Brand <span className="text-red-500">*</span>
               </label>
-              <select
+              <NativeLiquidSelect
                 id="brand-email-brand"
                 value={selectedBrandId || ''}
                 onChange={(e) => setSelectedBrandId(Number(e.target.value || 0))}
@@ -208,7 +209,7 @@ const BrandEmailModal = ({
                   const id = Number(item.id ?? item.brandId);
                   return <option key={id} value={id}>{item.name || item.brandName || `Brand #${id}`}</option>;
                 })}
-              </select>
+              </NativeLiquidSelect>
             </div>
 
             <div>

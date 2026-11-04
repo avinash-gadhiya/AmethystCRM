@@ -397,7 +397,6 @@ export default function CustomerFormModal({
   const [addressLoading, setAddressLoading] = useState(false);
   const [stateSearchText, setStateSearchText] = useState('');
 
-  const leadPickerRef = useRef(null);
   const phoneInputRef = useRef(null);
   const phone2InputRef = useRef(null);
   const addressSessionTokenRef = useRef('');
@@ -1097,21 +1096,7 @@ export default function CustomerFormModal({
   };
 
   // The lead list floats over the form, so close it on any click outside the picker.
-  useEffect(() => {
-    if (!leadPickerOpen) return undefined;
-    const handlePointerDown = (event) => {
-      if (leadPickerRef.current && !leadPickerRef.current.contains(event.target)) setLeadPickerOpen(false);
-    };
-    const handleEscape = (event) => {
-      if (event.key === 'Escape') setLeadPickerOpen(false);
-    };
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [leadPickerOpen]);
+
 
   if (!open) return null;
 
@@ -1200,13 +1185,13 @@ export default function CustomerFormModal({
                 </button>
               )}
             >
-              <div ref={leadPickerRef} className="relative">
-                <button
+              <Popover open={leadPickerOpen} onOpenChange={setLeadPickerOpen}>
+                <PopoverTrigger asChild><button
                   type="button"
                   role="combobox"
                   aria-expanded={leadPickerOpen}
                   aria-haspopup="listbox"
-                  onClick={() => setLeadPickerOpen((current) => !current)}
+
                   className={cn(
                     selectFieldClass,
                     'customer-form-field',
@@ -1226,13 +1211,9 @@ export default function CustomerFormModal({
                     <span className="truncate text-slate-400">Search and select a lead</span>
                   )}
                   <ChevronsUpDown className="h-4 w-4 shrink-0 text-slate-400" />
-                </button>
+                </button></PopoverTrigger>
 
-                {leadPickerOpen && (
-                  <div
-                    className="absolute left-0 right-0 top-full mt-1.5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10 dark:border-slate-700 dark:bg-slate-900"
-                    style={{ zIndex: popupZ }}
-                  >
+                <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] overflow-hidden p-0" style={{ zIndex: popupZ }} onEscapeKeyDown={(event) => event.stopPropagation()}>
                     <Command shouldFilter={false}>
                       <CommandInput
                         autoFocus
@@ -1286,9 +1267,8 @@ export default function CustomerFormModal({
                         )}
                       </CommandList>
                     </Command>
-                  </div>
-                )}
-              </div>
+                  </PopoverContent>
+              </Popover>
             </Field>
 
             <Field label="Sales Person" required error={showValidationErrors && formErrors.salesPerson}>

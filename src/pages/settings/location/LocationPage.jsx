@@ -25,6 +25,7 @@ import AnchorPagination from '@/components/common/AnchorPagination';
 import IosToggle from '@/components/common/IosToggle';
 
 import LocationModal from './components/LocationModal';
+import NativeLiquidSelect from '@/components/common/liquid-membrane/NativeLiquidSelect';
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -469,7 +470,7 @@ const LocationPage = () => {
                   </span>
                   <div className="flex items-center gap-1.5">
                     <span>Rows:</span>
-                    <select
+                    <NativeLiquidSelect
                       value={pageSize}
                       onChange={(e) => {
                         setPageSize(Number(e.target.value));
@@ -482,7 +483,7 @@ const LocationPage = () => {
                           {size}
                         </option>
                       ))}
-                    </select>
+                    </NativeLiquidSelect>
                   </div>
                 </div>
 

@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { ArrowUpDown, ArrowUp, ArrowDown, Inbox } from 'lucide-react';
 import AnchorPagination from './AnchorPagination';
+import NativeLiquidSelect from '@/components/common/liquid-membrane/NativeLiquidSelect';
 
 const DEFAULT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -351,7 +352,7 @@ const CommonTable = ({
               {pConfig.showPageSize && typeof pConfig.onPageSizeChange === 'function' && (
                 <div className="flex items-center gap-1.5">
                   <span>Per page:</span>
-                  <select
+                  <NativeLiquidSelect
                     value={pConfig.pageSize}
                     onChange={(e) =>
                       pConfig.onPageSizeChange(
@@ -365,7 +366,7 @@ const CommonTable = ({
                         {sz}
                       </option>
                     ))}
-                  </select>
+                  </NativeLiquidSelect>
                 </div>
               )}
 

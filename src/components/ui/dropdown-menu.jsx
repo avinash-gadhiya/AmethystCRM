@@ -4,10 +4,40 @@ import * as React from 'react';
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
 import { Check, ChevronRight, Circle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-const DropdownMenu = DropdownMenuPrimitive.Root;
+import useLiquidOverlay from '@/components/common/liquid-membrane/useLiquidOverlay';
+const LiquidMenuContext = React.createContext(null);
+function DropdownMenu({ open: controlledOpen, defaultOpen = false, onOpenChange, children, ...props }) {
+  const [localOpen, setLocalOpen] = React.useState(defaultOpen);
+  const anchorRef = React.useRef(null);
+  const open = controlledOpen ?? localOpen;
+  const change = (next) => {
+    setLocalOpen(next);
+    onOpenChange?.(next);
+  };
+  return (
+    <LiquidMenuContext.Provider value={{ open, change, anchorRef }}>
+      <DropdownMenuPrimitive.Root {...props} open={open} onOpenChange={change}>
+        {children}
+      </DropdownMenuPrimitive.Root>
+    </LiquidMenuContext.Provider>
+  );
+}
 const DropdownMenuTrigger = React.forwardRef(({ className, ...props }, ref) => (
-  <DropdownMenuPrimitive.Trigger ref={ref} className={cn('drop-label', className)} {...props} />
+  <LiquidMenuTrigger ref={ref} className={cn('drop-label', className)} {...props} />
 ));
+const LiquidMenuTrigger = React.forwardRef(function LiquidMenuTrigger(props, forwardedRef) {
+  const context = React.useContext(LiquidMenuContext);
+  return (
+    <DropdownMenuPrimitive.Trigger
+      {...props}
+      ref={(node) => {
+        if (context) context.anchorRef.current = node;
+        if (typeof forwardedRef === 'function') forwardedRef(node);
+        else if (forwardedRef) forwardedRef.current = node;
+      }}
+    />
+  );
+});
 DropdownMenuTrigger.displayName = DropdownMenuPrimitive.Trigger.displayName;
 const DropdownMenuGroup = DropdownMenuPrimitive.Group;
 const DropdownMenuPortal = DropdownMenuPrimitive.Portal;
@@ -39,19 +69,42 @@ const DropdownMenuSubContent = React.forwardRef(({ className, ...props }, ref) =
   />
 ));
 DropdownMenuSubContent.displayName = DropdownMenuPrimitive.SubContent.displayName;
-const DropdownMenuContent = React.forwardRef(({ className, sideOffset = 4, ...props }, ref) => (
-  <DropdownMenuPrimitive.Portal>
-    <DropdownMenuPrimitive.Content
-      ref={ref}
-      sideOffset={sideOffset}
-      className={cn(
-        'drop-content z-50 min-w-[8rem] max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 shadow-md',
-        className
-      )}
-      {...props}
-    />
-  </DropdownMenuPrimitive.Portal>
-));
+const DropdownMenuContent = React.forwardRef(function DropdownMenuContent(
+  { className, sideOffset = 12, style, onCloseAutoFocus, ...props },
+  ref
+) {
+  const context = React.useContext(LiquidMenuContext);
+  const fallback = React.useRef(null);
+  const zIndex = Number(style?.zIndex) || 11000;
+  const { surface, mountContent, dismissed } = useLiquidOverlay({
+    open: Boolean(context?.open),
+    onOpenChange: context?.change || (() => {}),
+    anchorRef: context?.anchorRef || fallback,
+    forwardedRef: ref,
+    zIndex
+  });
+  return (
+    <>
+      {surface}
+      <DropdownMenuPrimitive.Portal>
+        <DropdownMenuPrimitive.Content
+          ref={mountContent}
+          sideOffset={Math.max(12, sideOffset)}
+          style={{ ...style, zIndex: zIndex + 1 }}
+          onCloseAutoFocus={(event) => {
+            if (dismissed.current) event.preventDefault();
+            else onCloseAutoFocus?.(event);
+          }}
+          className={cn(
+            'drop-content liquid-overlay-content min-w-[8rem] max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto rounded-2xl border p-1 text-slate-700 dark:text-slate-100',
+            className
+          )}
+          {...props}
+        />
+      </DropdownMenuPrimitive.Portal>
+    </>
+  );
+});
 DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName;
 const DropdownMenuItem = React.forwardRef(({ className, inset, selected, ...props }, ref) => (
   <DropdownMenuPrimitive.Item

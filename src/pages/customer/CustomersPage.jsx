@@ -57,13 +57,13 @@ const formatDateTime = (value) => {
   return date.toLocaleString('en-US');
 };
 
-const customerAddress = (customer, compact = false) =>
+const customerAddress = (customer) =>
   [
-    !compact && customer?.address,
+    customer?.address,
     customer?.city,
     customer?.stateName || (customer?.stateId > 0 ? `State #${customer.stateId}` : ''),
     customer?.countryName || (customer?.countryId > 0 ? `Country #${customer.countryId}` : ''),
-    !compact && customer?.zipCode
+    customer?.zipCode
   ]
     .map((part) => String(part || '').trim())
     .filter(Boolean)
@@ -310,7 +310,7 @@ export default function CustomersPage() {
   };
 
   const columns = [
-    { id: 'id', header: 'ID', cell: (customer) => customer.customerId },
+    { id: 'id', header: 'ID', cell: (customer) => <span className="customer-id">#{customer.customerId}</span> },
     {
       id: 'customer',
       header: 'Name',
@@ -327,7 +327,7 @@ export default function CustomersPage() {
     {
       id: 'address',
       header: 'Address',
-      cell: (customer) => customerAddress(customer, true)
+      cell: (customer) => customerAddress(customer)
     },
     {
       id: 'salesPerson',
@@ -351,7 +351,7 @@ export default function CustomersPage() {
       cell: (customer) => {
         const active = isCustomerActive(customer.isActive);
         return (
-          <div className="flex flex-col items-center justify-center gap-2">
+          <div className="customer-status" data-active={active} aria-busy={Boolean(statusBusy[customer.customerId])}>
             <IosToggle
               checked={active}
               disabled={!permissions.canUpdate || statusBusy[customer.customerId]}
@@ -360,6 +360,9 @@ export default function CustomersPage() {
               title={active ? 'Deactivate customer' : 'Activate customer'}
               aria-label={active ? 'Deactivate customer' : 'Activate customer'}
             />
+            <span className="customer-status-label">
+              {statusBusy[customer.customerId] ? 'Updating...' : active ? 'Active' : 'Inactive'}
+            </span>
             {statusErrors[customer.customerId] && (
               <span role="alert" className="max-w-48 text-center text-xs text-rose-600 dark:text-rose-300">
                 {statusErrors[customer.customerId]}
@@ -438,17 +441,17 @@ export default function CustomersPage() {
         title="Customers"
         description="Manage CRM customers and account activity"
       >
-        <div className="flex flex-wrap gap-2">
-          <LiquidGlassButton variant="secondary" onClick={openViewLogs}>
+        <div className="customer-header-actions">
+          <LiquidGlassButton className="customer-header-button" variant="secondary" onClick={openViewLogs}>
             <History size={16} /> View Logs
           </LiquidGlassButton>
           {permissions.canUpdate && (
-            <LiquidGlassButton variant="secondary" onClick={rebuildIndex} loading={rebuilding}>
+            <LiquidGlassButton className="customer-header-button" variant="secondary" onClick={rebuildIndex} loading={rebuilding}>
               {!rebuilding && <Database size={16} />} Rebuild Index
             </LiquidGlassButton>
           )}
           {permissions.canAdd && (
-            <LiquidGlassButton onClick={openCreate}>
+            <LiquidGlassButton className="customer-header-button customer-add-button" onClick={openCreate}>
               <Plus size={16} /> Add Customer
             </LiquidGlassButton>
           )}

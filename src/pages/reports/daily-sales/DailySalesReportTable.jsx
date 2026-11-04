@@ -6,6 +6,7 @@ import AnchorPagination from '@/components/common/AnchorPagination';
 import TableSearchField from '@/components/common/TableSearchField';
 import { TableCard } from '@/components/common/page-card';
 import { formatDailySalesCurrency, formatDailySalesPercentage, groupDailySalesByLocation } from '@/utils/dailySalesReportUtils';
+import NativeLiquidSelect from '@/components/common/liquid-membrane/NativeLiquidSelect';
 
 const COLUMNS = [
   { key: 'userName', label: 'User Name' },
@@ -169,7 +170,7 @@ export default function DailySalesReportTable({ rows, loading, search, onSearchC
           <div className="flex flex-wrap items-center gap-4">
             <label className="flex items-center gap-1.5">
               Per page:
-              <select
+              <NativeLiquidSelect
                 value={pageSize}
                 onChange={(event) => setPageSize(Number(event.target.value))}
                 className="cursor-pointer rounded-md border border-gray-300 bg-white px-2 py-1 text-gray-800 focus:outline-none dark:border-white/10 dark:bg-[#0f1322] dark:text-gray-200"
@@ -179,7 +180,7 @@ export default function DailySalesReportTable({ rows, loading, search, onSearchC
                     {size}
                   </option>
                 ))}
-              </select>
+              </NativeLiquidSelect>
             </label>
             <AnchorPagination currentPage={safePage} totalPages={totalPages} onPageChange={setPage} />
           </div>

@@ -1,3 +1,4 @@
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Download, FileBarChart, RefreshCw, RotateCcw, Search, Trash2, X } from 'lucide-react';
 import { Badge, Button, Modal, Spinner } from '@/components/ui/Bootstrap';
@@ -391,16 +392,8 @@ export default function Leads({ permissions, voicemail, lookups }) {
     [exporting, setExporting] = useState(false),
     [report, setReport] = useState(''),
     [reportMenuOpen, setReportMenuOpen] = useState(false);
-  const reportMenuRef = useRef(null);
   const now = useNow();
-  useEffect(() => {
-    if (!reportMenuOpen) return undefined;
-    const closeMenu = (event) => {
-      if (!reportMenuRef.current?.contains(event.target)) setReportMenuOpen(false);
-    };
-    document.addEventListener('mousedown', closeMenu);
-    return () => document.removeEventListener('mousedown', closeMenu);
-  }, [reportMenuOpen]);
+
   const query = useCallback(
     (pageNumber = page, size = pageSize) => ({
       PageNumber: pageNumber,
@@ -673,20 +666,19 @@ export default function Leads({ permissions, voicemail, lookups }) {
               <span>Reset</span>
             </button>
           )}
-          <div className="lead-report-menu" ref={reportMenuRef}>
-            <button
+          <Popover open={reportMenuOpen} onOpenChange={setReportMenuOpen}>
+            <PopoverTrigger asChild><button
               type="button"
               className={`lead-export-icon-button lead-report-icon-button ${reportMenuOpen ? 'active' : ''}`}
-              onClick={() => setReportMenuOpen((value) => !value)}
+
               aria-label="Open reports"
               aria-haspopup="menu"
               aria-expanded={reportMenuOpen}
               title="Reports"
             >
               <FileBarChart size={18} />
-            </button>
-            {reportMenuOpen && (
-              <div className="lead-report-menu-popover" role="menu">
+            </button></PopoverTrigger>
+            <PopoverContent align="end" className="lead-report-menu-popover" style={{ position: "relative", inset: "auto", margin: 0 }}>
                 <button
                   type="button"
                   role="menuitem"
@@ -707,9 +699,8 @@ export default function Leads({ permissions, voicemail, lookups }) {
                 >
                   Conversation
                 </button>
-              </div>
-            )}
-          </div>
+              </PopoverContent>
+          </Popover>
           <button
             type="button"
             className="lead-export-icon-button"

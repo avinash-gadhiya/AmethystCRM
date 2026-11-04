@@ -8,6 +8,7 @@ import { getApiErrorMessage } from '@/lib/apiError';
 import LiquidGlassButton from '@/components/common/LiquidGlassButton';
 import GlassCloseButton from '@/components/common/GlassCloseButton';
 import IosToggle from '@/components/common/IosToggle';
+import NativeLiquidSelect from '@/components/common/liquid-membrane/NativeLiquidSelect';
 
 const normalizeOptionalId = (value) =>
   value !== undefined && value !== null && value !== '' && Number(value) > 0 ? value : '';
@@ -323,7 +324,7 @@ const UserEditorModal = ({
                   <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
                     Role <span className="text-red-500">*</span>
                   </label>
-                  <select
+                  <NativeLiquidSelect
                     name="roleId"
                     required
                     value={formData.roleId !== undefined && formData.roleId !== null ? String(formData.roleId) : ''}
@@ -345,14 +346,14 @@ const UserEditorModal = ({
                         {user?.roleName || user?.role || `Role #${formData.roleId}`}
                       </option>
                     )}
-                  </select>
+                  </NativeLiquidSelect>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
                     Location
                   </label>
-                  <select
+                  <NativeLiquidSelect
                     name="locationId"
                     value={formData.locationId !== undefined && formData.locationId !== null ? String(formData.locationId) : ''}
                     onChange={handleInputChange}
@@ -373,7 +374,7 @@ const UserEditorModal = ({
                         {user?.locationName || user?.location || `Location #${formData.locationId}`}
                       </option>
                     )}
-                  </select>
+                  </NativeLiquidSelect>
                 </div>
               </div>
 

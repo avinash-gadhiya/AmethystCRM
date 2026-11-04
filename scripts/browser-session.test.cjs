@@ -713,7 +713,8 @@ test('all fetch clients associate a 401 with the token used for that request', a
       file,
       {
         [authPath]: { __esModule: true, default: { getToken: () => token } },
-        [httpPath]: { handleSessionExpired: (value) => expired.push(value) }
+        [httpPath]: { handleSessionExpired: (value) => expired.push(value) },
+        '@/lib/normalizeApiRecord': load('src/lib/normalizeApiRecord.js')
       },
       {
         URLSearchParams,
